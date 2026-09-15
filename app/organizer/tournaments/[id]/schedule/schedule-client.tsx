@@ -1,4 +1,13 @@
 "use client";
 import {useState} from "react";
 import {createClient} from "@/lib/supabase/client";
-export default function ScheduleClient({tournamentId}:{tournamentId:string}){const[saving,setSaving]=useState(false);const[message,setMessage]=useState("");const s=createClient();async function generate(){setSaving(true);setMessage("");const{data,error}=await s.rpc("generate_tournament_schedule",{p_tournament_id:tournamentId});setMessage(error?error.message:`Готово. В расписание добавлено боёв: ${data??0}`);setSaving(false)}return <div className="actions"><button className="primary" disabled={saving} onClick={generate}>{saving?"Формируем…":"Сформировать расписание"}</button>{message&&<span className="muted">{message}</span>}</div>}
+
+type Row={id:string;scheduled_order:number|null;mat_id:string|null};
+
+export default function ScheduleClient({tournamentId,initialRows}:{tournamentId:string;initialRows:Row[]}){
+ const[rows,setRows]=useState(initialRows); const[saving,setSaving]=useState<string|null>(null); const[message,setMessage]=useState(""); const s=createClient();
+ async function persist(next:Row[]){setSaving("save");setMessage(""); for(let i=0;i<next.length;i++){const r=next[i];const{error}=await s.from("match_schedule").update({scheduled_order:i+1}).eq("id",r.id);if(error){setMessage(error.message);setSaving(null);return}} setRows(next.map((r,i)=>({...r,scheduled_order:i+1})));setSaving(null);setMessage("Порядок сохранён.")}
+ async function move(index:number,dir:number){const target=index+dir;if(target<0||target>=rows.length)return;const next=[...rows];[next[index],next[target]]=[next[target],next[index]];await persist(next)}
+ async function setMat(id:string,matId:string){setSaving(id);const{error}=await s.from("match_schedule").update({mat_id:matId||null}).eq("id",id);setSaving(null);if(error)setMessage(error.message);else{setRows(x=>x.map(r=>r.id===id?{...r,mat_id:matId||null}:r));setMessage("Ковёр обновлён.")}}
+ async function generate(){setSaving("generate");setMessage("");const{data,error}=await s.rpc("generate_tournament_schedule",{p_tournament_id:tournamentId});if(error)setMessage(error.message);else{setMessage(`Готово. В расписание добавлено боёв: ${data??0}`);window.location.reload()}setSaving(null)}
+ return <div className="actions"><button className="primary" disabled={!!saving} onClick={generate}>{saving==="generate"?"Формируем…":"Сформировать расписание"}</button>{message&&<span className="muted">{message}</span>}<div className="schedule-edit-list">{rows.map((r,i)=><div className="schedule-edit-row" key={r.id}><span>#{r.scheduled_order??i+1}</span><button disabled={!!saving||i===0} onClick={()=>move(i,-1)}>↑</button><button disabled={!!saving||i===rows.length-1} onClick={()=>move(i,1)}>↓</button></div>)}</div></div>}
