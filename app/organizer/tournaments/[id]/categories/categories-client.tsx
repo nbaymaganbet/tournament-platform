@@ -6,10 +6,10 @@ import { createClient } from "@/lib/supabase/client";
 type Person = { id: string; first_name: string; last_name: string; age: number; weight: number; club: string | null; coach: string | null };
 type Category = { id: string; name: string; age_min: number | null; age_max: number | null; weight_limit: number | null; sort_order: number; participantCount: number };
 
-export default function CategoriesClient({ tournamentId, initialCategories, participants, assignedParticipantIds }: { tournamentId: string; initialCategories: Category[]; participants: Person[]; assignedParticipantIds: string[] }) {
+export default function CategoriesClient({ tournamentId, initialCategories, participants, initialAssignments }: { tournamentId: string; initialCategories: Category[]; participants: Person[]; initialAssignments: Record<string, string> }) {
   const [categories, setCategories] = useState(initialCategories);
   const [selectedCategory, setSelectedCategory] = useState(initialCategories[0]?.id ?? "");
-  const [assigned, setAssigned] = useState<Record<string, string>>({});
+  const [assigned, setAssigned] = useState<Record<string, string>>(initialAssignments);
   const [form, setForm] = useState({ name: "", ageMin: "", ageMax: "", weight: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -65,6 +65,5 @@ export default function CategoriesClient({ tournamentId, initialCategories, part
     {selected && <div className="form-card"><h2>Участники: {selected.name}</h2><p className="muted">Добавляйте и убирайте подтверждённых участников вручную. Автоматического распределения нет.</p>{visibleParticipants.length === 0 ? <div className="empty-state">Свободных подтверждённых участников нет.</div> : <div className="participants-list">{visibleParticipants.map((p) => { const inCategory = assigned[p.id] === selectedCategory; return <article className="participant-card" key={p.id}><div className="participant-main"><div><strong>{p.last_name} {p.first_name}</strong><span className="muted">{p.age} лет · {p.weight} кг · {p.club || "Клуб не указан"}{p.coach ? ` · ${p.coach}` : ""}</span></div><button disabled={busy} className={inCategory ? "danger-button" : "primary"} onClick={() => inCategory ? unassign(p.id) : assign(p.id)}>{inCategory ? "Убрать" : "Добавить"}</button></div></article>; })}</div>}
       {selected.participantCount < 2 && <p className="muted">В категории меньше 2 участников — сетку пока формировать не стоит.</p>}
     </div>}
-    {assignedParticipantIds.length > 0 && <p className="muted">Уже распределённые участники скрыты из других категорий.</p>}
   </section>;
 }
