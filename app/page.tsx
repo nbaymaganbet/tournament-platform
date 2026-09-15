@@ -1,37 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { translations, type Locale } from "@/lib/i18n";
 
-const introSlides = [
-  {
-    title: "Что это",
-    text: "Tournament Platform помогает организаторам провести спортивное соревнование в одном месте.",
-    items: ["Создать турнир", "Зарегистрировать участников", "Сформировать категории и сетки", "Провести соревнования и сохранить результаты"],
-  },
-  {
-    title: "Как работает",
-    text: "Простой рабочий цикл без лишней сложности.",
-    items: ["Создайте → зарегистрируйте → сформируйте → проведите", "Заявки собираются в системе", "Категории, сетки и расписание управляются организатором", "Результаты сохраняются и обновляются для зрителей"],
-  },
-  {
-    title: "Для кого",
-    text: "Для организаторов спортивных соревнований: MMA, борьбы, BJJ, грэпплинга, каратэ и других дисциплин с турнирной системой.",
-    items: [],
-  },
-];
-
-const tournaments = [
-  { name: "AFL ASTANA FIGHT LEAGUE — CLUB OPEN", date: "25 сентября 2026", city: "Астана", sport: "MMA", status: "Регистрация открыта" },
-];
+const tournaments = [{ name: "AFL ASTANA FIGHT LEAGUE — CLUB OPEN", sport: "MMA" }];
 
 export default function Home() {
   const [showIntro, setShowIntro] = useState(false);
   const [slide, setSlide] = useState(0);
-  const [lang, setLang] = useState<"ru" | "kk">("ru");
+  const [lang, setLang] = useState<Locale>("ru");
+  const t = translations[lang];
 
-  useEffect(() => {
-    setShowIntro(localStorage.getItem("tp-intro-seen") !== "1");
-  }, []);
+  useEffect(() => setShowIntro(localStorage.getItem("tp-intro-seen") !== "1"), []);
 
   function finishIntro() {
     localStorage.setItem("tp-intro-seen", "1");
@@ -39,22 +19,18 @@ export default function Home() {
   }
 
   if (showIntro) {
-    const current = introSlides[slide];
+    const current = t.intro[slide];
     return (
       <main className="intro">
-        <section className="intro-card" aria-label="Презентация Tournament Platform">
-          <div className="intro-step">TOURNAMENT PLATFORM · {slide + 1}/{introSlides.length}</div>
+        <section className="intro-card" aria-label="Tournament Platform introduction">
+          <div className="intro-step">TOURNAMENT PLATFORM · {slide + 1}/{t.intro.length}</div>
           <h2>{current.title}</h2>
           <p>{current.text}</p>
           {current.items.length > 0 && <ul className="intro-list">{current.items.map((item) => <li key={item}>{item}</li>)}</ul>}
           <div className="intro-actions">
-            {slide > 0 && <button className="secondary" onClick={() => setSlide(slide - 1)}>Назад</button>}
-            {slide < introSlides.length - 1 ? (
-              <button className="primary" onClick={() => setSlide(slide + 1)}>Далее</button>
-            ) : (
-              <button className="primary" onClick={finishIntro}>Начать</button>
-            )}
-            <button className="secondary" onClick={finishIntro}>Пропустить</button>
+            {slide > 0 && <button className="secondary" onClick={() => setSlide(slide - 1)}>{t.back}</button>}
+            {slide < t.intro.length - 1 ? <button className="primary" onClick={() => setSlide(slide + 1)}>{t.next}</button> : <button className="primary" onClick={finishIntro}>{t.start}</button>}
+            <button className="secondary" onClick={finishIntro}>{t.skip}</button>
           </div>
         </section>
       </main>
@@ -65,41 +41,38 @@ export default function Home() {
     <main>
       <header className="topbar">
         <div className="container topbar-inner">
-          <a className="brand" href="/">Tournament Platform</a>
+          <a className="brand" href="/">{t.brand}</a>
           <div className="actions">
             <button className="lang" onClick={() => setLang(lang === "ru" ? "kk" : "ru")}>{lang === "ru" ? "ҚАЗ" : "РУС"}</button>
-            <button className="primary">Войти</button>
+            <button className="primary">{t.login}</button>
           </div>
         </div>
       </header>
-
       <div className="container">
         <section className="hero">
-          <div className="eyebrow">СПОРТИВНЫЕ СОРЕВНОВАНИЯ</div>
-          <h1>Проведение турнира — в одном месте.</h1>
-          <p>Создание соревнования, регистрация участников, категории, сетки, расписание, проведение боёв и результаты.</p>
+          <div className="eyebrow">{lang === "ru" ? "СПОРТИВНЫЕ СОРЕВНОВАНИЯ" : "СПОРТТЫҚ ЖАРЫСТАР"}</div>
+          <h1>{t.hero}</h1>
+          <p>{t.heroText}</p>
         </section>
-
         <section>
           <div className="filters">
-            <input className="field" placeholder="Поиск соревнований" />
-            <select className="field" defaultValue=""><option value="">Вид спорта</option><option>MMA</option><option>Grappling</option><option>BJJ</option><option>Wrestling</option></select>
-            <input className="field" placeholder="Город" />
-            <select className="field" defaultValue=""><option value="">Статус</option><option>Регистрация открыта</option><option>Регистрация закрыта</option></select>
+            <input className="field" placeholder={t.search} />
+            <select className="field" defaultValue=""><option value="">{t.sport}</option><option>MMA</option><option>Grappling</option><option>BJJ</option><option>Wrestling</option></select>
+            <input className="field" placeholder={t.city} />
+            <select className="field" defaultValue=""><option value="">{t.status}</option><option>{t.open}</option></select>
           </div>
         </section>
-
-        <h2 className="section-title">Ближайшие соревнования</h2>
+        <h2 className="section-title">{t.upcoming}</h2>
         <section className="cards">
           {tournaments.map((tournament) => (
-            <article className="card" key={tournament.name}>
+            <a className="card" href="/tournaments/afl-club-open" key={tournament.name}>
               <div className="poster">AFL · CLUB OPEN</div>
               <div className="card-body">
                 <h3>{tournament.name}</h3>
-                <div className="meta">{tournament.date}<br />{tournament.city} · {tournament.sport}</div>
-                <span className="status">{tournament.status}</span>
+                <div className="meta">{lang === "ru" ? "25 сентября 2026" : "2026 жылғы 25 қыркүйек"}<br />Астана · {tournament.sport}</div>
+                <span className="status">{t.open}</span>
               </div>
-            </article>
+            </a>
           ))}
         </section>
       </div>
