@@ -1,53 +1,14 @@
 "use client";
-
-import { useState } from "react";
+import {useEffect,useState} from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
+import {createClient} from "@/lib/supabase/client";
+import {translations,type Locale} from "@/lib/i18n";
 
-const fields = [
-  ["first_name", "Имя", "text"], ["last_name", "Фамилия", "text"], ["age", "Возраст", "number"],
-  ["weight", "Вес, кг", "number"], ["experience", "Опыт", "text"], ["phone", "Телефон", "tel"],
-  ["club", "Клуб", "text"], ["coach", "Тренер", "text"],
-] as const;
-
-export default function RegistrationForm({ tournamentId }: { tournamentId: string }) {
-  const [form, setForm] = useState<Record<string, string>>({});
-  const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<{ application: string; token: string } | null>(null);
-  const [error, setError] = useState("");
-  const supabase = createClient();
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault(); setBusy(true); setError("");
-    const required = ["first_name", "last_name", "age", "weight", "phone"];
-    if (required.some((key) => !form[key]?.trim())) { setError("Заполните обязательные поля."); setBusy(false); return; }
-    const { data, error } = await supabase.rpc("submit_tournament_registration", {
-      p_tournament_id: tournamentId, p_first_name: form.first_name.trim(), p_last_name: form.last_name.trim(),
-      p_age: Number(form.age), p_weight: Number(form.weight), p_experience: form.experience?.trim() || null,
-      p_phone: form.phone.trim(), p_club: form.club?.trim() || null, p_coach: form.coach?.trim() || null,
-    });
-    if (error || !data?.[0]) { setError(error?.message || "Не удалось создать заявку."); setBusy(false); return; }
-    setResult({ application: data[0].application_number, token: data[0].status_token }); setBusy(false);
-  }
-
-  if (result) {
-    const statusUrl = `/registration/status?token=${encodeURIComponent(result.token)}`;
-    return <div className="success-card">
-      <h2>Заявка принята</h2>
-      <p>Номер заявки:</p>
-      <strong className="application-number">{result.application}</strong>
-      <p className="muted">Статус: Ожидает подтверждения.</p>
-      <p className="muted">Ссылка ниже — ваш защищённый доступ к статусу заявки. Сохраните её.</p>
-      <div className="button-row">
-        <Link className="primary" href={statusUrl}>Открыть статус заявки</Link>
-        <button className="secondary" type="button" onClick={() => navigator.clipboard?.writeText(`${window.location.origin}${statusUrl}`)}>Скопировать ссылку</button>
-      </div>
-    </div>;
-  }
-
-  return <form className="form-grid" onSubmit={submit}>
-    {fields.map(([key, label, type]) => <label key={key}>{label}{["first_name","last_name","age","weight","phone"].includes(key) && " *"}<input required={["first_name","last_name","age","weight","phone"].includes(key)} type={type} value={form[key] ?? ""} onChange={(e) => setForm({ ...form, [key]: e.target.value })} /></label>)}
-    {error && <div className="error-box">{error}</div>}
-    <button className="primary submit-button" disabled={busy}>{busy ? "Отправка…" : "Подать заявку"}</button>
-  </form>;
+export default function RegistrationForm({tournamentId}:{tournamentId:string}){
+ const[form,setForm]=useState<Record<string,string>>({});const[busy,setBusy]=useState(false);const[result,setResult]=useState<{application:string;token:string}|null>(null);const[error,setError]=useState("");const[locale,setLocale]=useState<Locale>("ru");const t=translations[locale];const supabase=createClient();
+ useEffect(()=>{const v=localStorage.getItem("tp-lang");if(v==="kk")setLocale("kk")},[]);
+ const fields:[string,string,string][]=[["first_name",t.firstName,"text"],["last_name",t.lastName,"text"],["age",t.age,"number"],["weight",t.weight,"number"],["experience",t.experience,"text"],["phone",t.phone,"tel"],["club",t.club,"text"],["coach",t.coach,"text"]];
+ async function submit(e:React.FormEvent){e.preventDefault();setBusy(true);setError("");const required=["first_name","last_name","age","weight","phone"];if(required.some(key=>!form[key]?.trim())){setError(t.required);setBusy(false);return}const{data,error}=await supabase.rpc("submit_tournament_registration",{p_tournament_id:tournamentId,p_first_name:form.first_name.trim(),p_last_name:form.last_name.trim(),p_age:Number(form.age),p_weight:Number(form.weight),p_experience:form.experience?.trim()||null,p_phone:form.phone.trim(),p_club:form.club?.trim()||null,p_coach:form.coach?.trim()||null});if(error||!data?.[0]){setError(error?.message||t.applicationError);setBusy(false);return}setResult({application:data[0].application_number,token:data[0].status_token});setBusy(false)}
+ if(result){const statusUrl=`/registration/status?token=${encodeURIComponent(result.token)}`;return <div className="success-card"><h2>{t.accepted}</h2><p>{t.applicationNumber}:</p><strong className="application-number">{result.application}</strong><p className="muted">{t.status}: {t.pending}.</p><p className="muted">{t.saveStatusLink}</p><div className="button-row"><Link className="primary" href={statusUrl}>{t.openStatus}</Link><button className="secondary" type="button" onClick={()=>navigator.clipboard?.writeText(`${window.location.origin}${statusUrl}`)}>{t.copyLink}</button></div></div>}
+ return <form className="form-grid" onSubmit={submit}>{fields.map(([key,label,type])=><label key={key}>{label}{["first_name","last_name","age","weight","phone"].includes(key)&&" *"}<input required={["first_name","last_name","age","weight","phone"].includes(key)} type={type} value={form[key]??""} onChange={e=>setForm({...form,[key]:e.target.value})}/></label>)}{error&&<div className="error-box">{error}</div>}<button className="primary submit-button" disabled={busy}>{busy?t.sending:t.submit}</button></form>;
 }
