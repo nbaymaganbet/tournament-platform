@@ -5,21 +5,20 @@ import { createClient } from "@/lib/supabase/client";
 import { translations, type Locale } from "@/lib/i18n";
 
 type Row = { id:string; participant_id:string; application_number:string|null; status:string; payment_status:string; first_name:string; last_name:string; age:number; weight:number; actual_weight:number|null; experience:string|null; phone:string|null; club:string|null; coach:string|null };
+type EditForm = Pick<Row,"first_name"|"last_name"|"age"|"weight"|"experience"|"phone"|"club"|"coach">;
 
 export default function ParticipantsClient({ tournamentId, initialRows }: { tournamentId:string; initialRows:Row[] }) {
   const [locale] = useState<Locale>(() => typeof window !== "undefined" && localStorage.getItem("tp-lang") === "kk" ? "kk" : "ru");
   const t = translations[locale];
-  const labels=locale==="kk"?{weighIn:"Өлшеудегі салмақ",official:"ресми",edit:"Өзгерту",delete:"Өтінімді жою",menu:"Әрекеттер",confirm:"Өтінімді растау",confirmed:"Өтінім расталды",deleteConfirm:"Бұл өтінімді жою керек пе?",editSoon:"Өтінімді өзгерту формасы келесі қадамда қосылады."}:{weighIn:"Вес на взвешивании",official:"официальный",edit:"Изменить",delete:"Удалить заявку",menu:"Действия",confirm:"Подтвердить заявку",confirmed:"Заявка подтверждена",deleteConfirm:"Удалить эту заявку?",editSoon:"Форма редактирования заявки будет подключена следующим шагом."};
-  const [rows,setRows]=useState(initialRows); const [query,setQuery]=useState(""); const [statusFilter,setStatusFilter]=useState("all"); const [busy,setBusy]=useState<string|null>(null); const [openMenu,setOpenMenu]=useState<string|null>(null); const supabase=createClient();
+  const labels=locale==="kk"?{weighIn:"Өлшеудегі салмақ",official:"ресми",edit:"Өзгерту",delete:"Өтінімді жою",menu:"Әрекеттер",confirm:"Өтінімді растау",confirmed:"Өтінім расталды",deleteConfirm:"Бұл өтінімді жою керек пе?",save:"Сақтау",cancel:"Бас тарту",editTitle:"Өтінімді өзгерту",first:"Аты",last:"Тегі",age:"Жасы",weight:"Салмағы",experience:"Тәжірибесі",phone:"Телефон",club:"Клуб",coach:"Жаттықтырушы"}:{weighIn:"Вес на взвешивании",official:"официальный",edit:"Изменить",delete:"Удалить заявку",menu:"Действия",confirm:"Подтвердить заявку",confirmed:"Заявка подтверждена",deleteConfirm:"Удалить эту заявку?",save:"Сохранить",cancel:"Отмена",editTitle:"Изменить заявку",first:"Имя",last:"Фамилия",age:"Возраст",weight:"Вес",experience:"Опыт",phone:"Телефон",club:"Клуб",coach:"Тренер"};
+  const [rows,setRows]=useState(initialRows); const [query,setQuery]=useState(""); const [statusFilter,setStatusFilter]=useState("all"); const [busy,setBusy]=useState<string|null>(null); const [openMenu,setOpenMenu]=useState<string|null>(null); const [editing,setEditing]=useState<Row|null>(null); const [form,setForm]=useState<EditForm|null>(null); const supabase=createClient();
   const filtered=useMemo(()=>{const q=query.trim().toLowerCase(); return rows.filter(r=>{const text=[r.first_name,r.last_name,r.club,r.coach,r.application_number,r.phone].filter(Boolean).join(" ").toLowerCase(); const confirmed=r.payment_status==="paid"&&r.status==="confirmed"; const statusOk=statusFilter==="all"||(statusFilter==="confirmed"?confirmed:!confirmed); return (!q||text.includes(q))&&statusOk;});},[rows,query,statusFilter]);
 
   async function confirmApplication(id:string){setBusy(id);setOpenMenu(null);const {data,error}=await supabase.from("registrations").update({payment_status:"paid",status:"confirmed"}).eq("id",id).eq("tournament_id",tournamentId).select("id,status,payment_status").single();if(!error&&data)setRows(c=>c.map(r=>r.id===id?{...r,...data}:r));if(error)window.alert(error.message);setBusy(null);}
-
-  async function deleteApplication(row:Row){setOpenMenu(null);if(!window.confirm(labels.deleteConfirm))return;setBusy(`delete:${row.id}`);const{error}=await supabase.from("registrations").delete().eq("id",row.id).eq("tournament_id",tournamentId);if(error){window.alert(error.message);}else{setRows(c=>c.filter(r=>r.id!==row.id));}setBusy(null);}
-
-  function editApplication(){setOpenMenu(null);window.alert(labels.editSoon);}
-
-  async function saveActualWeight(row:Row,value:string){setBusy(`weight:${row.id}`);const parsed=value.trim()===""?null:Number(value);if(parsed!==null&&!Number.isFinite(parsed)){window.alert("Введите корректный вес.");setBusy(null);return}const{error}=await supabase.from("participants").update({actual_weight:parsed}).eq("id",row.participant_id);if(error)window.alert(error.message);else setRows(c=>c.map(r=>r.id===row.id?{...r,actual_weight:parsed}:r));setBusy(null);}
+  async function deleteApplication(row:Row){setOpenMenu(null);if(!window.confirm(labels.deleteConfirm))return;setBusy(`delete:${row.id}`);const{error}=await supabase.from("registrations").delete().eq("id",row.id).eq("tournament_id",tournamentId);if(error)window.alert(error.message);else setRows(c=>c.filter(r=>r.id!==row.id));setBusy(null);}
+  function openEdit(row:Row){setOpenMenu(null);setEditing(row);setForm({first_name:row.first_name,last_name:row.last_name,age:row.age,weight:row.weight,experience:row.experience,phone:row.phone,club:row.club,coach:row.coach});}
+  async function saveEdit(){if(!editing||!form)return;setBusy(`edit:${editing.id}`);const{error}=await supabase.from("participants").update(form).eq("id",editing.participant_id);if(error){window.alert(error.message);}else{setRows(c=>c.map(r=>r.id===editing.id?{...r,...form}:r));setEditing(null);setForm(null);}setBusy(null);}
+  async function saveActualWeight(row:Row,value:string){setBusy(`weight:${row.id}`);const parsed=value.trim()===""?null:Number(value);if(parsed!==null&&!Number.isFinite(parsed)){window.alert(locale==="kk"?"Дұрыс салмақ енгізіңіз.":"Введите корректный вес.");setBusy(null);return}const{error}=await supabase.from("participants").update({actual_weight:parsed}).eq("id",row.participant_id);if(error)window.alert(error.message);else setRows(c=>c.map(r=>r.id===row.id?{...r,actual_weight:parsed}:r));setBusy(null);}
 
   return <div className="participants-workspace">
     <div className="toolbar"><input value={query} onChange={e=>setQuery(e.target.value)} placeholder={t.participantSearch}/><select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}><option value="all">{t.allStatuses}</option><option value="pending_confirmation">{t.pending}</option><option value="confirmed">{t.participantStatuses.confirmed}</option></select></div>
@@ -37,12 +36,21 @@ export default function ParticipantsClient({ tournamentId, initialRows }: { tour
             <button className={confirmed?"secondary":"primary"} disabled={busy===r.id||confirmed} onClick={()=>void confirmApplication(r.id)} style={{minHeight:44,minWidth:170,whiteSpace:"nowrap"}}>{busy===r.id?"…":confirmed?labels.confirmed:labels.confirm}</button>
             <button type="button" className="secondary" aria-label={labels.menu} title={labels.menu} onClick={()=>setOpenMenu(openMenu===r.id?null:r.id)} style={{minHeight:44,minWidth:44,padding:"0 10px",fontSize:22,lineHeight:1}}>⋮</button>
             {openMenu===r.id&&<div style={{position:"absolute",right:0,top:"calc(100% + 6px)",zIndex:20,minWidth:180,padding:6,borderRadius:10,background:"var(--surface,#171717)",border:"1px solid var(--border,#333)",boxShadow:"0 10px 30px rgba(0,0,0,.35)"}}>
-              <button type="button" className="secondary" onClick={editApplication} style={{display:"block",width:"100%",textAlign:"left",marginBottom:4}}>{labels.edit}</button>
-              <button type="button" className="danger-button" disabled={busy===`delete:${r.id}`} onClick={()=>void deleteApplication(r)} style={{display:"block",width:"100%",textAlign:"left"}}>{busy===`delete:${r.id}?"…":labels.delete}</button>
+              <button type="button" className="secondary" onClick={()=>openEdit(r)} style={{display:"block",width:"100%",textAlign:"left",marginBottom:4}}>{labels.edit}</button>
+              <button type="button" className="danger-button" disabled={busy===`delete:${r.id}`} onClick={()=>void deleteApplication(r)} style={{display:"block",width:"100%",textAlign:"left"}}>{busy===`delete:${r.id}`?"…":labels.delete}</button>
             </div>}
           </div>
         </article>;
       })}
     </div>
+    {editing&&form&&<div style={{position:"fixed",inset:0,zIndex:50,background:"rgba(0,0,0,.7)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={()=>{if(!busy)setEditing(null)}}>
+      <div className="form-card" style={{width:"min(100%,520px)",maxHeight:"90vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+        <div className="participant-main" style={{marginBottom:16}}><strong>{labels.editTitle}</strong><span className="muted">#{editing.application_number??"—"}</span></div>
+        <div className="bracket-editor-grid">
+          {([["first_name",labels.first],["last_name",labels.last],["age",labels.age],["weight",labels.weight],["experience",labels.experience],["phone",labels.phone],["club",labels.club],["coach",labels.coach]] as const).map(([key,label])=><label key={key}>{label}<input className="field" type={key==="age"||key==="weight"?"number":"text"} value={form[key]??""} onChange={e=>setForm(f=>f?{...f,[key]:key==="age"||key==="weight"?Number(e.target.value):e.target.value}:f)} /></label>)}
+        </div>
+        <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:16}}><button type="button" className="secondary" disabled={!!busy} onClick={()=>setEditing(null)}>{labels.cancel}</button><button type="button" className="primary" disabled={busy===`edit:${editing.id}`} onClick={()=>void saveEdit()}>{busy===`edit:${editing.id}`?"…":labels.save}</button></div>
+      </div>
+    </div>}
   </div>;
 }
