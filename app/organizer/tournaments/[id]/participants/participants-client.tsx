@@ -24,16 +24,16 @@ export default function ParticipantsClient({ tournamentId, initialRows }: { tour
     <div className="participants-list">
       {filtered.length===0?<div className="empty-state">{t.noApplications}</div>:filtered.map(r=>{
         const confirmed = r.payment_status === "paid" && r.status === "confirmed";
-        return <article className="participant-card" key={r.id} style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) auto",alignItems:"center",gap:12}}>
-          <div className="participant-main" style={{minWidth:0}}>
+        return <article className="participant-card" key={r.id} style={{display:"flex",flexDirection:"column",gap:8,padding:"12px 14px"}}>
+          <div className="participant-main" style={{minWidth:0,width:"100%"}}>
             <strong>{r.last_name} {r.first_name}</strong>
             <span className="muted">#{r.application_number??"—"} · {r.age} {t.years} · {labels.weight.toLowerCase()} {r.weight} кг · {r.club||t.clubNotSet}</span>
             <span className="muted">{r.coach?`${t.coach}: ${r.coach}`:t.coachNotSet} · {r.phone||t.phoneNotSet}</span>
           </div>
-          <div style={{position:"relative",display:"flex",alignItems:"center",gap:8}}>
-            <button className={confirmed?"secondary":"primary"} disabled={busy===r.id||confirmed} onClick={()=>void confirmApplication(r.id)} style={{minHeight:44,minWidth:170,whiteSpace:"nowrap"}}>{busy===r.id?"…":confirmed?labels.confirmed:labels.confirm}</button>
-            <button type="button" className="secondary" aria-label={labels.menu} title={labels.menu} onClick={()=>setOpenMenu(openMenu===r.id?null:r.id)} style={{minHeight:44,minWidth:44,padding:"0 10px",fontSize:22,lineHeight:1}}>⋮</button>
-            {openMenu===r.id&&<div style={{position:"absolute",right:0,top:"calc(100% + 6px)",zIndex:20,minWidth:180,padding:6,borderRadius:10,background:"var(--surface,#171717)",border:"1px solid var(--border,#333)",boxShadow:"0 10px 30px rgba(0,0,0,.35)"}}>
+          <div style={{position:"relative",display:"flex",alignItems:"center",gap:8,width:"100%",paddingTop:2}}>
+            <button className={confirmed?"secondary":"primary"} disabled={busy===r.id||confirmed} onClick={()=>void confirmApplication(r.id)} style={{minHeight:40,flex:1,whiteSpace:"nowrap"}}>{busy===r.id?"…":confirmed?labels.confirmed:labels.confirm}</button>
+            <button type="button" className="secondary" aria-label={labels.menu} title={labels.menu} onClick={()=>setOpenMenu(openMenu===r.id?null:r.id)} style={{minHeight:40,minWidth:44,padding:"0 10px",fontSize:22,lineHeight:1}}>⋮</button>
+            {openMenu===r.id&&<div style={{position:"absolute",right:0,bottom:"calc(100% + 6px)",zIndex:20,minWidth:180,padding:6,borderRadius:10,background:"var(--surface,#171717)",border:"1px solid var(--border,#333)",boxShadow:"0 10px 30px rgba(0,0,0,.35)"}}>
               <button type="button" className="secondary" onClick={()=>openEdit(r)} style={{display:"block",width:"100%",textAlign:"left",marginBottom:4}}>{labels.edit}</button>
               <button type="button" className="danger-button" disabled={busy===`delete:${r.id}`} onClick={()=>void deleteApplication(r)} style={{display:"block",width:"100%",textAlign:"left"}}>{busy===`delete:${r.id}`?"…":labels.delete}</button>
             </div>}
