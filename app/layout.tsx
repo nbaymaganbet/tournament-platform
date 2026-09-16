@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import LanguageToggle from "@/components/language-toggle";
 
 export const metadata: Metadata = {
   title: "Tournament Platform",
@@ -10,7 +9,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="ru">
-      <body><LanguageToggle />{children}</body>
+      <body>{children}</body>
     </html>
   );
 }
