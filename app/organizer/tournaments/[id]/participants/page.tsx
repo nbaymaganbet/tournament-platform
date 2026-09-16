@@ -17,7 +17,7 @@ export default async function ParticipantsPage({ params }: { params: Promise<{ i
 
   const { data: registrations, error } = await supabase
     .from("registrations")
-    .select("id,participant_id,application_number,status,payment_status,participants(first_name,last_name,age,weight,experience,phone,club,coach)")
+    .select("id,participant_id,application_number,status,payment_status,participants(first_name,last_name,age,weight,actual_weight,experience,phone,club,coach)")
     .eq("tournament_id", id)
     .order("created_at", { ascending: false });
 
@@ -31,7 +31,7 @@ export default async function ParticipantsPage({ params }: { params: Promise<{ i
   return (
     <main className="container dashboard-page">
       <div className="page-topline"><Link className="back-link" href={`/organizer/tournaments/${id}`}>← {tournament.name}</Link></div>
-      <header className="section-header"><div><div className="eyebrow">Управление</div><h1>Участники</h1><p className="muted">Заявки, оплата и подтверждение участников.</p></div><strong>{rows.length}</strong></header>
+      <header className="section-header"><div><div className="eyebrow">Управление</div><h1>Участники</h1><p className="muted">Заявки, оплата, подтверждение и официальный вес на взвешивании.</p></div><strong>{rows.length}</strong></header>
       <ParticipantsClient tournamentId={id} initialRows={rows} />
     </main>
   );
