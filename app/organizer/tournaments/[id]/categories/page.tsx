@@ -15,7 +15,7 @@ export default async function CategoriesPage({ params }: { params: Promise<{ id:
 
   const [{ data: categories, error }, { data: registrations }] = await Promise.all([
     supabase.from("categories").select("id,name,age_min,age_max,weight_limit,sort_order,category_participants(participant_id)").eq("tournament_id", id).order("sort_order"),
-    supabase.from("registrations").select("participant_id,participants(id,first_name,last_name,age,weight,club,coach)").eq("tournament_id", id).eq("status", "confirmed"),
+    supabase.from("registrations").select("participant_id,participants(id,first_name,last_name,age,weight,club,coach)").eq("tournament_id", id).eq("status", "confirmed").eq("payment_status", "paid"),
   ]);
   if (error) throw new Error(error.message);
 
@@ -26,5 +26,5 @@ export default async function CategoriesPage({ params }: { params: Promise<{ id:
   const assignments: Record<string, string> = {};
   for (const c of categories ?? []) for (const cp of Array.isArray(c.category_participants) ? c.category_participants : []) assignments[cp.participant_id] = c.id;
 
-  return <main className="container dashboard-page"><div className="page-topline"><Link className="back-link" href={`/organizer/tournaments/${id}`}>← {tournament.name}</Link></div><header className="section-header"><div><div className="eyebrow">ПОДГОТОВКА</div><h1>Категории</h1><p className="muted">Создавайте категории вручную и распределяйте подтверждённых участников.</p></div></header><CategoriesClient tournamentId={id} initialCategories={(categories ?? []).map((c) => ({ ...c, participantCount: Array.isArray(c.category_participants) ? c.category_participants.length : 0 }))} participants={participants} initialAssignments={assignments} /></main>;
+  return <main className="container dashboard-page"><div className="page-topline"><Link className="back-link" href={`/organizer/tournaments/${id}`}>← {tournament.name}</Link></div><header className="section-header"><div><div className="eyebrow">ПОДГОТОВКА</div><h1>Категории</h1><p className="muted">Создавайте категории вручную и распределяйте только оплаченных и подтверждённых участников.</p></div></header><CategoriesClient tournamentId={id} initialCategories={(categories ?? []).map((c) => ({ ...c, participantCount: Array.isArray(c.category_participants) ? c.category_participants.filter((cp) => participants.some((p) => p.id === cp.participant_id)).length : 0 }))} participants={participants} initialAssignments={assignments} /></main>;
 }
