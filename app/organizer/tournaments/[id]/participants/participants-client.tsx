@@ -11,9 +11,34 @@ export default function ParticipantsClient({ tournamentId, initialRows }: { tour
   const t = translations[locale];
   const [rows,setRows]=useState(initialRows); const [query,setQuery]=useState(""); const [statusFilter,setStatusFilter]=useState("all"); const [busy,setBusy]=useState<string|null>(null); const supabase=createClient();
   const filtered=useMemo(()=>{const q=query.trim().toLowerCase(); return rows.filter(r=>{const text=[r.first_name,r.last_name,r.club,r.coach,r.application_number,r.phone].filter(Boolean).join(" ").toLowerCase(); return (!q||text.includes(q))&&(statusFilter==="all"||r.status===statusFilter);});},[rows,query,statusFilter]);
-  async function updateRegistration(id:string,patch:{status?:string;payment_status?:string}){setBusy(id);const {data,error}=await supabase.from("registrations").update(patch).eq("id",id).eq("tournament_id",tournamentId).select("id,status,payment_status").single();if(!error&&data)setRows(c=>c.map(r=>r.id===id?{...r,...data}:r));if(error)window.alert(error.message);setBusy(null);}
-  async function removeRegistration(id:string){if(!window.confirm(t.deleteApplication))return;setBusy(id);const {error}=await supabase.from("registrations").delete().eq("id",id).eq("tournament_id",tournamentId);if(!error)setRows(c=>c.filter(r=>r.id!==id));if(error)window.alert(error.message);setBusy(null);}
-  const paidStatus = (r:Row) => r.payment_status === "paid";
-  const confirmedStatus = (r:Row) => r.status === "confirmed";
-  return <div className="participants-workspace"><div className="toolbar"><input value={query} onChange={e=>setQuery(e.target.value)} placeholder={t.participantSearch}/><select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}><option value="all">{t.allStatuses}</option>{Object.entries(t.participantStatuses).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></div><div className="participants-list">{filtered.length===0?<div className="empty-state">{t.noApplications}</div>:filtered.map(r=><article className="participant-card" key={r.id}><div className="participant-main"><div><strong>{r.last_name} {r.first_name}</strong><span className="muted">#{r.application_number??"—"} · {r.age} {t.years} · {r.weight} кг</span></div><span className="status">{t.participantStatuses[r.status as keyof typeof t.participantStatuses]??r.status}</span></div><div className="participant-meta"><span>{r.club||t.clubNotSet}</span><span>{r.coach?`${t.coach}: ${r.coach}`:t.coachNotSet}</span><span>{r.experience||t.experienceNotSet}</span><span>{r.phone||t.phoneNotSet}</span><span>{t.payment}: {paidStatus(r)?t.paid:t.unpaid}</span></div><div className="participant-actions"><button disabled={busy===r.id} onClick={()=>updateRegistration(r.id,{payment_status:paidStatus(r)?"unpaid":"paid",status:paidStatus(r)?(confirmedStatus(r)?"payment_confirmed":"pending_confirmation"):"payment_confirmed"})}>{paidStatus(r)?t.cancelPayment:t.confirmPayment}</button><button disabled={busy===r.id||!paidStatus(r)} onClick={()=>updateRegistration(r.id,{status:confirmedStatus(r)?"payment_confirmed":"confirmed"})}>{confirmedStatus(r)?t.removeConfirmation:t.confirmApplication}</button><button className="danger-button" disabled={busy===r.id} onClick={()=>removeRegistration(r.id)}>{t.delete}</button></div></article>)}</div></div>;
+
+  async function confirmPayment(id:string){
+    setBusy(id);
+    const {data,error}=await supabase.from("registrations").update({payment_status:"paid",status:"confirmed"}).eq("id",id).eq("tournament_id",tournamentId).select("id,status,payment_status").single();
+    if(!error&&data)setRows(c=>c.map(r=>r.id===id?{...r,...data}:r));
+    if(error)window.alert(error.message);
+    setBusy(null);
+  }
+
+  return <div className="participants-workspace">
+    <div className="toolbar"><input value={query} onChange={e=>setQuery(e.target.value)} placeholder={t.participantSearch}/><select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}><option value="all">{t.allStatuses}</option>{Object.entries(t.participantStatuses).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></div>
+    <div className="participants-list">
+      {filtered.length===0?<div className="empty-state">{t.noApplications}</div>:filtered.map(r=>{
+        const confirmed = r.payment_status === "paid" && r.status === "confirmed";
+        return <article className="participant-card" key={r.id} style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) auto",alignItems:"center",gap:12}}>
+          <div className="participant-main" style={{minWidth:0}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+              <strong>{r.last_name} {r.first_name}</strong>
+              <span className="status" style={{margin:0,background:confirmed?"rgba(53,200,117,.1)":"rgba(225,6,0,.12)",borderColor:confirmed?"rgba(53,200,117,.3)":"rgba(225,6,0,.25)",color:confirmed?"#6fe39b":"#ff625d"}}>{confirmed?t.participantStatuses.confirmed:t.participantStatuses[r.status as keyof typeof t.participantStatuses]??r.status}</span>
+            </div>
+            <span className="muted">#{r.application_number??"—"} · {r.age} {t.years} · {r.weight} кг · {r.club||t.clubNotSet}</span>
+            <span className="muted">{r.coach?`${t.coach}: ${r.coach}`:t.coachNotSet} · {r.phone||t.phoneNotSet}</span>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",alignItems:"stretch",gap:7,minWidth:170}}>
+            {confirmed ? <span style={{display:"block",padding:"9px 10px",borderRadius:9,border:"1px solid rgba(53,200,117,.28)",background:"rgba(53,200,117,.08)",color:"#6fe39b",fontSize:12,fontWeight:850,textAlign:"center"}}>{t.paid} · {t.participantStatuses.confirmed}</span> : <button className="primary" disabled={busy===r.id} onClick={()=>void confirmPayment(r.id)} style={{minHeight:44,whiteSpace:"nowrap"}}>{busy===r.id?"…":t.confirmPayment}</button>}
+          </div>
+        </article>;
+      })}
+    </div>
+  </div>;
 }
