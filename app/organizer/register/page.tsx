@@ -14,6 +14,8 @@ export default function OrganizerRegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
@@ -31,6 +33,8 @@ export default function OrganizerRegisterPage() {
     email: "Email",
     password: ru ? "Пароль" : "Құпиясөз",
     confirm: ru ? "Повторите пароль" : "Құпиясөзді қайталаңыз",
+    show: ru ? "Показать пароль" : "Құпиясөзді көрсету",
+    hide: ru ? "Скрыть пароль" : "Құпиясөзді жасыру",
     button: ru ? "Создать аккаунт" : "Аккаунт жасау",
     loading: ru ? "Создаём…" : "Жасалуда…",
     have: ru ? "Уже есть аккаунт?" : "Аккаунт бар ма?",
@@ -59,10 +63,7 @@ export default function OrganizerRegisterPage() {
         supabase.auth.signUp({
           email: email.trim().toLowerCase(),
           password,
-          options: {
-            data: { display_name: displayName.trim() },
-            emailRedirectTo,
-          },
+          options: { data: { display_name: displayName.trim() }, emailRedirectTo },
         }),
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error("TIMEOUT")), 15000)),
       ]);
@@ -78,13 +79,11 @@ export default function OrganizerRegisterPage() {
         setSaving(false);
         return;
       }
-
       if (!data.session) {
         setMessage(tr.check);
         setSaving(false);
         return;
       }
-
       router.replace("/organizer");
       router.refresh();
     } catch (e) {
@@ -99,8 +98,8 @@ export default function OrganizerRegisterPage() {
     <form onSubmit={submit} className="auth-form">
       <label>{tr.name}<input className="field" value={displayName} onChange={e => setDisplayName(e.target.value)} autoComplete="name" required /></label>
       <label>{tr.email}<input className="field" type="email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" required /></label>
-      <label>{tr.password}<input className="field" type="password" value={password} onChange={e => setPassword(e.target.value)} autoComplete="new-password" required /></label>
-      <label>{tr.confirm}<input className="field" type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} autoComplete="new-password" required /></label>
+      <label>{tr.password}<div className="password-field"><input className="field" type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} autoComplete="new-password" required /><button className="password-toggle" type="button" aria-label={showPassword ? tr.hide : tr.show} onClick={() => setShowPassword(value => !value)}>{showPassword ? "◉" : "◌"}</button></div></label>
+      <label>{tr.confirm}<div className="password-field"><input className="field" type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} autoComplete="new-password" required /><button className="password-toggle" type="button" aria-label={showConfirmPassword ? tr.hide : tr.show} onClick={() => setShowConfirmPassword(value => !value)}>{showConfirmPassword ? "◉" : "◌"}</button></div></label>
       {error && <p className="error" role="alert">{error}</p>}{message && <p className="success" role="status">{message}</p>}
       <button className="primary full" disabled={saving}>{saving ? tr.loading : tr.button}</button>
     </form>
