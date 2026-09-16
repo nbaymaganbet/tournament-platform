@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 const fields = [
@@ -12,7 +13,7 @@ const fields = [
 export default function RegistrationForm({ tournamentId }: { tournamentId: string }) {
   const [form, setForm] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<string | null>(null);
+  const [result, setResult] = useState<{ application: string; token: string } | null>(null);
   const [error, setError] = useState("");
   const supabase = createClient();
 
@@ -26,10 +27,23 @@ export default function RegistrationForm({ tournamentId }: { tournamentId: strin
       p_phone: form.phone.trim(), p_club: form.club?.trim() || null, p_coach: form.coach?.trim() || null,
     });
     if (error || !data?.[0]) { setError(error?.message || "Не удалось создать заявку."); setBusy(false); return; }
-    setResult(data[0].application_number); setBusy(false);
+    setResult({ application: data[0].application_number, token: data[0].status_token }); setBusy(false);
   }
 
-  if (result) return <div className="success-card"><h2>Заявка принята</h2><p>Номер заявки:</p><strong className="application-number">{result}</strong><p className="muted">Статус: Ожидает подтверждения.</p><p className="muted">Сохраните номер заявки для проверки статуса.</p></div>;
+  if (result) {
+    const statusUrl = `/registration/status?token=${encodeURIComponent(result.token)}`;
+    return <div className="success-card">
+      <h2>Заявка принята</h2>
+      <p>Номер заявки:</p>
+      <strong className="application-number">{result.application}</strong>
+      <p className="muted">Статус: Ожидает подтверждения.</p>
+      <p className="muted">Ссылка ниже — ваш защищённый доступ к статусу заявки. Сохраните её.</p>
+      <div className="button-row">
+        <Link className="primary" href={statusUrl}>Открыть статус заявки</Link>
+        <button className="secondary" type="button" onClick={() => navigator.clipboard?.writeText(`${window.location.origin}${statusUrl}`)}>Скопировать ссылку</button>
+      </div>
+    </div>;
+  }
 
   return <form className="form-grid" onSubmit={submit}>
     {fields.map(([key, label, type]) => <label key={key}>{label}{["first_name","last_name","age","weight","phone"].includes(key) && " *"}<input required={["first_name","last_name","age","weight","phone"].includes(key)} type={type} value={form[key] ?? ""} onChange={(e) => setForm({ ...form, [key]: e.target.value })} /></label>)}
