@@ -54,11 +54,15 @@ export default function OrganizerRegisterPage() {
 
     try {
       const supabase = createClient();
+      const emailRedirectTo = `${window.location.origin}/auth/confirm`;
       const result = await Promise.race([
         supabase.auth.signUp({
           email: email.trim().toLowerCase(),
           password,
-          options: { data: { display_name: displayName.trim() } },
+          options: {
+            data: { display_name: displayName.trim() },
+            emailRedirectTo,
+          },
         }),
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error("TIMEOUT")), 15000)),
       ]);
@@ -75,9 +79,6 @@ export default function OrganizerRegisterPage() {
         return;
       }
 
-      // Profile creation is intentionally handled by the organizer dashboard.
-      // Signup only needs to create the Auth user; this avoids making signup
-      // depend on a second RLS/Data API request.
       if (!data.session) {
         setMessage(tr.check);
         setSaving(false);
