@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-export default function AuthConfirmPage() {
+function AuthConfirmContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState("");
@@ -71,5 +71,21 @@ export default function AuthConfirmPage() {
         {error && <a className="button-link secondary" href="/login">Вернуться ко входу</a>}
       </section>
     </main>
+  );
+}
+
+export default function AuthConfirmPage() {
+  return (
+    <Suspense fallback={
+      <main className="auth-page">
+        <section className="auth-card">
+          <div className="eyebrow">TOURNAMENT PLATFORM</div>
+          <h1>Подтверждаем email…</h1>
+          <p className="muted">Подождите, открываем кабинет организатора.</p>
+        </section>
+      </main>
+    }>
+      <AuthConfirmContent />
+    </Suspense>
   );
 }
