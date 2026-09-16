@@ -15,7 +15,7 @@ export default function TournamentSidebar({ tournamentId, tournamentName }: { to
     ["Взвешивание", `${base}/weigh-in`],
     ["Сетка и расписание", `${base}/brackets`],
     ["Настройки", `${base}/settings`],
-    ["Положение", `/tournaments/${tournamentId}/regulations`],
+    ["Положение", `${base}/settings#regulations`],
     ["Команда", `${base}/team`],
   ];
 
