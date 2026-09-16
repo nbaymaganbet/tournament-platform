@@ -79,6 +79,14 @@ export default function LanguageToggle() {
   }
 
   return <>
+    <div
+      aria-label={lang === "ru" ? "Переключатель языка" : "Тіл ауыстырғышы"}
+      style={{position:"fixed",top:12,left:12,zIndex:101,display:"flex",alignItems:"center",padding:3,border:"1px solid #292d34",borderRadius:12,background:"#111317",boxShadow:"0 6px 22px rgba(0,0,0,.3)"}}
+    >
+      <button type="button" onClick={() => changeLang("ru")} style={{border:0,borderRadius:9,padding:"8px 10px",fontWeight:850,fontSize:12,background:lang === "ru" ? "#e10600" : "transparent",color:"#fff"}}>РУС</button>
+      <button type="button" onClick={() => changeLang("kk")} style={{border:0,borderRadius:9,padding:"8px 10px",fontWeight:850,fontSize:12,background:lang === "kk" ? "#e10600" : "transparent",color:"#fff"}}>ҚАЗ</button>
+    </div>
+
     <button
       type="button"
       aria-label={lang === "ru" ? "Открыть меню" : "Мәзірді ашу"}
