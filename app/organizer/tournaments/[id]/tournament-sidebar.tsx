@@ -15,7 +15,6 @@ export default function TournamentSidebar({ tournamentId, tournamentName }: { to
     ["Взвешивание", `${base}/weigh-in`],
     ["Сетка и расписание", `${base}/brackets`],
     ["Настройки", `${base}/settings`],
-    ["Положение", `${base}/settings#regulations`],
     ["Команда", `${base}/team`],
   ];
 
@@ -35,8 +34,7 @@ export default function TournamentSidebar({ tournamentId, tournamentName }: { to
         </div>
         <nav className="tp-sidebar-nav" aria-label="Разделы турнира">
           {links.map(([label, href]) => {
-            const cleanHref = href.split("#")[0];
-            const active = cleanHref === base ? pathname === base : pathname.startsWith(cleanHref);
+            const active = href === base ? pathname === base : pathname.startsWith(href);
             return <Link key={href} href={href} className={active ? "active" : ""} onClick={close}>{label}</Link>;
           })}
         </nav>
