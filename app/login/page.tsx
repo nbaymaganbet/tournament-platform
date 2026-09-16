@@ -36,31 +36,20 @@ function LoginForm() {
 
     try {
       const supabase = createClient();
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
       if (signInError || !data.user) {
-        setError(t.loginError);
+        setError(signInError?.message || t.loginError);
         setLoading(false);
         return;
       }
 
-      const { data: existingOrganizer } = await supabase.from("organizers").select("id").eq("user_id", data.user.id).maybeSingle();
-      if (!existingOrganizer) {
-        const { error: organizerError } = await supabase.from("organizers").insert({
-          user_id: data.user.id,
-          display_name: data.user.user_metadata?.display_name || data.user.email || "Организатор",
-          email: data.user.email?.toLowerCase() || email.trim().toLowerCase(),
-        });
-        if (organizerError && !organizerError.message.toLowerCase().includes("duplicate")) {
-          setError(organizerError.message);
-          setLoading(false);
-          return;
-        }
-      }
-
+      // The organizer dashboard is the single source of truth for the profile.
+      // It creates the organizer row if this is a valid Auth user whose profile
+      // has not been created yet, so login never fails with a false profile error.
       router.replace(next);
       router.refresh();
-    } catch {
-      setError(t.loginError);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t.loginError);
       setLoading(false);
     }
   }
