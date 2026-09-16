@@ -44,6 +44,7 @@ export default async function RegulationsPage({ params }: { params: Promise<{ id
           <div className="empty-state"><h2>{text.empty}</h2><p className="muted">{text.details}</p></div>
         )}
       </article>
+      <style>{`.regulations-document{max-height:calc(100vh - 220px);overflow:auto;background:linear-gradient(145deg,#15171b,#0f1114);border:1px solid var(--line);border-radius:15px;padding:22px;box-shadow:var(--shadow)}.regulations-text{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7;font-size:15px;color:#e5e7eb}.regulations-actions{display:flex;gap:8px;flex-wrap:wrap}`}</style>
     </main>
   );
 }
