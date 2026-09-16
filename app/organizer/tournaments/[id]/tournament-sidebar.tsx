@@ -11,11 +11,9 @@ export default function TournamentSidebar({ tournamentId, tournamentName }: { to
     ["Участники", `${base}/participants`],
     ["Категории", `${base}/categories`],
     ["Взвешивание", `${base}/weigh-in`],
-    ["Сетки", `${base}/brackets`],
-    ["Расписание", `${base}/schedule`],
-    ["Матчи", `${base}/running`],
-    ["Результаты", `${base}/results`],
+    ["Сетка и расписание", `${base}/brackets`],
     ["Настройки", `${base}/settings`],
+    ["Положение", `${base}/settings#regulations`],
     ["Команда", `${base}/team`],
   ];
 
@@ -26,7 +24,8 @@ export default function TournamentSidebar({ tournamentId, tournamentName }: { to
         <div className="tp-sidebar-event">{tournamentName}</div>
         <nav className="tp-sidebar-nav" aria-label="Разделы турнира">
           {links.map(([label, href]) => {
-            const active = href === base ? pathname === base : pathname.startsWith(href);
+            const cleanHref = href.split("#")[0];
+            const active = cleanHref === base ? pathname === base : pathname.startsWith(cleanHref);
             return <Link key={href} href={href} className={active ? "active" : ""}>{label}</Link>;
           })}
         </nav>
