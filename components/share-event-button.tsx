@@ -3,29 +3,30 @@
 import { useState } from "react";
 import type { Locale } from "@/lib/i18n";
 
-export default function ShareEventButton({ title, locale = "ru" }: { title: string; locale?: Locale }) {
+export default function ShareEventButton({ title, locale = "ru", url }: { title: string; locale?: Locale; url?: string }) {
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
   const label = locale === "ru" ? "Поделиться" : "Бөлісу";
 
   async function share() {
     setBusy(true);
-    setError("");
+    setMessage("");
     try {
-      const url = window.location.href;
+      const shareUrl = url ? new URL(url, window.location.origin).toString() : window.location.href;
       if (navigator.share) {
-        await navigator.share({ title, url });
+        await navigator.share({ title, url: shareUrl });
+        setMessage(locale === "ru" ? "Ссылка готова к отправке." : "Сілтеме жіберуге дайын.");
       } else {
-        await navigator.clipboard.writeText(url);
-        setError(locale === "ru" ? "Ссылка скопирована. Теперь её можно отправить в нужный чат." : "Сілтеме көшірілді. Енді оны қажетті чатқа жіберуге болады.");
+        await navigator.clipboard.writeText(shareUrl);
+        setMessage(locale === "ru" ? "Ссылка скопирована." : "Сілтеме көшірілді.");
       }
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") return;
-      setError(locale === "ru" ? "Не удалось поделиться ссылкой." : "Сілтемемен бөлісу мүмкін болмады.");
+      setMessage(locale === "ru" ? "Не удалось поделиться ссылкой." : "Сілтемемен бөлісу мүмкін болмады.");
     } finally {
       setBusy(false);
     }
   }
 
-  return <div className="public-share"><button className="primary full" type="button" onClick={share} disabled={busy}>{busy ? "…" : label}</button>{error && <p className="muted public-share-message">{error}</p>}</div>;
+  return <div className="public-share"><button className="secondary full" type="button" onClick={share} disabled={busy}>{busy ? "…" : label}</button>{message && <p className="muted public-share-message">{message}</p>}</div>;
 }
