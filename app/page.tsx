@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { translations, type Locale } from "@/lib/i18n";
 
 const tournaments = [{ name: "AFL ASTANA FIGHT LEAGUE — CLUB OPEN", sport: "MMA" }];
 
 export default function Home() {
+  const router = useRouter();
   const [showIntro, setShowIntro] = useState(false);
   const [slide, setSlide] = useState(0);
   const [lang, setLang] = useState<Locale>("ru");
@@ -17,7 +19,13 @@ export default function Home() {
     if (saved === "ru" || saved === "kk") setLang(saved);
   }, []);
 
-  function changeLang(next:Locale){setLang(next);localStorage.setItem("tp-lang",next)}
+  function changeLang(next: Locale) {
+    setLang(next);
+    localStorage.setItem("tp-lang", next);
+    document.cookie = `tp-lang=${next}; path=/; max-age=31536000; samesite=lax`;
+    router.refresh();
+  }
+
   function finishIntro() { localStorage.setItem("tp-intro-seen", "1"); setShowIntro(false); }
 
   if (showIntro) {
