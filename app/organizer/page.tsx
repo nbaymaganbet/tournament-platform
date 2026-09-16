@@ -25,8 +25,6 @@ export default async function OrganizerDashboard() {
       { onConflict: "user_id", ignoreDuplicates: true },
     );
 
-    // Always read again after the upsert. This also handles a race where the
-    // confirmation page and dashboard create the profile at the same time.
     const { data: recovered } = await supabase
       .from("organizers")
       .select("id, display_name, email")
@@ -89,9 +87,6 @@ export default async function OrganizerDashboard() {
           <h1>{organizer.display_name || t.myTournaments}</h1>
           <p className="muted">{user.email}</p>
         </div>
-        <form action="/auth/signout" method="post">
-          <button className="secondary">{t.logout}</button>
-        </form>
       </header>
 
       <div className="dashboard-actions">
