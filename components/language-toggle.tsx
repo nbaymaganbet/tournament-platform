@@ -13,6 +13,7 @@ export default function LanguageToggle() {
   const [open, setOpen] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
   const [email, setEmail] = useState("");
+  const [organizerName, setOrganizerName] = useState("");
   const supabase = createClient();
 
   useEffect(() => {
@@ -22,17 +23,35 @@ export default function LanguageToggle() {
     let mounted = true;
     const loadUser = async () => {
       const { data } = await supabase.auth.getUser();
-      if (mounted) {
-        setSignedIn(!!data.user);
-        setEmail(data.user?.email ?? "");
+      if (!mounted) return;
+      setSignedIn(!!data.user);
+      setEmail(data.user?.email ?? "");
+      if (data.user) {
+        const { data: organizer } = await supabase
+          .from("organizers")
+          .select("display_name")
+          .eq("user_id", data.user.id)
+          .maybeSingle();
+        if (mounted) setOrganizerName(organizer?.display_name ?? "");
+      } else {
+        setOrganizerName("");
       }
     };
     loadUser();
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (mounted) {
-        setSignedIn(!!session?.user);
-        setEmail(session?.user?.email ?? "");
+    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!mounted) return;
+      setSignedIn(!!session?.user);
+      setEmail(session?.user?.email ?? "");
+      if (session?.user) {
+        const { data: organizer } = await supabase
+          .from("organizers")
+          .select("display_name")
+          .eq("user_id", session.user.id)
+          .maybeSingle();
+        if (mounted) setOrganizerName(organizer?.display_name ?? "");
+      } else {
+        setOrganizerName("");
       }
     });
 
@@ -54,6 +73,7 @@ export default function LanguageToggle() {
       await supabase.auth.signOut();
       setSignedIn(false);
       setEmail("");
+      setOrganizerName("");
       setOpen(false);
       router.push("/");
       router.refresh();
@@ -89,7 +109,7 @@ export default function LanguageToggle() {
         {signedIn ? (
           <>
             <Link href="/organizer" onClick={() => setOpen(false)} style={{display:"block",border:"1px solid rgba(255,255,255,.28)",borderRadius:10,padding:"12px 15px",color:"#fff",background:"rgba(0,0,0,.18)",textDecoration:"none"}}>
-              <div style={{fontWeight:850}}>{lang === "ru" ? "Кабинет организатора" : "Ұйымдастырушы кабинеті"}</div>
+              <div style={{fontWeight:850}}>{organizerName || (lang === "ru" ? "Организатор" : "Ұйымдастырушы")}</div>
               <div style={{marginTop:4,color:"rgba(255,255,255,.72)",fontSize:12,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{email}</div>
             </Link>
             <button type="button" onClick={handleAuthAction} style={{textAlign:"center",border:"1px solid rgba(255,255,255,.28)",borderRadius:10,padding:"12px 15px",fontWeight:850,color:"#fff",background:"rgba(0,0,0,.18)"}}>{lang === "ru" ? "Выйти" : "Шығу"}</button>
