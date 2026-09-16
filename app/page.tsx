@@ -5,18 +5,26 @@ import { getLocale, getT } from "@/lib/i18n-server";
 const posterStyles = `
   .home-posters { margin-bottom: 48px; }
   .poster-feed {
+    height: min(760px, calc(100svh - 150px));
     display: grid;
     gap: 14px;
     max-width: 860px;
     margin: 0 auto;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scroll-snap-type: y mandatory;
+    scrollbar-width: none;
   }
+  .poster-feed::-webkit-scrollbar { display: none; }
   .poster-slide {
     height: min(760px, calc(100svh - 150px));
     min-height: 520px;
     scroll-snap-align: start;
+    scroll-snap-stop: always;
     display: grid;
     grid-template-rows: minmax(0, 1fr) auto;
     overflow: hidden;
+    flex: 0 0 auto;
     border: 1px solid var(--line);
     border-radius: 16px;
     background: linear-gradient(145deg, var(--surface-2), var(--surface));
@@ -53,10 +61,12 @@ const posterStyles = `
   .poster-slide-info h3 { margin: 0 0 3px; font-size: 17px; }
   .poster-slide-info .meta { line-height: 1.35; }
   .poster-slide-info .status { flex: none; margin: 0; }
-  .poster-feed { scroll-snap-type: y proximity; }
   @media (max-width: 760px) {
     .home-posters { margin-left: -10px; margin-right: -10px; }
-    .poster-feed { gap: 10px; }
+    .poster-feed {
+      height: calc(100svh - 84px);
+      gap: 10px;
+    }
     .poster-slide {
       height: calc(100svh - 84px);
       min-height: 430px;
