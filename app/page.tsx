@@ -5,33 +5,25 @@ import { getLocale, getT } from "@/lib/i18n-server";
 const posterStyles = `
   .home-posters { margin-bottom: 48px; }
   .poster-feed {
-    height: min(760px, calc(100svh - 150px));
+    height: auto;
     display: grid;
     gap: 14px;
     max-width: 860px;
     margin: 0 auto;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scroll-snap-type: y mandatory;
+    overflow: visible;
     scrollbar-width: none;
-    touch-action: pan-y pinch-zoom;
-    -webkit-overflow-scrolling: touch;
   }
-  .poster-feed::-webkit-scrollbar { display: none; }
   .poster-slide {
     height: min(760px, calc(100svh - 150px));
     min-height: 520px;
-    scroll-snap-align: start;
-    scroll-snap-stop: always;
     display: grid;
     grid-template-rows: minmax(0, 1fr) auto;
     overflow: hidden;
-    flex: 0 0 auto;
     border: 1px solid var(--line);
     border-radius: 16px;
     background: linear-gradient(145deg, var(--surface-2), var(--surface));
     box-shadow: var(--shadow);
-    touch-action: pan-y pinch-zoom;
+    scroll-snap-align: start;
   }
   .poster-frame {
     min-height: 0;
@@ -40,7 +32,6 @@ const posterStyles = `
     justify-content: center;
     padding: 10px;
     background: #090a0c;
-    touch-action: pan-y pinch-zoom;
   }
   .poster-image-full {
     display: block;
@@ -64,18 +55,13 @@ const posterStyles = `
     padding: 12px 16px;
     border-top: 1px solid var(--line);
     background: rgba(17,19,23,.96);
-    touch-action: pan-y pinch-zoom;
   }
   .poster-slide-info h3 { margin: 0 0 3px; font-size: 17px; }
   .poster-slide-info .meta { line-height: 1.35; }
   .poster-slide-info .status { flex: none; margin: 0; }
   @media (max-width: 760px) {
     .home-posters { margin-left: -10px; margin-right: -10px; }
-    .poster-feed {
-      height: calc(100svh - 84px);
-      gap: 10px;
-      touch-action: pan-y pinch-zoom;
-    }
+    .poster-feed { gap: 10px; }
     .poster-slide {
       height: calc(100svh - 84px);
       min-height: 430px;
