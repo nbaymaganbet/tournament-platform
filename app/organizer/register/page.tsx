@@ -39,6 +39,7 @@ export default function OrganizerRegisterPage() {
     mismatch: ru ? "Пароли не совпадают." : "Құпиясөздер сәйкес емес.",
     weak: ru ? "Пароль должен содержать минимум 6 символов." : "Құпиясөз кемінде 6 таңбадан тұруы керек.",
     failed: ru ? "Не удалось создать аккаунт." : "Аккаунтты жасау мүмкін болмады.",
+    timeout: ru ? "Сервер не ответил вовремя. Проверьте подключение и попробуйте ещё раз." : "Сервер уақытында жауап бермеді. Байланысты тексеріп, қайта көріңіз.",
     check: ru ? "Аккаунт создан. Проверьте почту и подтвердите email, затем войдите." : "Аккаунт жасалды. Email-ді тексеріп, растаңыз, содан кейін кіріңіз.",
   };
 
@@ -51,37 +52,53 @@ export default function OrganizerRegisterPage() {
     if (password !== confirmPassword) return setError(tr.mismatch);
     setSaving(true);
 
-    const supabase = createClient();
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email: email.trim().toLowerCase(),
-      password,
-      options: { data: { display_name: displayName.trim() } },
-    });
+    try {
+      const supabase = createClient();
+      const signup = await Promise.race([
+        supabase.auth.signUp({
+          email: email.trim().toLowerCase(),
+          password,
+          options: { data: { display_name: displayName.trim() } },
+        }),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("TIMEOUT")), 15000)),
+      ]);
 
-    if (signUpError || !data.user) {
-      setError(signUpError?.message || tr.failed);
-      setSaving(false);
-      return;
-    }
-
-    if (data.session) {
-      const { error: organizerError } = await supabase.from("organizers").upsert({
-        user_id: data.user.id,
-        display_name: displayName.trim(),
-        email: email.trim().toLowerCase(),
-      }, { onConflict: "user_id" });
-      if (organizerError) {
-        setError(organizerError.message);
+      const { data, error: signUpError } = signup;
+      if (signUpError || !data.user) {
+        setError(signUpError?.message || tr.failed);
         setSaving(false);
         return;
       }
+
+      // When email confirmation is enabled, Supabase returns no session.
+      // In that case the profile is created after the user confirms and logs in.
+      if (!data.session) {
+        setMessage(tr.check);
+        setSaving(false);
+        return;
+      }
+
+      const profile = await Promise.race([
+        supabase.from("organizers").upsert({
+          user_id: data.user.id,
+          display_name: displayName.trim(),
+          email: email.trim().toLowerCase(),
+        }, { onConflict: "user_id" }),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("TIMEOUT")), 10000)),
+      ]);
+
+      if (profile.error) {
+        setError(profile.error.message);
+        setSaving(false);
+        return;
+      }
+
       router.replace("/organizer");
       router.refresh();
-      return;
+    } catch (e) {
+      setError(e instanceof Error && e.message === "TIMEOUT" ? tr.timeout : tr.failed);
+      setSaving(false);
     }
-
-    setMessage(tr.check);
-    setSaving(false);
   }
 
   return <main className="auth-page"><section className="auth-card">
