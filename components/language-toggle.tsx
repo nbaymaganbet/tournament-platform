@@ -19,7 +19,6 @@ export default function LanguageToggle() {
   useEffect(() => {
     const saved = localStorage.getItem("tp-lang");
     if (saved === "ru" || saved === "kk") setLang(saved);
-
     let mounted = true;
     const loadUser = async () => {
       const { data } = await supabase.auth.getUser();
@@ -27,96 +26,41 @@ export default function LanguageToggle() {
       setSignedIn(!!data.user);
       setEmail(data.user?.email ?? "");
       if (data.user) {
-        const { data: organizer } = await supabase
-          .from("organizers")
-          .select("display_name")
-          .eq("user_id", data.user.id)
-          .maybeSingle();
+        const { data: organizer } = await supabase.from("organizers").select("display_name").eq("user_id", data.user.id).maybeSingle();
         if (mounted) setOrganizerName(organizer?.display_name ?? "");
-      } else {
-        setOrganizerName("");
-      }
+      } else setOrganizerName("");
     };
     loadUser();
-
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (!mounted) return;
-      setSignedIn(!!session?.user);
-      setEmail(session?.user?.email ?? "");
+      setSignedIn(!!session?.user); setEmail(session?.user?.email ?? "");
       if (session?.user) {
-        const { data: organizer } = await supabase
-          .from("organizers")
-          .select("display_name")
-          .eq("user_id", session.user.id)
-          .maybeSingle();
+        const { data: organizer } = await supabase.from("organizers").select("display_name").eq("user_id", session.user.id).maybeSingle();
         if (mounted) setOrganizerName(organizer?.display_name ?? "");
-      } else {
-        setOrganizerName("");
-      }
+      } else setOrganizerName("");
     });
-
-    return () => {
-      mounted = false;
-      listener.subscription.unsubscribe();
-    };
+    return () => { mounted = false; listener.subscription.unsubscribe(); };
   }, [pathname]);
 
-  function changeLang(next: Locale) {
-    setLang(next);
-    localStorage.setItem("tp-lang", next);
-    document.cookie = `tp-lang=${next}; path=/; max-age=31536000; samesite=lax`;
-    router.refresh();
-  }
-
+  function changeLang(next: Locale) { setLang(next); localStorage.setItem("tp-lang", next); document.cookie = `tp-lang=${next}; path=/; max-age=31536000; samesite=lax`; router.refresh(); }
+  function openHelp() { setOpen(false); window.dispatchEvent(new Event("tp-open-onboarding")); }
   async function handleAuthAction() {
-    if (signedIn) {
-      await supabase.auth.signOut();
-      setSignedIn(false);
-      setEmail("");
-      setOrganizerName("");
-      setOpen(false);
-      router.push("/");
-      router.refresh();
-      return;
-    }
-    setOpen(false);
-    router.push("/login");
+    if (signedIn) { await supabase.auth.signOut(); setSignedIn(false); setEmail(""); setOrganizerName(""); setOpen(false); router.push("/"); router.refresh(); return; }
+    setOpen(false); router.push("/login");
   }
 
   return <>
-    <button
-      type="button"
-      aria-label={lang === "ru" ? "Открыть меню" : "Мәзірді ашу"}
-      aria-expanded={open}
-      onClick={() => setOpen(v => !v)}
-      style={{position:"fixed",top:12,right:12,zIndex:101,width:44,height:44,border:"1px solid rgba(225,6,0,.55)",borderRadius:12,background:"linear-gradient(145deg,#e10600,#a80400)",color:"#fff",fontSize:20,fontWeight:900,boxShadow:"0 6px 22px rgba(225,6,0,.28)"}}
-    >{open ? "×" : "☰"}</button>
-
+    <button type="button" aria-label={lang === "ru" ? "Открыть меню" : "Мәзірді ашу"} aria-expanded={open} onClick={() => setOpen(v => !v)} style={{position:"fixed",top:12,right:12,zIndex:101,width:44,height:44,border:"1px solid rgba(225,6,0,.55)",borderRadius:12,background:"linear-gradient(145deg,#e10600,#a80400)",color:"#fff",fontSize:20,fontWeight:900,boxShadow:"0 6px 22px rgba(225,6,0,.28)"}}>{open ? "×" : "☰"}</button>
     {open && <>
       <button aria-label="Закрыть меню" type="button" onClick={() => setOpen(false)} style={{position:"fixed",inset:0,zIndex:99,border:0,background:"rgba(0,0,0,.52)"}} />
       <aside style={{position:"fixed",top:0,right:0,zIndex:100,width:"min(330px,88vw)",height:"100dvh",padding:"78px 20px 24px",background:"linear-gradient(180deg,#e10600 0%,#a80400 42%,#700300 100%)",borderLeft:"1px solid #ff4a44",boxShadow:"-18px 0 50px rgba(0,0,0,.5)",display:"flex",flexDirection:"column",gap:16}}>
-        <div>
-          <div style={{color:"rgba(255,255,255,.7)",fontSize:11,fontWeight:900,letterSpacing:".12em"}}>MENU</div>
-          <h3 style={{margin:"7px 0 0",fontSize:22,color:"#fff"}}>{lang === "ru" ? "Настройки" : "Баптаулар"}</h3>
-        </div>
-        <div style={{padding:14,border:"1px solid rgba(255,255,255,.22)",borderRadius:12,background:"rgba(0,0,0,.16)"}}>
-          <div style={{color:"rgba(255,255,255,.72)",marginBottom:9}}>{lang === "ru" ? "Язык" : "Тіл"}</div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-            <button type="button" style={{border:0,borderRadius:9,padding:"11px 15px",fontWeight:800,background:lang === "ru" ? "#fff" : "rgba(0,0,0,.18)",color:lang === "ru" ? "#a80400" : "#fff"}} onClick={() => changeLang("ru")}>РУС</button>
-            <button type="button" style={{border:0,borderRadius:9,padding:"11px 15px",fontWeight:800,background:lang === "kk" ? "#fff" : "rgba(0,0,0,.18)",color:lang === "kk" ? "#a80400" : "#fff"}} onClick={() => changeLang("kk")}>ҚАЗ</button>
-          </div>
-        </div>
-        {signedIn ? (
-          <>
-            <Link href="/organizer" onClick={() => setOpen(false)} style={{display:"block",border:"1px solid rgba(255,255,255,.28)",borderRadius:10,padding:"12px 15px",color:"#fff",background:"rgba(0,0,0,.18)",textDecoration:"none"}}>
-              <div style={{fontWeight:850}}>{organizerName || (lang === "ru" ? "Организатор" : "Ұйымдастырушы")}</div>
-              <div style={{marginTop:4,color:"rgba(255,255,255,.72)",fontSize:12,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{email}</div>
-            </Link>
-            <button type="button" onClick={handleAuthAction} style={{textAlign:"center",border:"1px solid rgba(255,255,255,.28)",borderRadius:10,padding:"12px 15px",fontWeight:850,color:"#fff",background:"rgba(0,0,0,.18)"}}>{lang === "ru" ? "Выйти" : "Шығу"}</button>
-          </>
-        ) : (
-          <button type="button" onClick={handleAuthAction} style={{textAlign:"center",border:"1px solid rgba(255,255,255,.28)",borderRadius:10,padding:"12px 15px",fontWeight:850,color:"#fff",background:"rgba(0,0,0,.18)"}}>{lang === "ru" ? "Войти" : "Кіру"}</button>
-        )}
+        <div><div style={{color:"rgba(255,255,255,.7)",fontSize:11,fontWeight:900,letterSpacing:".12em"}}>MENU</div><h3 style={{margin:"7px 0 0",fontSize:22,color:"#fff"}}>{lang === "ru" ? "Настройки" : "Баптаулар"}</h3></div>
+        <div style={{padding:14,border:"1px solid rgba(255,255,255,.22)",borderRadius:12,background:"rgba(0,0,0,.16)"}}><div style={{color:"rgba(255,255,255,.72)",marginBottom:9}}>{lang === "ru" ? "Язык" : "Тіл"}</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}><button type="button" style={{border:0,borderRadius:9,padding:"11px 15px",fontWeight:800,background:lang === "ru" ? "#fff" : "rgba(0,0,0,.18)",color:lang === "ru" ? "#a80400" : "#fff"}} onClick={() => changeLang("ru")}>РУС</button><button type="button" style={{border:0,borderRadius:9,padding:"11px 15px",fontWeight:800,background:lang === "kk" ? "#fff" : "rgba(0,0,0,.18)",color:lang === "kk" ? "#a80400" : "#fff"}} onClick={() => changeLang("kk")}>ҚАЗ</button></div></div>
+        {signedIn ? <>
+          <Link href="/organizer" onClick={() => setOpen(false)} style={{display:"block",border:"1px solid rgba(255,255,255,.28)",borderRadius:10,padding:"12px 15px",color:"#fff",background:"rgba(0,0,0,.18)",textDecoration:"none"}}><div style={{fontWeight:850}}>{organizerName || (lang === "ru" ? "Организатор" : "Ұйымдастырушы")}</div><div style={{marginTop:4,color:"rgba(255,255,255,.72)",fontSize:12,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{email}</div></Link>
+          <button type="button" onClick={handleAuthAction} style={{textAlign:"center",border:"1px solid rgba(255,255,255,.28)",borderRadius:10,padding:"12px 15px",fontWeight:850,color:"#fff",background:"rgba(0,0,0,.18)"}}>{lang === "ru" ? "Выйти" : "Шығу"}</button>
+        </> : <button type="button" onClick={handleAuthAction} style={{textAlign:"center",border:"1px solid rgba(255,255,255,.28)",borderRadius:10,padding:"12px 15px",fontWeight:850,color:"#fff",background:"rgba(0,0,0,.18)"}}>{lang === "ru" ? "Войти" : "Кіру"}</button>}
+        <button type="button" onClick={openHelp} style={{textAlign:"left",border:"1px solid rgba(255,255,255,.28)",borderRadius:10,padding:"12px 15px",fontWeight:850,color:"#fff",background:"rgba(0,0,0,.18)",display:"flex",alignItems:"center",gap:10}}><span style={{width:28,height:28,borderRadius:"50%",border:"1px solid rgba(255,255,255,.5)",display:"grid",placeItems:"center"}}>?</span>{lang === "ru" ? "Справка" : "Анықтама"}</button>
       </aside>
     </>}
   </>;
