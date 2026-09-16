@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getLocale, getT } from "@/lib/i18n-server";
 import LiveTournament from "./live-tournament";
+import ShareEventButton from "@/components/share-event-button";
 
 export default async function TournamentPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -26,13 +27,14 @@ export default async function TournamentPage({ params }: { params: Promise<{ id:
   const deadline = tournament.registration_deadline ? new Date(tournament.registration_deadline).toLocaleDateString(dateLocale) : null;
   const ru = locale === "ru";
   const text = {
-    home: ru ? "Главная" : "Басты бет", registration: ru ? "Регистрация" : "Тіркелу", open: ru ? "Открыта" : "Ашық", closed: ru ? "Закрыта" : "Жабық", fee: ru ? "Взнос" : "Жарна", status: ru ? "Статус" : "Мәртебесі", publicUpdated: ru ? "Публичная информация обновляется автоматически." : "Жария ақпарат автоматты түрде жаңартылады.", categories: ru ? "Категории" : "Санаттар", years: ru ? "лет" : "жас", kg: ru ? "кг" : "кг", placeUnknown: ru ? "Место уточняется" : "Орыны нақтыланады", regulations: ru ? "Положение" : "Ереже", openRegulations: ru ? "Открыть положение" : "Ережені ашу", registrationUntil: ru ? "Регистрация до" : "Тіркелу мерзімі", register: ru ? "Подать заявку" : "Өтінім беру", entryNotSet: ru ? "Взнос не указан" : "Жарна көрсетілмеген" 
+    home: ru ? "Главная" : "Басты бет", registration: ru ? "Регистрация" : "Тіркелу", open: ru ? "Открыта" : "Ашық", closed: ru ? "Закрыта" : "Жабық", fee: ru ? "Взнос" : "Жарна", status: ru ? "Статус" : "Мәртебесі", publicUpdated: ru ? "Публичная информация обновляется автоматически." : "Жария ақпарат автоматты түрде жаңартылады.", categories: ru ? "Категории" : "Санаттар", years: ru ? "лет" : "жас", kg: ru ? "кг" : "кг", placeUnknown: ru ? "Место уточняется" : "Орыны нақтыланады", regulations: ru ? "Положение" : "Ереже", openRegulations: ru ? "Открыть положение" : "Ережені ашу", registrationUntil: ru ? "Регистрация до" : "Тіркелу мерзімі", register: ru ? "Подать заявку" : "Өтінім беру", entryNotSet: ru ? "Взнос не указан" : "Жарна көрсетілмеген"
   };
 
   return <main className="container public-tournament">
     <div className="page-topline"><Link className="back-link" href={`/`}>← {text.home}</Link></div>
     <header className="public-hero">{tournament.poster_url && <img src={tournament.poster_url} alt="" />}<div><div className="eyebrow">{tournament.sport} · {tournament.city}</div><h1>{tournament.name}</h1><p className="muted">{new Date(tournament.date).toLocaleDateString(dateLocale)} · {tournament.venue || text.placeUnknown}</p>{tournament.description && <p>{tournament.description}</p>}{registrationOpen && <Link className="primary button-link" href={`/tournaments/${id}/register`}>{text.register}</Link>}</div></header>
     <section className="info-grid"><article className="info-card"><div className="eyebrow">{text.registration.toUpperCase()}</div><strong>{registrationOpen ? text.open : text.closed}</strong><p className="muted">{tournament.entry_fee != null ? `${text.fee}: ${tournament.entry_fee} ₸` : text.entryNotSet}{deadline ? ` · ${text.registrationUntil} ${deadline}` : ""}</p></article><article className="info-card"><div className="eyebrow">{text.status.toUpperCase()}</div><strong>{tournament.status === "registration_open" ? t.registrationOpen : tournament.status === "registration_closed" ? t.registrationClosed : tournament.status === "preparation" ? t.preparation : tournament.status === "running" ? t.running : t.completed}</strong><p className="muted">{text.publicUpdated}</p></article></section>
+    <section className="public-section"><ShareEventButton title={tournament.name} locale={locale} /></section>
     <section className="public-section"><h2>{text.categories}</h2><div className="cards-grid">{(cats ?? []).map((c: any) => <article className="info-card" key={c.id}><strong>{c.name}</strong><p className="muted">{c.age_min != null && c.age_max != null ? `${c.age_min}–${c.age_max} ${text.years}` : ""}{c.weight_limit != null ? ` · ${ru ? "до" : "дейін"} ${c.weight_limit} ${text.kg}` : ""}</p></article>)}</div></section>
     <LiveTournament tournamentId={id} initialMatches={initialMatches} initialResults={results ?? []} initialSchedule={(schedule ?? []) as any} />
     {publicDoc && <section className="public-section"><h2>{text.regulations}</h2><a className="button-link secondary" href={publicDoc.storage_path} target="_blank" rel="noreferrer">{text.openRegulations}</a></section>}
