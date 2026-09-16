@@ -3,19 +3,23 @@ import { createClient } from "@/lib/supabase/server";
 import { getLocale, getT } from "@/lib/i18n-server";
 
 const posterStyles = `
-  .home-posters { margin-bottom: 48px; }
-  .poster-feed {
-    height: auto;
-    display: grid;
-    gap: 14px;
-    max-width: 860px;
-    margin: 0 auto;
-    overflow: visible;
+  .home-posters { margin-bottom: 48px; display: grid; gap: 28px; }
+  .tournament-poster-group { min-width: 0; }
+  .poster-carousel {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain;
     scrollbar-width: none;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
   }
-  .poster-slide {
-    height: min(760px, calc(100svh - 150px));
-    min-height: 520px;
+  .poster-carousel::-webkit-scrollbar { display: none; }
+  .poster-card {
+    flex: 0 0 min(760px, 88vw);
+    height: min(760px, calc(100svh - 190px));
+    min-height: 430px;
     display: grid;
     grid-template-rows: minmax(0, 1fr) auto;
     overflow: hidden;
@@ -45,7 +49,7 @@ const posterStyles = `
     user-select: none;
     -webkit-user-drag: none;
   }
-  .poster-fallback { width: 100%; height: 100%; aspect-ratio: auto; pointer-events: none; }
+  .poster-fallback { width: 100%; height: 100%; pointer-events: none; display: grid; place-items: center; font-size: 32px; }
   .poster-slide-info {
     min-height: 78px;
     display: flex;
@@ -59,14 +63,12 @@ const posterStyles = `
   .poster-slide-info h3 { margin: 0 0 3px; font-size: 17px; }
   .poster-slide-info .meta { line-height: 1.35; }
   .poster-slide-info .status { flex: none; margin: 0; }
+  .poster-count { margin: 0 0 10px; font-size: 12px; color: var(--muted); }
   @media (max-width: 760px) {
     .home-posters { margin-left: -10px; margin-right: -10px; }
-    .poster-feed { gap: 10px; }
-    .poster-slide {
-      height: calc(100svh - 84px);
-      min-height: 430px;
-      border-radius: 12px;
-    }
+    .tournament-poster-group > h2, .tournament-poster-group > .poster-count { margin-left: 10px; margin-right: 10px; }
+    .poster-carousel { gap: 8px; padding-left: 10px; padding-right: 10px; }
+    .poster-card { flex-basis: calc(100vw - 28px); height: calc(100svh - 150px); min-height: 430px; border-radius: 12px; }
     .poster-frame { padding: 6px; }
     .poster-slide-info { min-height: 72px; padding: 10px 12px; }
     .poster-slide-info h3 { font-size: 15px; }
@@ -74,16 +76,29 @@ const posterStyles = `
   }
 `;
 
+type Poster = { public_url: string; sort_order: number };
+
+type Tournament = {
+  id: string;
+  name: string;
+  date: string | null;
+  city: string | null;
+  sport: string | null;
+  status: string;
+  poster_url: string | null;
+  tournament_posters: Poster[] | null;
+};
+
 export default async function Home() {
   const t = await getT();
   const locale = await getLocale();
   const supabase = await createClient();
   const { data: tournaments } = await supabase
     .from("tournaments")
-    .select("id,name,date,city,sport,status,poster_url")
+    .select("id,name,date,city,sport,status,poster_url,tournament_posters(public_url,sort_order)")
     .eq("is_public", true)
     .neq("status", "draft")
-    .order("date", { ascending: true });
+    .order("date", { ascending: true, nullsFirst: false });
 
   return (
     <main>
@@ -128,40 +143,59 @@ export default async function Home() {
           </section>
         ) : (
           <section className="home-posters">
-            <div className="poster-feed">
-              {tournaments.map((x) => (
-                <article className="poster-slide" key={x.id}>
-                  <Link className="poster-frame" href={`/tournaments/${x.id}`}>
-                    {x.poster_url ? (
-                      <img className="poster-image-full" src={x.poster_url} alt={x.name} />
-                    ) : (
-                      <div className="poster poster-fallback">{x.sport}</div>
+            {(tournaments as Tournament[]).map((x) => {
+              const posters = [...(x.tournament_posters ?? [])].sort((a, b) => a.sort_order - b.sort_order).map((p) => p.public_url);
+              if (!posters.length && x.poster_url) posters.push(x.poster_url);
+
+              return (
+                <section className="tournament-poster-group" key={x.id}>
+                  <h2 className="section-title">{x.name}</h2>
+                  <p className="poster-count">{posters.length > 1 ? `Свайпните влево или вправо · ${posters.length} афиши` : ""}</p>
+                  <div className="poster-carousel">
+                    {posters.length ? posters.map((poster, index) => (
+                      <article className="poster-card" key={`${x.id}-${index}`}>
+                        <Link className="poster-frame" href={`/tournaments/${x.id}`}>
+                          <img className="poster-image-full" src={poster} alt={`${x.name} — афиша ${index + 1}`} />
+                        </Link>
+                        <Link className="poster-slide-info" href={`/tournaments/${x.id}`}>
+                          <div>
+                            <h3>{x.name}</h3>
+                            <div className="meta">
+                              {x.date ? new Date(x.date).toLocaleDateString(locale === "kk" ? "kk-KZ" : "ru-RU") : "Дата уточняется"}
+                              <br />
+                              {x.city || "Город уточняется"} · {x.sport || "Вид спорта уточняется"}
+                            </div>
+                          </div>
+                          <span className="status">
+                            {x.status === "registration_open"
+                              ? t.open
+                              : x.status === "registration_closed"
+                                ? t.registrationClosed
+                                : x.status === "preparation"
+                                  ? t.preparation
+                                  : x.status === "running"
+                                    ? t.running
+                                    : t.completed}
+                          </span>
+                        </Link>
+                      </article>
+                    )) : (
+                      <article className="poster-card">
+                        <Link className="poster-frame" href={`/tournaments/${x.id}`}>
+                          <div className="poster poster-fallback">{x.sport || "TOURNAMENT"}</div>
+                        </Link>
+                        <Link className="poster-slide-info" href={`/tournaments/${x.id}`}>
+                          <div>
+                            <h3>{x.name}</h3>
+                            <div className="meta">{x.date ? new Date(x.date).toLocaleDateString(locale === "kk" ? "kk-KZ" : "ru-RU") : "Дата уточняется"}</div>
+                          </div>
+                        </Link>
+                      </article>
                     )}
-                  </Link>
-                  <Link className="poster-slide-info" href={`/tournaments/${x.id}`}>
-                    <div>
-                      <h3>{x.name}</h3>
-                      <div className="meta">
-                        {new Date(x.date).toLocaleDateString(locale === "kk" ? "kk-KZ" : "ru-RU")}
-                        <br />
-                        {x.city} · {x.sport}
-                      </div>
-                    </div>
-                    <span className="status">
-                      {x.status === "registration_open"
-                        ? t.open
-                        : x.status === "registration_closed"
-                          ? t.registrationClosed
-                          : x.status === "preparation"
-                            ? t.preparation
-                            : x.status === "running"
-                              ? t.running
-                              : t.completed}
-                    </span>
-                  </Link>
-                </article>
-              ))}
-            </div>
+                  </div>
+                </section>
+              );
+            })}
           </section>
         )}
       </div>
