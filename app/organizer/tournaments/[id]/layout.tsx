@@ -13,5 +13,5 @@ export default async function OrganizerTournamentLayout({ children, params }: { 
   const { data: tournament } = await supabase.from("tournaments").select("id").eq("id", id).eq("organizer_id", organizer.id).single();
   if (!tournament) notFound();
 
-  return <div className="tp-organizer-shell"><div className="tp-organizer-content">{children}</div><style>{`.tp-organizer-content{min-height:100vh}`}</style></div>;
+  return <div className="tp-organizer-shell"><div className="tp-organizer-content">{children}</div><style>{`.tp-organizer-content{min-height:100vh}.tp-organizer-content .primary,.tp-organizer-content .secondary,.tp-organizer-content .danger-button{padding:9px 12px;font-size:14px;line-height:1.2;border-radius:9px;min-height:40px}`}</style></div>;
 }
