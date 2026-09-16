@@ -14,6 +14,8 @@ const posterStyles = `
     overscroll-behavior: contain;
     scroll-snap-type: y mandatory;
     scrollbar-width: none;
+    touch-action: pan-y pinch-zoom;
+    -webkit-overflow-scrolling: touch;
   }
   .poster-feed::-webkit-scrollbar { display: none; }
   .poster-slide {
@@ -29,6 +31,7 @@ const posterStyles = `
     border-radius: 16px;
     background: linear-gradient(145deg, var(--surface-2), var(--surface));
     box-shadow: var(--shadow);
+    touch-action: pan-y pinch-zoom;
   }
   .poster-frame {
     min-height: 0;
@@ -37,6 +40,7 @@ const posterStyles = `
     justify-content: center;
     padding: 10px;
     background: #090a0c;
+    touch-action: pan-y pinch-zoom;
   }
   .poster-image-full {
     display: block;
@@ -46,8 +50,11 @@ const posterStyles = `
     max-height: 100%;
     object-fit: contain;
     object-position: center;
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-drag: none;
   }
-  .poster-fallback { width: 100%; height: 100%; aspect-ratio: auto; }
+  .poster-fallback { width: 100%; height: 100%; aspect-ratio: auto; pointer-events: none; }
   .poster-slide-info {
     min-height: 78px;
     display: flex;
@@ -57,6 +64,7 @@ const posterStyles = `
     padding: 12px 16px;
     border-top: 1px solid var(--line);
     background: rgba(17,19,23,.96);
+    touch-action: pan-y pinch-zoom;
   }
   .poster-slide-info h3 { margin: 0 0 3px; font-size: 17px; }
   .poster-slide-info .meta { line-height: 1.35; }
@@ -66,6 +74,7 @@ const posterStyles = `
     .poster-feed {
       height: calc(100svh - 84px);
       gap: 10px;
+      touch-action: pan-y pinch-zoom;
     }
     .poster-slide {
       height: calc(100svh - 84px);
@@ -96,9 +105,6 @@ export default async function Home() {
       <header className="topbar">
         <div className="container topbar-inner">
           <Link className="brand" href="/">{t.brand}</Link>
-          <div className="actions">
-            <Link className="primary" href="/login">{t.login}</Link>
-          </div>
         </div>
       </header>
 
