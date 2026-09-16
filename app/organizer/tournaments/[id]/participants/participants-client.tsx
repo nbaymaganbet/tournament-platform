@@ -10,7 +10,7 @@ export default function ParticipantsClient({ tournamentId, initialRows }: { tour
   const [locale] = useState<Locale>(() => typeof window !== "undefined" && localStorage.getItem("tp-lang") === "kk" ? "kk" : "ru");
   const t = translations[locale];
   const [rows,setRows]=useState(initialRows); const [query,setQuery]=useState(""); const [statusFilter,setStatusFilter]=useState("all"); const [busy,setBusy]=useState<string|null>(null); const supabase=createClient();
-  const filtered=useMemo(()=>{const q=query.trim().toLowerCase(); return rows.filter(r=>{const text=[r.first_name,r.last_name,r.club,r.coach,r.application_number,r.phone].filter(Boolean).join(" ").toLowerCase(); return (!q||text.includes(q))&&(statusFilter==="all"||r.status===statusFilter);});},[rows,query,statusFilter]);
+  const filtered=useMemo(()=>{const q=query.trim().toLowerCase(); return rows.filter(r=>{const text=[r.first_name,r.last_name,r.club,r.coach,r.application_number,r.phone].filter(Boolean).join(" ").toLowerCase(); const confirmed=r.payment_status==="paid"&&r.status==="confirmed"; const statusOk=statusFilter==="all"||(statusFilter==="confirmed"?confirmed:!confirmed); return (!q||text.includes(q))&&statusOk;});},[rows,query,statusFilter]);
 
   async function confirmPayment(id:string){
     setBusy(id);
@@ -21,22 +21,17 @@ export default function ParticipantsClient({ tournamentId, initialRows }: { tour
   }
 
   return <div className="participants-workspace">
-    <div className="toolbar"><input value={query} onChange={e=>setQuery(e.target.value)} placeholder={t.participantSearch}/><select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}><option value="all">{t.allStatuses}</option>{Object.entries(t.participantStatuses).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></div>
+    <div className="toolbar"><input value={query} onChange={e=>setQuery(e.target.value)} placeholder={t.participantSearch}/><select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}><option value="all">{t.allStatuses}</option><option value="pending_confirmation">{t.pending}</option><option value="confirmed">{t.participantStatuses.confirmed}</option></select></div>
     <div className="participants-list">
       {filtered.length===0?<div className="empty-state">{t.noApplications}</div>:filtered.map(r=>{
         const confirmed = r.payment_status === "paid" && r.status === "confirmed";
         return <article className="participant-card" key={r.id} style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) auto",alignItems:"center",gap:12}}>
           <div className="participant-main" style={{minWidth:0}}>
-            <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-              <strong>{r.last_name} {r.first_name}</strong>
-              <span className="status" style={{margin:0,background:confirmed?"rgba(53,200,117,.1)":"rgba(225,6,0,.12)",borderColor:confirmed?"rgba(53,200,117,.3)":"rgba(225,6,0,.25)",color:confirmed?"#6fe39b":"#ff625d"}}>{confirmed?t.participantStatuses.confirmed:t.participantStatuses[r.status as keyof typeof t.participantStatuses]??r.status}</span>
-            </div>
+            <strong>{r.last_name} {r.first_name}</strong>
             <span className="muted">#{r.application_number??"—"} · {r.age} {t.years} · {r.weight} кг · {r.club||t.clubNotSet}</span>
             <span className="muted">{r.coach?`${t.coach}: ${r.coach}`:t.coachNotSet} · {r.phone||t.phoneNotSet}</span>
           </div>
-          <div style={{display:"flex",flexDirection:"column",alignItems:"stretch",gap:7,minWidth:170}}>
-            {confirmed ? <span style={{display:"block",padding:"9px 10px",borderRadius:9,border:"1px solid rgba(53,200,117,.28)",background:"rgba(53,200,117,.08)",color:"#6fe39b",fontSize:12,fontWeight:850,textAlign:"center"}}>{t.paid} · {t.participantStatuses.confirmed}</span> : <button className="primary" disabled={busy===r.id} onClick={()=>void confirmPayment(r.id)} style={{minHeight:44,whiteSpace:"nowrap"}}>{busy===r.id?"…":t.confirmPayment}</button>}
-          </div>
+          <button className={confirmed?"secondary":"primary"} disabled={busy===r.id||confirmed} onClick={()=>void confirmPayment(r.id)} style={{minHeight:44,minWidth:170,whiteSpace:"nowrap"}}>{busy===r.id?"…":confirmed?t.participantStatuses.confirmed:t.confirmPayment}</button>
         </article>;
       })}
     </div>
