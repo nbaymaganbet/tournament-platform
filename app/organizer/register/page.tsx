@@ -39,7 +39,7 @@ export default function OrganizerRegisterPage() {
     mismatch: ru ? "Пароли не совпадают." : "Құпиясөздер сәйкес емес.",
     weak: ru ? "Пароль должен содержать минимум 6 символов." : "Құпиясөз кемінде 6 таңбадан тұруы керек.",
     failed: ru ? "Не удалось создать аккаунт." : "Аккаунтты жасау мүмкін болмады.",
-    timeout: ru ? "Сервер не ответил вовремя. Попробуйте ещё раз." : "Сервер уақытында жауап бермеді. Қайта көріңіз.",
+    timeout: ru ? "Сервер не ответил вовремя. Проверьте подключение и попробуйте ещё раз." : "Сервер уақытында жауап бермеді. Қосылымды тексеріп, қайта көріңіз.",
     check: ru ? "Аккаунт создан. Проверьте почту и подтвердите email, затем войдите." : "Аккаунт жасалды. Email-ді тексеріп, растаңыз, содан кейін кіріңіз.",
   };
 
@@ -54,7 +54,7 @@ export default function OrganizerRegisterPage() {
 
     try {
       const supabase = createClient();
-      const { data, error: signUpError } = await Promise.race([
+      const result = await Promise.race([
         supabase.auth.signUp({
           email: email.trim().toLowerCase(),
           password,
@@ -63,31 +63,23 @@ export default function OrganizerRegisterPage() {
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error("TIMEOUT")), 15000)),
       ]);
 
-      if (signUpError || !data.user) {
-        setError(signUpError?.message || tr.failed);
+      const { data, error: signUpError } = result;
+      if (signUpError) {
+        setError(signUpError.message || tr.failed);
+        setSaving(false);
+        return;
+      }
+      if (!data.user) {
+        setError(tr.failed);
         setSaving(false);
         return;
       }
 
+      // Profile creation is intentionally handled by the organizer dashboard.
+      // Signup only needs to create the Auth user; this avoids making signup
+      // depend on a second RLS/Data API request.
       if (!data.session) {
         setMessage(tr.check);
-        setSaving(false);
-        return;
-      }
-
-      // Use INSERT rather than upsert: this is a brand-new auth user and it
-      // avoids an unnecessary conflict lookup while RLS is being evaluated.
-      const { error: profileError } = await Promise.race([
-        supabase.from("organizers").insert({
-          user_id: data.user.id,
-          display_name: displayName.trim(),
-          email: email.trim().toLowerCase(),
-        }),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("TIMEOUT")), 10000)),
-      ]);
-
-      if (profileError) {
-        setError(profileError.message);
         setSaving(false);
         return;
       }
@@ -95,7 +87,7 @@ export default function OrganizerRegisterPage() {
       router.replace("/organizer");
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error && e.message === "TIMEOUT" ? tr.timeout : tr.failed);
+      setError(e instanceof Error && e.message === "TIMEOUT" ? tr.timeout : (e instanceof Error ? e.message : tr.failed));
       setSaving(false);
     }
   }
