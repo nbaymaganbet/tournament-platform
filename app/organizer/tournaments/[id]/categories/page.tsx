@@ -24,11 +24,7 @@ export default async function CategoriesPage({ params }: { params: Promise<{ id:
     return p ? [p] : [];
   });
   const assignments: Record<string, string> = {};
-  const weighIns: Record<string, { categoryId:string; weight:number|null; status:"pending"|"in_weight"|"out_of_weight" }> = {};
-  for (const c of categories ?? []) for (const cp of Array.isArray(c.category_participants) ? c.category_participants : []) if (cp.is_active !== false) {
-    assignments[cp.participant_id] = c.id;
-    weighIns[cp.participant_id] = { categoryId:c.id, weight:cp.weigh_in_weight ?? null, status:cp.weigh_in_status ?? "pending" };
-  }
+  for (const c of categories ?? []) for (const cp of Array.isArray(c.category_participants) ? c.category_participants : []) if (cp.is_active !== false) assignments[cp.participant_id] = c.id;
 
-  return <main className="container dashboard-page"><div className="page-topline"><Link className="back-link" href={`/organizer/tournaments/${id}`}>← {tournament.name}</Link></div><header className="section-header"><div><div className="eyebrow">ПОДГОТОВКА</div><h1>Категории</h1><p className="muted">Подтверждённые участники автоматически попадают в заявленную категорию. На взвешивании здесь фиксируется фактический вес и статус «В весе» или «Не в весе».</p></div></header><CategoriesClient tournamentId={id} initialCategories={(categories ?? []).map((c) => ({ ...c, participantCount: Array.isArray(c.category_participants) ? c.category_participants.filter((cp) => cp.is_active !== false && participants.some((p) => p.id === cp.participant_id)).length : 0 }))} participants={participants} initialAssignments={assignments} initialWeighIns={weighIns} /></main>;
+  return <main className="container dashboard-page"><div className="page-topline"><Link className="back-link" href={`/organizer/tournaments/${id}`}>← {tournament.name}</Link></div><header className="section-header"><div><div className="eyebrow">ПОДГОТОВКА</div><h1>Категории</h1><p className="muted">Здесь создаются возрастные и весовые категории и распределяются подтверждённые участники. Взвешивание проводится в отдельной вкладке.</p></div></header><CategoriesClient tournamentId={id} initialCategories={(categories ?? []).map((c) => ({ ...c, participantCount: Array.isArray(c.category_participants) ? c.category_participants.filter((cp) => cp.is_active !== false && participants.some((p) => p.id === cp.participant_id)).length : 0 }))} participants={participants} initialAssignments={assignments} /></main>;
 }
