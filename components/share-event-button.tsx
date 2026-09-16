@@ -3,10 +3,10 @@
 import { useState } from "react";
 import type { Locale } from "@/lib/i18n";
 
-export default function ShareEventButton({ title, locale = "ru", url }: { title: string; locale?: Locale; url?: string }) {
+export default function ShareEventButton({ title, locale = "ru", url, label }: { title: string; locale?: Locale; url?: string; label?: string }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
-  const label = locale === "ru" ? "Поделиться" : "Бөлісу";
+  const buttonLabel = label ?? (locale === "ru" ? "Поделиться" : "Бөлісу");
 
   async function share() {
     setBusy(true);
@@ -28,5 +28,5 @@ export default function ShareEventButton({ title, locale = "ru", url }: { title:
     }
   }
 
-  return <div className="public-share"><button className="secondary full" type="button" onClick={share} disabled={busy}>{busy ? "…" : label}</button>{message && <p className="muted public-share-message">{message}</p>}</div>;
+  return <div className="public-share"><button className="secondary full" type="button" onClick={share} disabled={busy}>{busy ? "…" : buttonLabel}</button>{message && <p className="muted public-share-message">{message}</p>}</div>;
 }
