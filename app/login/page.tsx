@@ -23,12 +23,6 @@ function LoginForm() {
     if (saved === "ru" || saved === "kk") setLocale(saved);
   }, []);
 
-  function changeLang(nextLocale: Locale) {
-    setLocale(nextLocale);
-    localStorage.setItem("tp-lang", nextLocale);
-    document.cookie = `tp-lang=${nextLocale}; path=/; max-age=31536000; samesite=lax`;
-  }
-
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
@@ -58,9 +52,6 @@ function LoginForm() {
     <section className="auth-card">
       <div className="auth-topbar">
         <a className="brand" href="/">TOURNAMENT PLATFORM</a>
-        <button className="lang" type="button" onClick={() => changeLang(locale === "ru" ? "kk" : "ru")}>
-          {locale === "ru" ? "ҚАЗ" : "РУС"}
-        </button>
       </div>
       <div className="eyebrow">{t.organizer.toUpperCase()}</div>
       <h1>{t.loginTitle}</h1>
