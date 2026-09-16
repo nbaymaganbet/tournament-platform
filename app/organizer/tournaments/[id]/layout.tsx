@@ -18,6 +18,7 @@ export default async function OrganizerTournamentLayout({ children, params }: { 
     <div className="tp-organizer-shell">
       <TournamentSidebar tournamentId={id} tournamentName={tournament.name} />
       <div className="tp-organizer-content">{children}</div>
+      <style>{`.tp-organizer-content{margin-left:252px;min-height:100vh}@media(max-width:900px){.tp-organizer-content{margin-left:0}}`}</style>
     </div>
   );
 }
