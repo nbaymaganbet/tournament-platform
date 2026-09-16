@@ -22,8 +22,8 @@ export async function proxy(request: NextRequest) {
     },
   );
 
-  const { data: { claims } } = await supabase.auth.getClaims();
-  const isAuthenticated = Boolean(claims?.sub);
+  const { data: authData } = await supabase.auth.getClaims();
+  const isAuthenticated = Boolean(authData?.claims?.sub);
   const isOrganizerRoute = request.nextUrl.pathname.startsWith("/organizer");
   const isLoginRoute = request.nextUrl.pathname === "/login";
 
