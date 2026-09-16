@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import TournamentSidebar from "./tournament-sidebar";
 
 export default async function OrganizerTournamentLayout({ children, params }: { children: React.ReactNode; params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -11,14 +10,8 @@ export default async function OrganizerTournamentLayout({ children, params }: { 
   const { data: organizer } = await supabase.from("organizers").select("id").eq("user_id", user.id).maybeSingle();
   if (!organizer) notFound();
 
-  const { data: tournament } = await supabase.from("tournaments").select("id,name").eq("id", id).eq("organizer_id", organizer.id).single();
+  const { data: tournament } = await supabase.from("tournaments").select("id").eq("id", id).eq("organizer_id", organizer.id).single();
   if (!tournament) notFound();
 
-  return (
-    <div className="tp-organizer-shell">
-      <TournamentSidebar tournamentId={id} tournamentName={tournament.name} />
-      <div className="tp-organizer-content">{children}</div>
-      <style>{`.tp-organizer-content{margin-left:252px;min-height:100vh}@media(max-width:900px){.tp-organizer-content{margin-left:0}}`}</style>
-    </div>
-  );
+  return <div className="tp-organizer-shell"><div className="tp-organizer-content">{children}</div><style>{`.tp-organizer-content{min-height:100vh}`}</style></div>;
 }
