@@ -14,7 +14,7 @@ export default async function CategoriesPage({ params }: { params: Promise<{ id:
   if (!tournament) notFound();
 
   const [{ data: categories, error }, { data: registrations }] = await Promise.all([
-    supabase.from("categories").select("id,name,age_min,age_max,weight_limit,weight_allowance,sort_order,category_participants(participant_id,is_active)").eq("tournament_id", id).order("sort_order"),
+    supabase.from("categories").select("id,name,age_min,age_max,weight_limit,weight_allowance,sort_order,category_participants(participant_id,is_active,weigh_in_weight,weigh_in_status)").eq("tournament_id", id).order("sort_order"),
     supabase.from("registrations").select("participant_id,participants(id,first_name,last_name,age,weight,club,coach)").eq("tournament_id", id).eq("status", "confirmed").eq("payment_status", "paid"),
   ]);
   if (error) throw new Error(error.message);
@@ -24,7 +24,11 @@ export default async function CategoriesPage({ params }: { params: Promise<{ id:
     return p ? [p] : [];
   });
   const assignments: Record<string, string> = {};
-  for (const c of categories ?? []) for (const cp of Array.isArray(c.category_participants) ? c.category_participants : []) if (cp.is_active !== false) assignments[cp.participant_id] = c.id;
+  const weighIns: Record<string, { categoryId:string; weight:number|null; status:"pending"|"in_weight"|"out_of_weight" }> = {};
+  for (const c of categories ?? []) for (const cp of Array.isArray(c.category_participants) ? c.category_participants : []) if (cp.is_active !== false) {
+    assignments[cp.participant_id] = c.id;
+    weighIns[cp.participant_id] = { categoryId:c.id, weight:cp.weigh_in_weight ?? null, status:cp.weigh_in_status ?? "pending" };
+  }
 
-  return <main className="container dashboard-page"><div className="page-topline"><Link className="back-link" href={`/organizer/tournaments/${id}`}>← {tournament.name}</Link></div><header className="section-header"><div><div className="eyebrow">ПОДГОТОВКА</div><h1>Категории</h1><p className="muted">Создавайте категории вручную и распределяйте только оплаченных и подтверждённых участников.</p></div></header><CategoriesClient tournamentId={id} initialCategories={(categories ?? []).map((c) => ({ ...c, participantCount: Array.isArray(c.category_participants) ? c.category_participants.filter((cp) => cp.is_active !== false && participants.some((p) => p.id === cp.participant_id)).length : 0 }))} participants={participants} initialAssignments={assignments} /></main>;
+  return <main className="container dashboard-page"><div className="page-topline"><Link className="back-link" href={`/organizer/tournaments/${id}`}>← {tournament.name}</Link></div><header className="section-header"><div><div className="eyebrow">ПОДГОТОВКА</div><h1>Категории</h1><p className="muted">Подтверждённые участники автоматически попадают в заявленную категорию. На взвешивании здесь фиксируется фактический вес и статус «В весе» или «Не в весе».</p></div></header><CategoriesClient tournamentId={id} initialCategories={(categories ?? []).map((c) => ({ ...c, participantCount: Array.isArray(c.category_participants) ? c.category_participants.filter((cp) => cp.is_active !== false && participants.some((p) => p.id === cp.participant_id)).length : 0 }))} participants={participants} initialAssignments={assignments} initialWeighIns={weighIns} /></main>;
 }
