@@ -4,16 +4,35 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type { Locale } from "@/lib/i18n";
+import { createClient } from "@/lib/supabase/client";
 
 export default function LanguageToggle() {
   const router = useRouter();
   const pathname = usePathname();
   const [lang, setLang] = useState<Locale>("ru");
   const [open, setOpen] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
+  const supabase = createClient();
 
   useEffect(() => {
     const saved = localStorage.getItem("tp-lang");
     if (saved === "ru" || saved === "kk") setLang(saved);
+
+    let mounted = true;
+    const loadUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      if (mounted) setSignedIn(!!data.user);
+    };
+    loadUser();
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (mounted) setSignedIn(!!session?.user);
+    });
+
+    return () => {
+      mounted = false;
+      listener.subscription.unsubscribe();
+    };
   }, [pathname]);
 
   function changeLang(next: Locale) {
@@ -21,6 +40,19 @@ export default function LanguageToggle() {
     localStorage.setItem("tp-lang", next);
     document.cookie = `tp-lang=${next}; path=/; max-age=31536000; samesite=lax`;
     router.refresh();
+  }
+
+  async function handleAuthAction() {
+    if (signedIn) {
+      await supabase.auth.signOut();
+      setSignedIn(false);
+      setOpen(false);
+      router.push("/");
+      router.refresh();
+      return;
+    }
+    setOpen(false);
+    router.push("/login");
   }
 
   return <>
@@ -46,7 +78,7 @@ export default function LanguageToggle() {
             <button type="button" style={{border:0,borderRadius:9,padding:"11px 15px",fontWeight:800,background:lang === "kk" ? "#fff" : "rgba(0,0,0,.18)",color:lang === "kk" ? "#a80400" : "#fff"}} onClick={() => changeLang("kk")}>ҚАЗ</button>
           </div>
         </div>
-        <Link href="/login" onClick={() => setOpen(false)} style={{textAlign:"center",border:"1px solid rgba(255,255,255,.28)",borderRadius:10,padding:"12px 15px",fontWeight:850,color:"#fff",background:"rgba(0,0,0,.18)"}}>{lang === "ru" ? "Войти" : "Кіру"}</Link>
+        <button type="button" onClick={handleAuthAction} style={{textAlign:"center",border:"1px solid rgba(255,255,255,.28)",borderRadius:10,padding:"12px 15px",fontWeight:850,color:"#fff",background:"rgba(0,0,0,.18)",cursor:"pointer"}}>{signedIn ? (lang === "ru" ? "Выйти" : "Шығу") : (lang === "ru" ? "Войти" : "Кіру")}</button>
       </aside>
     </>}
   </>;
