@@ -2,6 +2,7 @@
 
 import { FormEvent, Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { translations, type Locale } from "@/lib/i18n";
 
@@ -34,11 +35,26 @@ function LoginForm() {
     setError("");
 
     try {
-      const { error: signInError } = await createClient().auth.signInWithPassword({ email: email.trim(), password });
-      if (signInError) {
+      const supabase = createClient();
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+      if (signInError || !data.user) {
         setError(t.loginError);
         setLoading(false);
         return;
+      }
+
+      const { data: existingOrganizer } = await supabase.from("organizers").select("id").eq("user_id", data.user.id).maybeSingle();
+      if (!existingOrganizer) {
+        const { error: organizerError } = await supabase.from("organizers").insert({
+          user_id: data.user.id,
+          display_name: data.user.user_metadata?.display_name || data.user.email || "Организатор",
+          email: data.user.email?.toLowerCase() || email.trim().toLowerCase(),
+        });
+        if (organizerError && !organizerError.message.toLowerCase().includes("duplicate")) {
+          setError(organizerError.message);
+          setLoading(false);
+          return;
+        }
       }
 
       router.replace(next);
@@ -66,6 +82,7 @@ function LoginForm() {
         {error && <p className="error" role="alert">{error}</p>}
         <button className="primary full" disabled={loading}>{loading ? t.loggingIn : t.login}</button>
       </form>
+      <div className="auth-secondary"><span className="muted">{locale === "ru" ? "Нет аккаунта?" : "Аккаунт жоқ па?"}</span><Link className="button-link secondary" href="/organizer/register">{locale === "ru" ? "Регистрация организатора" : "Ұйымдастырушы ретінде тіркелу"}</Link></div>
       <a className="back-link" href="/">← {t.home}</a>
     </section>
   );
