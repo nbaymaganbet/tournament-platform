@@ -14,7 +14,7 @@ export default async function CategoriesPage({ params }: { params: Promise<{ id:
   if (!tournament) notFound();
 
   const [{ data: categories, error }, { data: registrations }] = await Promise.all([
-    supabase.from("categories").select("id,name,age_min,age_max,weight_limit,weight_allowance,sort_order,category_participants(participant_id,is_active,weigh_in_weight,weigh_in_status)").eq("tournament_id", id).order("sort_order"),
+    supabase.from("categories").select("id,name,age_min,age_max,weight_min,weight_limit,weight_allowance,sort_order,category_participants(participant_id,is_active,weigh_in_weight,weigh_in_status)").eq("tournament_id", id).order("sort_order"),
     supabase.from("registrations").select("participant_id,participants(id,first_name,last_name,age,weight,club,coach)").eq("tournament_id", id).eq("status", "confirmed").eq("payment_status", "paid"),
   ]);
   if (error) throw new Error(error.message);
