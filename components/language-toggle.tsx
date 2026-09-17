@@ -14,7 +14,6 @@ export default function LanguageToggle() {
   const [signedIn, setSignedIn] = useState(false);
   const [email, setEmail] = useState("");
   const [organizerName, setOrganizerName] = useState("");
-  const supabase = createClient();
 
   const tournamentMatch = pathname.match(/^\/organizer\/tournaments\/([^/]+)/);
   const tournamentId = tournamentMatch?.[1] ?? null;
@@ -26,7 +25,6 @@ export default function LanguageToggle() {
     ["Взвешивание", `${tournamentBase}/weigh-in`],
     ["Сетка и расписание", `${tournamentBase}/brackets`],
     ["Настройки", `${tournamentBase}/settings`],
-    ["Положение", `${tournamentBase}/settings#regulations`],
     ["Команда", `${tournamentBase}/team`],
   ] : [];
 
@@ -34,6 +32,7 @@ export default function LanguageToggle() {
     const saved = localStorage.getItem("tp-lang");
     if (saved === "ru" || saved === "kk") setLang(saved);
     let mounted = true;
+    const supabase = createClient();
     const loadUser = async () => {
       const { data } = await supabase.auth.getUser();
       if (!mounted) return;
@@ -70,6 +69,7 @@ export default function LanguageToggle() {
 
   async function handleAuthAction() {
     if (signedIn) {
+      const supabase = createClient();
       await supabase.auth.signOut();
       setSignedIn(false); setEmail(""); setOrganizerName(""); setOpen(false);
       router.push("/"); router.refresh();
