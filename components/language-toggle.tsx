@@ -68,8 +68,8 @@ export default function LanguageToggle() {
   }
 
   async function handleAuthAction() {
+    const supabase = createClient();
     if (signedIn) {
-      const supabase = createClient();
       await supabase.auth.signOut();
       setSignedIn(false); setEmail(""); setOrganizerName(""); setOpen(false);
       router.push("/"); router.refresh();
@@ -97,8 +97,7 @@ export default function LanguageToggle() {
           </div>
           <nav aria-label="Разделы турнира" style={{display:"grid",gap:4,paddingTop:14}}>
             {tournamentLinks.map(([label, href]) => {
-              const cleanHref = href.split("#")[0];
-              const active = cleanHref === tournamentBase ? pathname === tournamentBase : pathname.startsWith(cleanHref);
+              const active = href === tournamentBase ? pathname === tournamentBase : pathname.startsWith(href);
               return <Link key={href} href={href} onClick={() => setOpen(false)} style={{display:"flex",alignItems:"center",minHeight:44,padding:"0 12px",border:`1px solid ${active ? "#292d34" : "transparent"}`,borderRadius:9,color:active?"#fff":"#8e949f",background:active?"#17191e":"transparent",fontSize:14,fontWeight:800}}>{label}</Link>;
             })}
           </nav>
