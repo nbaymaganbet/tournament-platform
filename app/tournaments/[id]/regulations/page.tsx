@@ -8,27 +8,20 @@ import ShareEventButton from "@/components/share-event-button";
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
   const s = await createClient();
-  const { data: tournament } = await s.from("tournaments").select("name,description,poster_url,city,sport,is_public,regulations_text").eq("id", id).eq("is_public", true).maybeSingle();
+  const { data: tournament } = await s.from("tournaments").select("name,poster_url,is_public").eq("id", id).eq("is_public", true).maybeSingle();
   if (!tournament) return { title: "Положение соревнований" };
 
-  const title = `${tournament.name} — Положение соревнований`;
-  const description = tournament.description || `Положение соревнований: ${tournament.name}${tournament.city ? ` · ${tournament.city}` : ""}`;
-  const image = tournament.poster_url || undefined;
-
   return {
-    title,
-    description,
+    title: tournament.name,
     openGraph: {
-      title,
-      description,
+      title: tournament.name,
       type: "website",
-      ...(image ? { images: [{ url: image }] } : {}),
+      ...(tournament.poster_url ? { images: [{ url: tournament.poster_url }] } : {}),
     },
     twitter: {
-      card: image ? "summary_large_image" : "summary",
-      title,
-      description,
-      ...(image ? { images: [image] } : {}),
+      card: tournament.poster_url ? "summary_large_image" : "summary",
+      title: tournament.name,
+      ...(tournament.poster_url ? { images: [tournament.poster_url] } : {}),
     },
   };
 }
