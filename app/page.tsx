@@ -116,24 +116,6 @@ export default async function Home() {
           <p>{t.heroText}</p>
         </section>
 
-        <section>
-          <div className="filters">
-            <input className="field" placeholder={t.search} />
-            <select className="field" defaultValue="">
-              <option value="">{t.sport}</option>
-              <option>MMA</option>
-              <option>Grappling</option>
-              <option>BJJ</option>
-              <option>Wrestling</option>
-            </select>
-            <input className="field" placeholder={t.city} />
-            <select className="field" defaultValue="">
-              <option value="">{t.status}</option>
-              <option>{t.open}</option>
-            </select>
-          </div>
-        </section>
-
         <h2 className="section-title">{t.upcoming}</h2>
 
         {!tournaments?.length ? (
