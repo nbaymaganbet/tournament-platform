@@ -8,10 +8,13 @@ export default async function WeighInPage({ params }: { params: Promise<{ id: st
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
-  const { data: organizer } = await supabase.from("organizers").select("id").eq("user_id", user.id).maybeSingle();
-  if (!organizer) notFound();
-  const { data: tournament } = await supabase.from("tournaments").select("id,name").eq("id", id).eq("organizer_id", organizer.id).single();
+  const { data: tournament } = await supabase.from("tournaments").select("id,name,organizer_id").eq("id", id).single();
   if (!tournament) notFound();
+  const [{ data: organizer }, { data: member }] = await Promise.all([
+    supabase.from("organizers").select("id").eq("user_id", user.id).maybeSingle(),
+    supabase.from("tournament_members").select("role").eq("tournament_id", id).eq("user_id", user.id).maybeSingle(),
+  ]);
+  if (organizer?.id !== tournament.organizer_id && !member) notFound();
 
   const [{ data: categories, error }, { data: registrations }] = await Promise.all([
     supabase.from("categories").select("id,name,age_min,age_max,weight_limit,weight_allowance,sort_order,category_participants(participant_id,is_active,weigh_in_weight,weigh_in_status)").eq("tournament_id", id).order("sort_order"),
