@@ -16,7 +16,7 @@ export default function LanguageToggle() {
   const [organizerName, setOrganizerName] = useState("");
 
   const tournamentMatch = pathname.match(/^\/organizer\/tournaments\/([^/]+)/);
-  const tournamentId = tournamentMatch?.[1] ?? null;
+  const tournamentId = tournamentMatch?.[1] && tournamentMatch[1] !== "new" ? tournamentMatch[1] : null;
   const tournamentBase = tournamentId ? `/organizer/tournaments/${tournamentId}` : null;
   const tournamentLinks = tournamentBase ? [
     ["Обзор", tournamentBase],
@@ -24,6 +24,9 @@ export default function LanguageToggle() {
     ["Категории", `${tournamentBase}/categories`],
     ["Взвешивание", `${tournamentBase}/weigh-in`],
     ["Сетка и расписание", `${tournamentBase}/brackets`],
+    ["Расписание", `${tournamentBase}/schedule`],
+    ["Проведение", `${tournamentBase}/running`],
+    ["Результаты", `${tournamentBase}/results`],
     ["Настройки", `${tournamentBase}/settings`],
     ["Команда", `${tournamentBase}/team`],
   ] : [];
