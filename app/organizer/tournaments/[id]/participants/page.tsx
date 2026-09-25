@@ -10,8 +10,10 @@ export default async function ParticipantsPage({ params }: { params: Promise<{ i
   if (!user) return null;
   if (!(await hasTournamentPermission(supabase, id, "participants"))) return permissionDeniedPage();
   const { data: organizer } = await supabase.from("organizers").select("id").eq("user_id", user.id).maybeSingle();
-  if (!organizer) notFound();
-  const { data: tournament } = await supabase.from("tournaments").select("id,name").eq("id", id).eq("organizer_id", organizer.id).single();
+  const { data: tournament } = await supabase.from("tournaments").select("id,name,organizer_id").eq("id", id).single();
+  if (!tournament) notFound();
+  const { data: member } = await supabase.from("tournament_members").select("user_id").eq("tournament_id", id).eq("user_id", user.id).maybeSingle();
+  if (organizer?.id !== tournament.organizer_id && !member) notFound();
   if (!tournament) notFound();
   const { data: registrations, error } = await supabase.from("registrations").select("id,participant_id,application_number,status,payment_status,participants(first_name,last_name,age,weight,actual_weight,experience,phone,city,club,coach)").eq("tournament_id", id).order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
