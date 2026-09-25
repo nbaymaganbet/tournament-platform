@@ -12,5 +12,5 @@ export default async function OrganizerTournamentLayout({ children, params }: { 
     supabase.from("tournament_members").select("role").eq("tournament_id", id).eq("user_id", user.id).maybeSingle(),
   ]);
   if (organizer?.id !== tournament.organizer_id && !member) notFound();
-  return <div className="tp-organizer-shell"><TournamentSidebar tournamentId={id} tournamentName={tournament.name} /><div className="tp-organizer-content">{children}</div><style>{".tp-organizer-content{min-height:100vh}@media(min-width:901px){.tp-organizer-content{margin-left:298px}}.tp-organizer-content .primary,.tp-organizer-content .secondary,.tp-organizer-content .danger-button{padding:9px 12px;font-size:14px;line-height:1.2;border-radius:9px;min-height:40px}"}</style></div>;
+  return <div className="tp-organizer-content">{children}</div><style>{".tp-organizer-content{min-height:100vh}.tp-organizer-content .primary,.tp-organizer-content .secondary,.tp-organizer-content .danger-button{padding:9px 12px;font-size:14px;line-height:1.2;border-radius:9px;min-height:40px}"}</style>
 }
