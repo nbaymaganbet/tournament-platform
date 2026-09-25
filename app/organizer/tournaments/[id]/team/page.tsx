@@ -48,6 +48,8 @@ export default function TournamentTeamPage(){
    const s=createClient();
    const {data:user}=await s.auth.getUser();
    if(!user.user){router.replace("/login");return;}
+   const {data:allowed}=await s.rpc("has_tournament_permission",{p_tournament_uuid:id,p_permission_key:"team"});
+   if(allowed!==true){setError(ru?"Этот раздел недоступен для вашей роли.":"Бұл бөлім сіздің рөліңіз үшін қолжетімсіз.");setLoading(false);return;}
    const {data:owner}=await s.from("organizers").select("email").eq("user_id",user.user.id).maybeSingle();
    setOwnerEmail(owner?.email||user.user.email||"");
    const {data,error:e}=await s.rpc("list_tournament_members_with_permissions",{p_tournament_uuid:id});
