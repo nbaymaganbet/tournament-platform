@@ -14,6 +14,7 @@ export default function LanguageToggle() {
   const [signedIn, setSignedIn] = useState(false);
   const [email, setEmail] = useState("");
   const [organizerName, setOrganizerName] = useState("");
+  const [permissions, setPermissions] = useState<Record<string, boolean> | null>(null);
 
   const tournamentMatch = pathname.match(/^\/organizer\/tournaments\/([^/]+)/);
   const tournamentId = tournamentMatch?.[1] && tournamentMatch[1] !== "new" ? tournamentMatch[1] : null;
@@ -45,6 +46,14 @@ export default function LanguageToggle() {
         const { data: organizer } = await supabase.from("organizers").select("display_name").eq("user_id", data.user.id).maybeSingle();
         if (mounted) setOrganizerName(organizer?.display_name ?? "");
       } else setOrganizerName("");
+      if (data.user && tournamentBase && tournamentId) {
+        const keys = ["overview","participants","categories","weigh_in","brackets","schedule","running","results","settings","team","all_tournaments"];
+        const checks = await Promise.all(keys.map(async key => {
+          const { data: allowed } = await supabase.rpc("has_tournament_permission", { p_tournament_uuid: tournamentId, p_permission_key: key });
+          return [key, allowed === true] as const;
+        }));
+        if (mounted) setPermissions(Object.fromEntries(checks));
+      } else if (mounted) setPermissions(null);
     };
     loadUser();
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
@@ -54,6 +63,14 @@ export default function LanguageToggle() {
         const { data: organizer } = await supabase.from("organizers").select("display_name").eq("user_id", session.user.id).maybeSingle();
         if (mounted) setOrganizerName(organizer?.display_name ?? "");
       } else setOrganizerName("");
+      if (session?.user && tournamentBase && tournamentId) {
+        const keys = ["overview","participants","categories","weigh_in","brackets","schedule","running","results","settings","team","all_tournaments"];
+        const checks = await Promise.all(keys.map(async key => {
+          const { data: allowed } = await supabase.rpc("has_tournament_permission", { p_tournament_uuid: tournamentId, p_permission_key: key });
+          return [key, allowed === true] as const;
+        }));
+        if (mounted) setPermissions(Object.fromEntries(checks));
+      } else if (mounted) setPermissions(null);
     });
     return () => { mounted = false; listener.subscription.unsubscribe(); };
   }, [pathname]);
@@ -100,12 +117,16 @@ export default function LanguageToggle() {
           </div>
           <nav aria-label="Разделы турнира" style={{display:"grid",gap:4,paddingTop:14}}>
             {tournamentLinks.map(([label, href]) => {
+              const keyMap:Record<string,string>={"Обзор":"overview","Участники":"participants","Категории":"categories","Взвешивание":"weigh_in","Сетка и расписание":"brackets","Расписание":"schedule","Проведение":"running","Результаты":"results","Настройки":"settings","Команда":"team"};
+              const permissionKey=keyMap[label];
+              const allowed=permissions===null || permissions[permissionKey] !== false;
               const active = href === tournamentBase ? pathname === tournamentBase : pathname.startsWith(href);
+              if (!allowed) return <button key={href} type="button" onClick={() => alert(lang === "ru" ? "Этот раздел недоступен для вашей роли." : "Бұл бөлім сіздің рөліңіз үшін қолжетімсіз.")} style={{display:"flex",alignItems:"center",minHeight:44,padding:"0 12px",border:"1px solid transparent",borderRadius:9,color:"#555b65",background:"transparent",fontSize:14,fontWeight:800,textAlign:"left",cursor:"not-allowed"}}>{label}</button>;
               return <Link key={href} href={href} onClick={() => setOpen(false)} style={{display:"flex",alignItems:"center",minHeight:44,padding:"0 12px",border:`1px solid ${active ? "#292d34" : "transparent"}`,borderRadius:9,color:active?"#fff":"#8e949f",background:active?"#17191e":"transparent",fontSize:14,fontWeight:800}}>{label}</Link>;
             })}
           </nav>
           <div style={{marginTop:18,paddingTop:14,borderTop:"1px solid #292d34",display:"grid",gap:4}}>
-            <Link href="/organizer" onClick={() => setOpen(false)} style={{padding:"10px 12px",color:"#8e949f",fontSize:13,fontWeight:750}}>← Все турниры</Link>
+            <button type="button" onClick={() => permissions?.all_tournaments === false ? alert(lang === "ru" ? "Этот раздел недоступен для вашей роли." : "Бұл бөлім сіздің рөліңіз үшін қолжетімсіз.") : (setOpen(false), router.push("/organizer"))} style={{border:0,background:"transparent",textAlign:"left",padding:"10px 12px",color:permissions?.all_tournaments === false?"#555b65":"#8e949f",fontSize:13,fontWeight:750,cursor:permissions?.all_tournaments === false?"not-allowed":"pointer"}}>← Все турниры</button>
           </div>
         </> : <>
           <div style={{padding:"0 8px 14px",borderBottom:"1px solid #292d34"}}>
