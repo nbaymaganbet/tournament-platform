@@ -8,6 +8,7 @@ export default async function ParticipantsPage({ params }: { params: Promise<{ i
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
+  if (!(await hasTournamentPermission(supabase, id, "participants"))) return permissionDeniedPage();
   const { data: organizer } = await supabase.from("organizers").select("id").eq("user_id", user.id).maybeSingle();
   if (!organizer) notFound();
   const { data: tournament } = await supabase.from("tournaments").select("id,name").eq("id", id).eq("organizer_id", organizer.id).single();
