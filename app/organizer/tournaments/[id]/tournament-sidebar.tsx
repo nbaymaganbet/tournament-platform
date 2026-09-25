@@ -40,7 +40,6 @@ export default function TournamentSidebar({ tournamentId, tournamentName }: { to
         </nav>
         <div className="tp-sidebar-bottom">
           <Link href="/organizer" onClick={close}>← Все турниры</Link>
-          <Link href="/" onClick={close}>Главная платформа</Link>
         </div>
       </aside>
       <style jsx>{`
