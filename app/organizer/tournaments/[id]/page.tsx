@@ -5,7 +5,7 @@ import { getLocale, getT } from "@/lib/i18n-server";
 import ShareEventButton from "@/components/share-event-button";
 
 export default async function OrganizerTournamentPage({params}:{params:Promise<{id:string}>}){
- const {id}=await params;const t=await getT();const locale=await getLocale();const ru=locale==="ru";const supabase=await createClient();const {data:{user}}=await supabase.auth.getUser();if(!user)return null;
+ const {id}=await params;const t=await getT();const locale=await getLocale();const ru=locale==="ru";const supabase=await createClient();const {data:{user}}=await supabase.auth.getUser();if(!user)return null;if(!(await hasTournamentPermission(supabase,id,"overview")))return permissionDeniedPage();
  const {data:tournament}=await supabase.from("tournaments").select("id,name,date,city,venue,sport,description,entry_fee,registration_deadline,status,is_public,poster_url,regulations_text").eq("id",id).maybeSingle();if(!tournament)notFound();
  const [participants,categories,matches,mats]=await Promise.all([supabase.from("registrations").select("id",{count:"exact",head:true}).eq("tournament_id",id),supabase.from("categories").select("id",{count:"exact",head:true}).eq("tournament_id",id),supabase.from("matches").select("id",{count:"exact",head:true}).eq("tournament_id",id),supabase.from("mats").select("id",{count:"exact",head:true}).eq("tournament_id",id)]);
  const statusLabels:Record<string,string>={draft:t.draft,registration_open:t.registrationOpen,registration_closed:t.registrationClosed,preparation:t.preparation,running:t.running,completed:t.completed};
