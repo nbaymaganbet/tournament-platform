@@ -39,8 +39,9 @@ export default function TournamentTeamPage(){
  const [email,setEmail]=useState("");
  const [loading,setLoading]=useState(true); const [saving,setSaving]=useState(false);
  const [savingPermissions,setSavingPermissions]=useState<string|null>(null);
+ const [openPermissions,setOpenPermissions]=useState<string|null>(null);
  const [error,setError]=useState(""); const [ok,setOk]=useState("");
- const [ownerEmail,setOwnerEmail]=useState(""); const [ru,setRu]=useState(true);
+ const [ru,setRu]=useState(true);
 
  useEffect(()=>{setRu(localStorage.getItem("tp-lang")!=="kk");},[]);
 
@@ -50,8 +51,6 @@ export default function TournamentTeamPage(){
    if(!user.user){router.replace("/login");return;}
    const {data:allowed}=await s.rpc("has_tournament_permission",{p_tournament_uuid:id,p_permission_key:"team"});
    if(allowed!==true){setError(ru?"Этот раздел недоступен для вашей роли.":"Бұл бөлім сіздің рөліңіз үшін қолжетімсіз.");setLoading(false);return;}
-   const {data:owner}=await s.from("organizers").select("email").eq("user_id",user.user.id).maybeSingle();
-   setOwnerEmail(owner?.email||user.user.email||"");
    const {data,error:e}=await s.rpc("list_tournament_members_with_permissions",{p_tournament_uuid:id});
    if(e){setError(e.message);setLoading(false);return;}
    setMembers((data||[]) as Member[]); setLoading(false);
@@ -107,7 +106,6 @@ export default function TournamentTeamPage(){
    <div className="eyebrow">{ru?"КОМАНДА":"КОМАНДА"}</div>
    <h1>{ru?"Доступ к турниру":"Жарысқа қолжетімділік"}</h1>
    <p className="muted">{ru?"Добавьте зарегистрированного сотрудника по email. Доступ к разделам настраивается отдельно для этого турнира.":"Тіркелген қызметкерді email арқылы қосыңыз. Бөлімдерге қолжетімділік осы жарыс үшін бөлек бапталады."}</p>
-   <div className="panel"><strong>{ru?"Владелец":"Иесі"}</strong><p className="muted">{ownerEmail}</p></div>
    <form className="tournament-form" onSubmit={add}>
     <label>{ru?"Email сотрудника":"Қызметкердің email-і"}<input className="field" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="organizer@example.com" required/></label>
     {error&&<p className="error" role="alert">{error}</p>}
@@ -122,16 +120,20 @@ export default function TournamentTeamPage(){
        <button className="button-link secondary" type="button" onClick={()=>remove(m.user_id)}>{ru?"Убрать":"Алып тастау"}</button>
       </div>
       <div style={{marginTop:14,paddingTop:14,borderTop:"1px solid #292d34"}}>
-       <strong>{ru?"Разрешения":"Рұқсаттар"}</strong>
-       <div style={{display:"grid",gap:8,marginTop:10}}>
-        {permissionItems.map(([key,label])=><label key={key} style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer"}}>
-          <input type="checkbox" checked={m[key]} onChange={()=>toggle(m.user_id,key)} />
-          <span>{ru?label:({overview:"Шолу",participants:"Қатысушылар",categories:"Санаттар",weigh_in:"Өлшеу",brackets:"Тор",schedule:"Кесте",running:"Өткізу",results:"Нәтижелер",settings:"Баптаулар",team:"Команда",all_tournaments:"Барлық жарыстар"} as Record<string,string>)[key]}</span>
-        </label>)}
-       </div>
-       <button className="primary" type="button" style={{marginTop:14}} disabled={savingPermissions===m.user_id} onClick={()=>savePermissions(m)}>
-         {savingPermissions===m.user_id?(ru?"Сохраняем…":"Сақталуда…"):(ru?"Сохранить разрешения":"Рұқсаттарды сақтау")}
+       <button className="button-link secondary" type="button" onClick={()=>setOpenPermissions(openPermissions===m.user_id?null:m.user_id)}>
+         {openPermissions===m.user_id?(ru?"Скрыть разрешения":"Рұқсаттарды жасыру"):(ru?"Разрешения":"Рұқсаттар")}
        </button>
+       {openPermissions===m.user_id&&<div style={{marginTop:12}}>
+        <div style={{display:"grid",gap:8}}>
+         {permissionItems.map(([key,label])=><label key={key} style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer"}}>
+           <input type="checkbox" checked={m[key]} onChange={()=>toggle(m.user_id,key)} />
+           <span>{ru?label:({overview:"Шолу",participants:"Қатысушылар",categories:"Санаттар",weigh_in:"Өлшеу",brackets:"Тор",schedule:"Кесте",running:"Өткізу",results:"Нәтижелер",settings:"Баптаулар",team:"Команда",all_tournaments:"Барлық жарыстар"} as Record<string,string>)[key]}</span>
+         </label>)}
+        </div>
+        <button className="primary" type="button" style={{marginTop:14}} disabled={savingPermissions===m.user_id} onClick={()=>savePermissions(m)}>
+          {savingPermissions===m.user_id?(ru?"Сохраняем…":"Сақталуда…"):(ru?"Сохранить разрешения":"Рұқсаттарды сақтау")}
+        </button>
+       </div>}
       </div>
     </article>)}
    </section>
