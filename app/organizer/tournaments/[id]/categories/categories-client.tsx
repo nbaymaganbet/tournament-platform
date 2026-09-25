@@ -214,7 +214,7 @@ export default function CategoriesClient({ tournamentId, initialCategories, part
               </div>}
             </article>;
           })}
-        </div>
+        </div>}
       </section>)}
     </div>
   </section>;
