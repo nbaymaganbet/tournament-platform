@@ -47,10 +47,14 @@ export default function LanguageToggle() {
         if (mounted) setOrganizerName(organizer?.display_name ?? "");
       } else setOrganizerName("");
       if (data.user && tournamentBase && tournamentId) {
+        const { data: organizer } = await supabase.from("organizers").select("id").eq("user_id", data.user.id).maybeSingle();
+        const { data: tournament } = await supabase.from("tournaments").select("organizer_id").eq("id", tournamentId).maybeSingle();
+        const isOwner = !!organizer && organizer.id === tournament?.organizer_id;
         const keys = ["overview","participants","categories","weigh_in","brackets","schedule","running","results","settings","team","all_tournaments"];
         const checks = await Promise.all(keys.map(async key => {
-          const { data: allowed } = await supabase.rpc("has_tournament_permission", { p_tournament_uuid: tournamentId, p_permission_key: key });
-          return [key, allowed === true] as const;
+          if (isOwner) return [key, true] as const;
+          const { data: allowed, error } = await supabase.rpc("has_tournament_permission", { p_tournament_uuid: tournamentId, p_permission_key: key });
+          return [key, !error && allowed === true] as const;
         }));
         if (mounted) setPermissions(Object.fromEntries(checks));
       } else if (mounted) setPermissions(null);
@@ -64,10 +68,14 @@ export default function LanguageToggle() {
         if (mounted) setOrganizerName(organizer?.display_name ?? "");
       } else setOrganizerName("");
       if (session?.user && tournamentBase && tournamentId) {
+        const { data: organizer } = await supabase.from("organizers").select("id").eq("user_id", session.user.id).maybeSingle();
+        const { data: tournament } = await supabase.from("tournaments").select("organizer_id").eq("id", tournamentId).maybeSingle();
+        const isOwner = !!organizer && organizer.id === tournament?.organizer_id;
         const keys = ["overview","participants","categories","weigh_in","brackets","schedule","running","results","settings","team","all_tournaments"];
         const checks = await Promise.all(keys.map(async key => {
-          const { data: allowed } = await supabase.rpc("has_tournament_permission", { p_tournament_uuid: tournamentId, p_permission_key: key });
-          return [key, allowed === true] as const;
+          if (isOwner) return [key, true] as const;
+          const { data: allowed, error } = await supabase.rpc("has_tournament_permission", { p_tournament_uuid: tournamentId, p_permission_key: key });
+          return [key, !error && allowed === true] as const;
         }));
         if (mounted) setPermissions(Object.fromEntries(checks));
       } else if (mounted) setPermissions(null);
@@ -99,6 +107,12 @@ export default function LanguageToggle() {
   }
 
   return <>
+    <Link
+      href="/"
+      aria-label={lang === "ru" ? "Домой" : "Басты бет"}
+      style={{position:"fixed",top:12,right:60,zIndex:101,width:44,height:44,border:"1px solid #292d34",borderRadius:12,background:"#111317",color:"#f5f5f5",fontSize:20,fontWeight:900,boxShadow:"0 6px 22px rgba(0,0,0,.3)",display:"flex",alignItems:"center",justifyContent:"center",textDecoration:"none"}}
+    >⌂</Link>
+
     <button
       type="button"
       aria-label={lang === "ru" ? "Открыть меню" : "Мәзірді ашу"}
