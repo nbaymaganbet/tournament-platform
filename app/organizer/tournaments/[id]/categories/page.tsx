@@ -10,9 +10,10 @@ export default async function CategoriesPage({ params }: { params: Promise<{ id:
   if (!user) return null;
   if (!(await hasTournamentPermission(supabase, id, "categories"))) return permissionDeniedPage();
   const { data: organizer } = await supabase.from("organizers").select("id").eq("user_id", user.id).maybeSingle();
-  if (!organizer) notFound();
-  const { data: tournament } = await supabase.from("tournaments").select("id,name").eq("id", id).eq("organizer_id", organizer.id).single();
+  const { data: tournament } = await supabase.from("tournaments").select("id,name,organizer_id").eq("id", id).single();
   if (!tournament) notFound();
+  const { data: member } = await supabase.from("tournament_members").select("user_id").eq("tournament_id", id).eq("user_id", user.id).maybeSingle();
+  if (organizer?.id !== tournament.organizer_id && !member) notFound();
 
   const [{ data: categories, error }, { data: registrations }] = await Promise.all([
     supabase.from("categories").select("id,name,age_min,age_max,weight_min,weight_limit,weight_allowance,sort_order,category_participants(participant_id,is_active,weigh_in_weight,weigh_in_status)").eq("tournament_id", id).order("sort_order"),
