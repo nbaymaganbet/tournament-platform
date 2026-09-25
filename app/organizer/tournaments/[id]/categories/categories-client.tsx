@@ -17,6 +17,7 @@ export default function CategoriesClient({ tournamentId, initialCategories, part
 
   const [categories, setCategories] = useState(initialCategories);
   const [selectedCategory, setSelectedCategory] = useState("");
+  const [openAgeGroups, setOpenAgeGroups] = useState<Record<string, boolean>>({});
   const [assigned, setAssigned] = useState(initialAssignments);
   const [ageGroup, setAgeGroup] = useState({ min: "", max: "" });
   const [weights, setWeights] = useState<WeightRow[]>([{ type: "up_to", weight: "", allowance: "" }]);
@@ -187,10 +188,13 @@ export default function CategoriesClient({ tournamentId, initialCategories, part
 
     <div className="category-list" style={{ marginTop: 12 }}>
       {categories.length === 0 ? <div className="empty-state">{t.noCategories}</div> : groupedCategories.map(group => <section key={`${group.ageMin}:${group.ageMax}`} className="form-card" style={{ marginBottom: 12 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 10 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
           <h2 style={{ margin: 0 }}>{group.ageMin ?? "—"}–{group.ageMax ?? "—"} {t.years}</h2>
+          <button type="button" className="secondary" disabled={busy !== null} onClick={() => setOpenAgeGroups(x => ({ ...x, [`${group.ageMin}:${group.ageMax}`]: !x[`${group.ageMin}:${group.ageMax}`] }))}>
+            {openAgeGroups[`${group.ageMin}:${group.ageMax}`] ? labels.close : labels.open}
+          </button>
         </div>
-        <div style={{ display: "grid", gap: 10 }}>
+        {openAgeGroups[`${group.ageMin}:${group.ageMax}`] && <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
           {group.categories.map(c => {
             const open = selectedCategory === c.id;
             return <article className="participant-card" key={c.id}>
