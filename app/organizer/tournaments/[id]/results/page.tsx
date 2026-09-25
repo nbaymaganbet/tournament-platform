@@ -1,9 +1,10 @@
 import Link from "next/link";
 import {notFound} from "next/navigation";
 import {createClient} from "@/lib/supabase/server";
+import { hasTournamentPermission, permissionDeniedPage } from "@/lib/tournament-permissions";
 
 export default async function ResultsPage({params}:{params:Promise<{id:string}>}){
- const{id}=await params;const supabase=await createClient();const{data:{user}}=await supabase.auth.getUser();if(!user)return null;
+ const{id}=await params;const supabase=await createClient();const{data:{user}}=await supabase.auth.getUser();if(!user)return null;if(!(await hasTournamentPermission(supabase,id,"results")))return permissionDeniedPage();
  const{data:organizer}=await supabase.from("organizers").select("id").eq("user_id",user.id).maybeSingle();
  const{data:tournament}=await supabase.from("tournaments").select("id,name,organizer_id").eq("id",id).single();if(!tournament)notFound();
  const{data:member}=await supabase.from("tournament_members").select("role").eq("tournament_id",id).eq("user_id",user.id).maybeSingle();
