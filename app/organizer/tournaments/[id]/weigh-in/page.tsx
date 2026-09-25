@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { hasTournamentPermission, permissionDeniedPage } from "@/lib/tournament-permissions";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import WeighInClient from "./weigh-in-client";
