@@ -195,7 +195,7 @@ begin
 
   insert into public.tournament_member_permissions(tournament_id,user_id)
   values(tournament_uuid,v_target_user_id)
-  on conflict(tournament_id,user_id) do nothing;
+  on conflict on constraint tournament_member_permissions_tournament_id_user_id_key do nothing;
 
   return query select v_target_user_id,v_target_display_name,v_target_email,member_role;
 end;
