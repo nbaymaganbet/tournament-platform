@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import TournamentSidebar from "./tournament-sidebar";
 
 export default async function OrganizerTournamentLayout({
   children,
@@ -15,7 +16,7 @@ export default async function OrganizerTournamentLayout({
 
   const { data: tournament } = await supabase
     .from("tournaments")
-    .select("id, organizer_id")
+    .select("id, name, organizer_id")
     .eq("id", id)
     .single();
 
@@ -29,9 +30,16 @@ export default async function OrganizerTournamentLayout({
   if (organizer?.id !== tournament.organizer_id && !member) notFound();
 
   return (
-    <div className="tp-organizer-content">
-      {children}
-      <style>{".tp-organizer-content{min-height:100vh}.tp-organizer-content .primary,.tp-organizer-content .secondary,.tp-organizer-content .danger-button{padding:9px 12px;font-size:14px;line-height:1.2;border-radius:9px;min-height:40px}"}</style>
-    </div>
+    <>
+      <TournamentSidebar tournamentId={id} tournamentName={tournament.name} />
+      <div className="tp-organizer-content">
+        {children}
+      </div>
+      <style>{`
+        .tp-organizer-content{min-height:100vh}
+        .tp-organizer-content .primary,.tp-organizer-content .secondary,.tp-organizer-content .danger-button{padding:9px 12px;font-size:14px;line-height:1.2;border-radius:9px;min-height:40px}
+        @media(min-width:901px){.tp-organizer-content{margin-left:270px}}
+      `}</style>
+    </>
   );
 }
