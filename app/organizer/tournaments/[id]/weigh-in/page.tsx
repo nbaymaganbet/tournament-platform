@@ -8,6 +8,7 @@ export default async function WeighInPage({ params }: { params: Promise<{ id: st
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
+  if (!(await hasTournamentPermission(supabase, id, "weigh_in"))) return permissionDeniedPage();
   const { data: tournament } = await supabase.from("tournaments").select("id,name,organizer_id").eq("id", id).single();
   if (!tournament) notFound();
   const [{ data: organizer }, { data: member }] = await Promise.all([
