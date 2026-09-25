@@ -7,18 +7,18 @@ import { useState } from "react";
 export default function TournamentSidebar({ tournamentId, tournamentName }: { tournamentId: string; tournamentName: string }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const base = `/organizer/tournaments/${tournamentId}`;
+  const base = "/organizer/tournaments/" + tournamentId;
   const links = [
     ["Обзор", base],
-    ["Участники", `${base}/participants`],
-    ["Категории", `${base}/categories`],
-    ["Взвешивание", `${base}/weigh-in`],
-    ["Сетка", `${base}/brackets`],
-    ["Расписание", `${base}/schedule`],
-    ["Проведение", `${base}/running`],
-    ["Результаты", `${base}/results`],
-    ["Настройки", `${base}/settings`],
-    ["Команда", `${base}/team`],
+    ["Участники", base + "/participants"],
+    ["Категории", base + "/categories"],
+    ["Взвешивание", base + "/weigh-in"],
+    ["Сетки", base + "/brackets"],
+    ["Зоны и расписание", base + "/schedule"],
+    ["Проведение", base + "/running"],
+    ["Результаты", base + "/results"],
+    ["Настройки", base + "/settings"],
+    ["Команда", base + "/team"],
   ];
 
   function close() { setOpen(false); }
