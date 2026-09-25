@@ -1,2 +1,2 @@
-revoke execute on function public.list_tournament_members_with_permissions(uuid) from anon;
+revoke execute on function public.list_tournament_members_with_permissions(uuid) from public;
 grant execute on function public.list_tournament_members_with_permissions(uuid) to authenticated;
