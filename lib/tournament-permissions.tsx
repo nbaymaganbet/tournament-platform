@@ -9,26 +9,14 @@ export async function hasTournamentPermission(
   tournamentId: string,
   permission: TournamentPermission,
 ) {
-  // The tournament owner always has full access, independently of the
-  // per-employee permission rows.
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return false;
-
-  const { data: tournament } = await supabase
-    .from("tournaments")
-    .select("organizer_id, organizers!inner(user_id)")
-    .eq("id", tournamentId)
-    .maybeSingle();
-
-  const organizer = Array.isArray(tournament?.organizers)
-    ? tournament.organizers[0]
-    : tournament?.organizers;
-  if (organizer?.user_id === user.id) return true;
-
+  // Authorization is resolved in the database so the same owner/member rules
+  // are used consistently on every tournament section. The DB function also
+  // grants the tournament owner full access independently of member rows.
   const { data, error } = await supabase.rpc("has_tournament_permission", {
     p_tournament_uuid: tournamentId,
     p_permission_key: permission,
   });
+
   return !error && data === true;
 }
 
