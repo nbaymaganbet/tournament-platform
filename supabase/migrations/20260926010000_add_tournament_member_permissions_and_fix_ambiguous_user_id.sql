@@ -191,7 +191,7 @@ begin
 
   insert into public.tournament_members(tournament_id,user_id,role)
   values(tournament_uuid,v_target_user_id,member_role)
-  on conflict do update set role=excluded.role;
+  on conflict on constraint tournament_members_tournament_id_user_id_key do update set role=excluded.role;
 
   insert into public.tournament_member_permissions(tournament_id,user_id)
   values(tournament_uuid,v_target_user_id)
