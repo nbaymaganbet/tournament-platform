@@ -28,7 +28,6 @@ export default function BracketsClient({categories}:{categories:Cat[]}){
  useEffect(()=>{void load()},[]);
  async function formBrackets(){setBusy(true);setMessage("");for(const c of readyCats){const{error}=await s.rpc("generate_single_elimination_bracket",{p_category_id:c.id});if(error){setMessage(error.message);setBusy(false);return}}setMessage(kk?"Торлар қалыптастырылды.":"Сетки сформированы.");await load();setBusy(false)}
  async function winner(m:Match,id:string){if(m.status==="completed"||!id)return;setBusy(true);setMessage("");const{error}=await s.rpc("record_match_winner",{p_match_id:m.id,p_winner_id:id});if(error)setMessage(error.message);else await load();setBusy(false)}
- const scheduleByMatch=Object.fromEntries(schedule.map(x=>[x.match_id,x]));
  const waitingFor=(m:Match,side:"a"|"b")=>{if((side==="a"?m.participant_a_id:m.participant_b_id))return null;const prev=matches.find(x=>x.next_match_id===m.id);return prev?`Ожидается победитель боя #${prev.match_number}`:"Ожидается участник"};
  useEffect(()=>{if(selected!=="all"&&!formedCategoryIds.has(selected))setSelected("all")},[selected,formedCategoryIds]);
  return <section className="brackets-workspace">
