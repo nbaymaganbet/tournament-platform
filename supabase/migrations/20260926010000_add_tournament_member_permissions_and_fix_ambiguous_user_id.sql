@@ -175,10 +175,11 @@ returns table(user_id uuid,display_name text,email text,role text)
 language plpgsql security definer set search_path=''
 as $function$
 declare
+  v_caller_user_id uuid := (select auth.uid());
   v_caller_organizer uuid; v_target_user_id uuid; v_target_display_name text; v_target_email text;
   v_normalized_email text := lower(trim(member_email));
 begin
-  select o.id into v_caller_organizer from public.organizers o where o.user_id=(select auth.uid()) limit 1;
+  select o.id into v_caller_organizer from public.organizers o where o.user_id=v_caller_user_id limit 1;
   if v_caller_organizer is null then raise exception 'Organizer profile not found'; end if;
   if not exists(select 1 from public.tournaments t where t.id=tournament_uuid and t.organizer_id=v_caller_organizer)
     then raise exception 'Only tournament owner can add members'; end if;
@@ -187,7 +188,7 @@ begin
   select o.user_id,o.display_name,o.email into v_target_user_id,v_target_display_name,v_target_email
   from public.organizers o where lower(o.email)=v_normalized_email limit 1;
   if v_target_user_id is null then raise exception 'No registered organizer account found for this email'; end if;
-  if v_target_user_id=v_caller_organizer then raise exception 'Owner is already a tournament manager'; end if;
+  if v_target_user_id=v_caller_user_id then raise exception 'Owner is already a tournament manager'; end if;
 
   insert into public.tournament_members(tournament_id,user_id,role)
   values(tournament_uuid,v_target_user_id,member_role)
