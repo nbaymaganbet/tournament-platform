@@ -25,8 +25,6 @@ export default function TournamentSidebar({ tournamentId, tournamentName }: { to
 
   return (
     <>
-      <Link className="tp-home-trigger" href="/" aria-label="Домой">⌂</Link>
-      <button className="tp-sidebar-trigger" type="button" onClick={() => setOpen(true)} aria-label="Открыть меню">☰</button>
       {open && <button className="tp-sidebar-backdrop" type="button" aria-label="Закрыть меню" onClick={close} />}
       <aside className={`tp-sidebar ${open ? "open" : ""}`}>
         <div className="tp-sidebar-head">
@@ -59,17 +57,11 @@ export default function TournamentSidebar({ tournamentId, tournamentName }: { to
         .tp-sidebar-bottom{margin-top:auto;padding-top:18px;border-top:1px solid var(--line);display:grid;gap:4px}
         .tp-sidebar-bottom a{padding:9px 12px;color:var(--muted);font-size:13px;font-weight:700}
         .tp-sidebar-bottom a:hover{color:var(--text)}
-        .tp-sidebar-trigger{display:none}
-        .tp-home-trigger{display:none}
         .tp-sidebar-backdrop{display:none}
         @media(max-width:900px){
           .tp-sidebar{transform:translateX(-105%);transition:transform .2s ease;width:min(310px,88vw);background:var(--bg-soft)}
           .tp-sidebar.open{transform:translateX(0)}
           .tp-sidebar-close{display:block}
-          .tp-home-trigger,.tp-sidebar-trigger{display:flex;position:fixed;top:12px;z-index:50;width:42px;height:42px;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--text);font-size:20px;box-shadow:0 6px 20px rgba(0,0,0,.25)}
-          .tp-home-trigger{left:12px}
-          .tp-sidebar-trigger{left:66px}
-          .tp-home-trigger:hover,.tp-sidebar-trigger:hover{color:var(--text);background:var(--surface-2)}
           .tp-sidebar-backdrop{display:block;position:fixed;inset:0;background:rgba(0,0,0,.62);border:0;z-index:55}
         }
       `}</style>
