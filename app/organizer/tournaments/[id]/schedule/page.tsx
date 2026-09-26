@@ -21,28 +21,25 @@ export default async function SchedulePage({params}:{params:Promise<{id:string}>
   ]);
   if(o?.id!==t.organizer_id&&!member)notFound();
 
-  const {data:rows}=await s.from("match_schedule").select("id,match_id,scheduled_order,approximate_time,mat_id,matches!inner(match_number,category_id,participants_a:participants!matches_participant_a_id_fkey(first_name,last_name),participants_b:participants!matches_participant_b_id_fkey(first_name,last_name))").eq("matches.tournament_id",id).order("scheduled_order");
+  const {count:scheduledCount}=await s.from("match_schedule").select("id,matches!inner(tournament_id)",{count:"exact",head:true}).eq("matches.tournament_id",id);
   const {data:mats}=await s.from("mats").select("id,name,sort_order,is_active").eq("tournament_id",id).order("sort_order");
-  const {data:categories}=await s.from("categories").select("id,name").eq("tournament_id",id);
-  const categoryNames=new Map((categories??[]).map(c=>[c.id,c.name]));
-  const name=(p:any)=>p?p.first_name+" "+p.last_name:"Ожидается";
+  const {data:categories}=await s.from("categories").select("id,name,age_min,age_max,weight_limit,sort_order,preferred_mat_id").eq("tournament_id",id).order("sort_order");
+  const {data:matches}=await s.from("matches").select("category_id").eq("tournament_id",id);
+  const matchCounts=new Map<string,number>();
+  for(const m of matches??[])matchCounts.set(m.category_id,(matchCounts.get(m.category_id)??0)+1);
 
   return <main className="container dashboard-page">
     <div className="page-topline"><Link className="back-link" href={"/organizer/tournaments/"+id}>← {t.name}</Link></div>
-    <div className="section-header"><div><h1>Зоны и расписание</h1><p className="muted">Создайте зоны, задайте время начала и сформируйте расписание. Порядок и зону каждого боя можно менять вручную.</p></div></div>
+    <div className="section-header"><div><h1>Зоны и расписание</h1><p className="muted">Создайте зоны, назначьте их категориям и задайте начало соревнований.</p></div></div>
 
-    <section className="form-card" style={{marginBottom:16}}>
-      <div className="eyebrow">ЗОНЫ</div>
-      <h2>Зоны турнира</h2>
+    <details className="form-card" style={{marginBottom:16}}>
+      <summary style={{cursor:"pointer",fontWeight:800,fontSize:22}}>Зоны турнира</summary>
       <p className="muted">Добавляйте, переименовывайте, включайте или выключайте зоны, на которых проходят поединки.</p>
       <MatsClient tournamentId={id} initialMats={mats??[]}/>
-    </section>
+    </details>
 
-    <ScheduleClient tournamentId={id} startTime={t.schedule_start_time??"10:00"} initialRows={(rows??[]).map((r:any)=>{
-      const m=Array.isArray(r.matches)?r.matches[0]:r.matches;
-      const a=Array.isArray(m?.participants_a)?m.participants_a[0]:m?.participants_a;
-      const b=Array.isArray(m?.participants_b)?m.participants_b[0]:m?.participants_b;
-      return {id:r.id,match_id:r.match_id,scheduled_order:r.scheduled_order,mat_id:r.mat_id,approximate_time:r.approximate_time,match_number:m?.match_number??null,category_name:categoryNames.get(m?.category_id)??"",athletes:`${name(a)} — ${name(b)}`};
-    })} mats={(mats??[]).map((m:any)=>({id:m.id,name:m.name,is_active:m.is_active}))}/>
+    <ScheduleClient tournamentId={id} startTime={t.schedule_start_time??"10:00"} scheduledCount={scheduledCount??0}
+      initialCategories={(categories??[]).filter(c=>matchCounts.has(c.id)).map(c=>({id:c.id,name:c.name,count:matchCounts.get(c.id)??0,preferred_mat_id:c.preferred_mat_id}))}
+      mats={(mats??[]).map(m=>({id:m.id,name:m.name,is_active:m.is_active}))}/>
   </main>
 }
