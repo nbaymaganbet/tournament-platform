@@ -14,7 +14,6 @@ export default function ScheduleClient({tournamentId,initialRows,mats,startTime}
  const[hour,setHour]=useState((startTime||"10:00").slice(0,2));
  const[minute,setMinute]=useState((startTime||"10:00").slice(3,5));
  const[saving,setSaving]=useState<string|null>(null),[message,setMessage]=useState("");
- const[dragged,setDragged]=useState<number|null>(null);
  const s=useMemo(()=>createClient(),[]);
  const validTime=/^\d{1,2}$/.test(hour)&&/^\d{1,2}$/.test(minute)&&Number(hour)<=23&&Number(minute)<=59;
  const startTimeInput=`${hour.padStart(2,"0")}:${minute.padStart(2,"0")}`;
@@ -42,10 +41,6 @@ export default function ScheduleClient({tournamentId,initialRows,mats,startTime}
  async function move(index:number,dir:number){
    const target=index+dir;if(target<0||target>=rows.length)return;
    const next=[...rows];[next[index],next[target]]=[next[target],next[index]];await persist(next);
- }
- async function dropAt(target:number){
-   if(dragged===null||dragged===target)return;
-   const next=[...rows];const[item]=next.splice(dragged,1);next.splice(target,0,item);setDragged(null);await persist(next);
  }
  async function setZone(id:string,zoneId:string){
    setSaving(id);setMessage("");
@@ -93,8 +88,8 @@ export default function ScheduleClient({tournamentId,initialRows,mats,startTime}
    {message&&<div className="muted schedule-message" role="status">{message}</div>}
    {rows.length===0?<div className="empty-state">{locale==="kk"?"Кесте әзірге бос. Алдымен торлар мен белсенді аймақтарды жасаңыз.":"Расписание пока пустое. Сначала создайте сетки и активные зоны."}</div>:
    <div className="schedule-edit-list">
-     {rows.map((r,i)=><div className="schedule-edit-row" key={r.id} draggable={!saving} onDragStart={()=>setDragged(i)} onDragOver={e=>e.preventDefault()} onDrop={()=>void dropAt(i)} onDragEnd={()=>setDragged(null)} style={{opacity:dragged===i?0.7:1,cursor:saving?"default":"grab"}}>
-       <div className="schedule-fight"><strong><span className="schedule-drag-hint" aria-hidden="true">☷ </span>#{r.scheduled_order??i+1} · {locale==="kk"?"Жекпе-жек":"Бой"} #{r.match_number??"—"}</strong><span className="schedule-category">{r.category_name}</span><span className="schedule-athletes" title={r.athletes}>{r.athletes}</span><span className="muted schedule-approximate">{locale==="kk"?"Шамамен":"Примерно"}: {time(r.approximate_time)}</span></div>
+     {rows.map((r,i)=><div className="schedule-edit-row" key={r.id}>
+       <div className="schedule-fight"><strong>#{r.scheduled_order??i+1} · {locale==="kk"?"Жекпе-жек":"Бой"} #{r.match_number??"—"}</strong><span className="schedule-category">{r.category_name}</span><span className="schedule-athletes" title={r.athletes}>{r.athletes}</span><span className="muted schedule-approximate">{locale==="kk"?"Шамамен":"Примерно"}: {time(r.approximate_time)}</span></div>
        <button type="button" disabled={!!saving||i===0} onClick={()=>void move(i,-1)}>↑</button>
        <button type="button" disabled={!!saving||i===rows.length-1} onClick={()=>void move(i,1)}>↓</button>
        <select disabled={!!saving} value={r.mat_id??""} onChange={e=>void setZone(r.id,e.target.value)}>
@@ -121,7 +116,7 @@ export default function ScheduleClient({tournamentId,initialRows,mats,startTime}
      .schedule-category,.schedule-approximate{font-size:14px;line-height:1.3}
      .schedule-edit-row button{min-width:40px;height:40px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface-2);color:var(--text)}
      .schedule-edit-row select{min-height:40px}
-     @media(max-width:760px){.schedule-controls .form-card{padding:16px}.schedule-edit-row{grid-template-columns:minmax(0,1fr) auto auto;gap:6px;padding:10px}.schedule-fight{gap:2px}.schedule-fight strong{font-size:16px}.schedule-drag-hint{display:none}.schedule-edit-row button{min-width:36px;height:36px}.schedule-edit-row select{grid-column:1/-1;width:100%;min-height:38px}}
+     @media(max-width:760px){.schedule-controls .form-card{padding:16px}.schedule-edit-row{grid-template-columns:minmax(0,1fr) auto auto;gap:6px;padding:10px}.schedule-fight{gap:2px}.schedule-fight strong{font-size:16px}.schedule-edit-row button{min-width:36px;height:36px}.schedule-edit-row select{grid-column:1/-1;width:100%;min-height:38px}}
    `}</style>
  </div>;
 }
