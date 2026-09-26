@@ -2,37 +2,79 @@
 import {useEffect,useMemo,useState} from "react";
 import {createClient} from "@/lib/supabase/client";
 
-type Cat={id:string;name:string};
-type Person={id:string;first_name:string;last_name:string;age:number;weight:number|null;actual_weight:number|null};
+type Category={id:string;name:string};
+type Person={id:string;first_name:string;last_name:string};
 type Match={id:string;match_number:number;round_number:number;status:string;participant_a_id:string|null;participant_b_id:string|null;winner_id:string|null;next_match_id:string|null;category_id:string};
-type ReadyCat=Cat&{count:number};
-const personName=(p?:Person)=>p?`${p.first_name} ${p.last_name}`.trim():"Ожидается участник";
-export default function BracketsClient({categories}:{categories:Cat[]}){
- const [busy,setBusy]=useState(false),[message,setMessage]=useState(""),[matches,setMatches]=useState<Match[]>([]),[people,setPeople]=useState<Record<string,Person>>({}),[selected,setSelected]=useState("all"),[readyCats,setReadyCats]=useState<ReadyCat[]>([]);
- const s=createClient(); const tournamentId=typeof window!=="undefined"?(window.location.pathname.match(/tournaments\/([^/]+)/)||[])[1]:"";
- const kk=typeof window!=="undefined"&&localStorage.getItem("tp-lang")==="kk";
- const L=kk?{title:"Жекпе-жек торлары",form:"Торларды қалыптастыру",forming:"Қалыптастырылуда…",ready:"Қалыптастыруға дайын санаттар",noneReady:"Әзірге қалыптастыруға дайын санаттар жоқ.",all:"Барлық санаттар",cat:"Санат",winner:"Жеңіс",approx:"Спортшы карточкасындағы уақыт шамамен көрсетілген және жарыстың өту барысына қарай жаңартылады.",up:"Жоғары",down:"Төмен",empty:"Жекпе-жектер әлі қалыптастырылған жоқ.",completed:"Аяқталды",running:"Өтіп жатыр",scheduled:"Жоспарда",cancelled:"Болдырылмады",invalidZones:"Аймақтар санын 1-ден 26-ға дейін енгізіңіз",zoneWord:"Аймақ",participant:"қатысушы"}:{title:"Сетки",form:"Сформировать сетки",forming:"Формируем…",ready:"Готовые к формированию категории",noneReady:"Пока нет категорий, готовых к формированию сетки.",all:"Все существующие сетки",cat:"Категория",winner:"Победа",approx:"Время на карточке спортсмена указано приблизительно и обновляется по ходу соревнований.",up:"Выше",down:"Ниже",empty:"Бои ещё не сформированы.",completed:"Завершён",running:"Идёт",scheduled:"Запланирован",cancelled:"Отменён",invalidZones:"Введите количество зон от 1 до 26",zoneWord:"Зона",participant:"участника"};
- const catMap=useMemo(()=>Object.fromEntries(categories.map(c=>[c.id,c.name])),[categories]);
- const formedCategoryIds=useMemo(()=>new Set(matches.map(m=>m.category_id)),[matches]);
- const formedCategories=useMemo(()=>categories.filter(c=>formedCategoryIds.has(c.id)),[categories,formedCategoryIds]);
- const orderedMatches=useMemo(()=>[...matches].sort((x,y)=>x.category_id.localeCompare(y.category_id)||x.round_number-y.round_number||x.match_number-y.match_number),[matches]);
+type ReadyCategory=Category&{count:number};
+const personName=(p?:Person)=>p?`${p.last_name} ${p.first_name}`.trim():"Ожидается участник";
 
+export default function BracketsClient({categories,tournamentId,isOwner}:{categories:Category[];tournamentId:string;isOwner:boolean}){
+ const [matches,setMatches]=useState<Match[]>([]);
+ const [people,setPeople]=useState<Record<string,Person>>({});
+ const [readyCats,setReadyCats]=useState<ReadyCategory[]>([]);
+ const [selected,setSelected]=useState<Record<string,string[]>>({});
+ const [busy,setBusy]=useState(false),[message,setMessage]=useState("");
+ const [kk]=useState(()=>typeof window!=="undefined"&&localStorage.getItem("tp-lang")==="kk");
+ const s=useMemo(()=>createClient(),[]);
+ const L=kk?{title:"Жекпе-жек торлары",form:"Торларды қалыптастыру",forming:"Қалыптастырылуда…",ready:"Қалыптастыруға дайын санаттар",noneReady:"Әзірге қалыптастыруға дайын санаттар жоқ.",empty:"Жекпе-жектер әлі қалыптастырылған жоқ.",fight:"Жекпе-жек",round:"Кезең",waiting:"Қатысушы күтілуде",winner:"жекпе-жектің жеңімпазы",share:"WhatsApp арқылы бөлісу",choose:"Орындарын ауыстыру үшін екі спортшыны таңдаңыз.",swap:"Орындарын ауыстыру",saved:"Спортшылардың орындары ауыстырылды.",locked:"Жекпе-жек басталған соң орындарын ауыстыру мүмкін емес.",status:{completed:"Аяқталды",in_progress:"Өтіп жатыр",ready:"Дайын",scheduled:"Жоспарда"}}:{title:"Сетки",form:"Сформировать сетки",forming:"Формируем…",ready:"Готовые к формированию категории",noneReady:"Пока нет категорий, готовых к формированию сетки.",empty:"Бои ещё не сформированы.",fight:"Бой",round:"Раунд",waiting:"Ожидается участник",winner:"победитель боя",share:"Поделиться в WhatsApp",choose:"Выберите двух спортсменов, чтобы поменять их местами.",swap:"Поменять местами",saved:"Спортсмены поменялись местами.",locked:"После начала боёв перестановка недоступна.",status:{completed:"Завершён",in_progress:"Идёт",ready:"Готов",scheduled:"Запланирован"}};
  async function load(){
   const {data:m,error}=await s.from("matches").select("id,match_number,round_number,status,participant_a_id,participant_b_id,winner_id,next_match_id,category_id").eq("tournament_id",tournamentId).order("match_number");
   if(error){setMessage(error.message);return}
-  const ids=[...new Set((m??[]).flatMap(x=>[x.participant_a_id,x.participant_b_id,x.winner_id]).filter(Boolean) as string[])];const map:Record<string,Person>={};
-  if(ids.length){const{data:p}=await s.from("participants").select("id,first_name,last_name,age,weight,actual_weight").in("id",ids);for(const x of p??[])map[x.id]=x}
-  setMatches(m??[]);setPeople(map);
-  const cids=categories.map(c=>c.id);if(cids.length){const{data:cp}=await s.from("category_participants").select("category_id,participant_id,is_active,weigh_in_status").in("category_id",cids);const pids=[...new Set((cp??[]).filter(x=>x.is_active&&x.weigh_in_status==="in_weight").map(x=>x.participant_id))];const{data:rg}=pids.length?await s.from("registrations").select("participant_id,status,payment_status").eq("tournament_id",tournamentId).in("participant_id",pids):{data:[] as any[]};const paid=new Set((rg??[]).filter(x=>x.status==="confirmed"&&x.payment_status==="paid").map(x=>x.participant_id));const counts=new Map<string,number>();for(const x of cp??[])if(x.is_active&&x.weigh_in_status==="in_weight"&&paid.has(x.participant_id))counts.set(x.category_id,(counts.get(x.category_id)||0)+1);const existingBrackets=new Set((m??[]).map(x=>x.category_id));setReadyCats(categories.map(c=>({...c,count:counts.get(c.id)||0})).filter(c=>c.count>=2&&!existingBrackets.has(c.id)));}
+  const ids=[...new Set((m??[]).flatMap(x=>[x.participant_a_id,x.participant_b_id]).filter(Boolean) as string[])];
+  const names:Record<string,Person>={};
+  if(ids.length){const{data:p}=await s.from("participants").select("id,first_name,last_name").in("id",ids);for(const person of p??[])names[person.id]=person}
+  setMatches(m??[]);setPeople(names);
+  if(categories.length){
+   const{data:cp}=await s.from("category_participants").select("category_id,participant_id,is_active,weigh_in_status").in("category_id",categories.map(c=>c.id));
+   const pids=[...new Set((cp??[]).filter(x=>x.is_active&&x.weigh_in_status==="in_weight").map(x=>x.participant_id))];
+   const{data:rg}=pids.length?await s.from("registrations").select("participant_id,status,payment_status").eq("tournament_id",tournamentId).in("participant_id",pids):{data:[] as {participant_id:string;status:string;payment_status:string}[]};
+   const paid=new Set((rg??[]).filter(x=>x.status==="confirmed"&&x.payment_status==="paid").map(x=>x.participant_id));
+   const counts=new Map<string,number>();
+   for(const x of cp??[])if(x.is_active&&x.weigh_in_status==="in_weight"&&paid.has(x.participant_id))counts.set(x.category_id,(counts.get(x.category_id)??0)+1);
+   const formed=new Set((m??[]).map(x=>x.category_id));
+   setReadyCats(categories.map(c=>({...c,count:counts.get(c.id)??0})).filter(c=>c.count>=2&&!formed.has(c.id)));
+  }
  }
  useEffect(()=>{void load()},[]);
- async function formBrackets(){setBusy(true);setMessage("");for(const c of readyCats){const{error}=await s.rpc("generate_single_elimination_bracket",{p_category_id:c.id});if(error){setMessage(error.message);setBusy(false);return}}setMessage(kk?"Торлар қалыптастырылды.":"Сетки сформированы.");await load();setBusy(false)}
- async function winner(m:Match,id:string){if(m.status==="completed"||!id)return;setBusy(true);setMessage("");const{error}=await s.rpc("record_match_winner",{p_match_id:m.id,p_winner_id:id});if(error)setMessage(error.message);else await load();setBusy(false)}
- const waitingFor=(m:Match,side:"a"|"b")=>{if((side==="a"?m.participant_a_id:m.participant_b_id))return null;const prev=matches.find(x=>x.next_match_id===m.id);return prev?`Ожидается победитель боя #${prev.match_number}`:"Ожидается участник"};
- useEffect(()=>{if(selected!=="all"&&!formedCategoryIds.has(selected))setSelected("all")},[selected,formedCategoryIds]);
+ async function formBrackets(){
+  setBusy(true);setMessage("");
+  for(const c of readyCats){const{error}=await s.rpc("generate_single_elimination_bracket",{p_category_id:c.id});if(error){setMessage(error.message);setBusy(false);await load();return}}
+  await load();setBusy(false);
+ }
+ function selectAthlete(categoryId:string,id:string){
+  setSelected(current=>{const ids=current[categoryId]??[];const next=ids.includes(id)?ids.filter(x=>x!==id):ids.length<2?[...ids,id]:[ids[0],id];return {...current,[categoryId]:next}});
+ }
+ async function swap(categoryId:string){
+  const ids=selected[categoryId]??[];if(ids.length!==2)return;
+  setBusy(true);setMessage("");
+  const{error}=await s.rpc("swap_bracket_participants",{p_category_id:categoryId,p_first_id:ids[0],p_second_id:ids[1]});
+  if(error)setMessage(error.message);else{setSelected(current=>({...current,[categoryId]:[]}));await load();setMessage(L.saved)}
+  setBusy(false);
+ }
+ function share(category:Category){
+  const url=new URL(`/tournaments/${tournamentId}/brackets/${category.id}`,window.location.origin).toString();
+  window.open(`https://wa.me/?text=${encodeURIComponent(`${category.name}\n${url}`)}`,"_blank","noopener,noreferrer");
+ }
+ const formedCategories=categories.filter(c=>matches.some(m=>m.category_id===c.id));
  return <section className="brackets-workspace">
-  <div className="form-card"><div className="eyebrow">{L.title}</div><h2>{L.form}</h2><p className="muted">{L.ready}</p>{readyCats.length?<div style={{display:"grid",gap:8,marginBottom:12}}>{readyCats.map(c=><div key={c.id} style={{display:"flex",justifyContent:"space-between",gap:12}}><strong>{c.name}</strong><span className="muted">{c.count} {L.participant}</span></div>)}</div>:<p className="muted">{L.noneReady}</p>}<button type="button" className="primary" disabled={busy||!readyCats.length} onClick={()=>void formBrackets()}>{busy?L.forming:L.form}</button></div>
-  {formedCategories.length>0&&<div className="form-card"><label>{L.cat}<select className="field" value={selected} onChange={e=>setSelected(e.target.value)}><option value="all">{L.all}</option>{formedCategories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label></div>}
-  <div className="category-list">{orderedMatches.filter(m=>selected==="all"||m.category_id===selected).map(m=>{const fightNo=m.match_number;return <article key={m.id} className="participant-card" style={{display:"grid",gridTemplateColumns:"minmax(0,1fr)",width:"100%",minWidth:0,overflow:"hidden",gap:10}}><div style={{display:"grid",gridTemplateColumns:"auto minmax(0,1fr)",gap:12,alignItems:"center",minWidth:0}}><strong style={{fontSize:18,whiteSpace:"nowrap"}}>#{fightNo}</strong><span style={{fontWeight:800,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{catMap[m.category_id]||""}</span></div><div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) auto",gap:10,alignItems:"center",minWidth:0}}><strong style={{minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.participant_a_id?personName(people[m.participant_a_id]):waitingFor(m,"a")}</strong><button type="button" className="primary" style={{whiteSpace:"nowrap"}} disabled={busy||m.status==="completed"||!m.participant_a_id} onClick={()=>m.participant_a_id&&void winner(m,m.participant_a_id)}>{L.winner}</button></div><div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) auto",gap:10,alignItems:"center",minWidth:0}}><strong style={{minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.participant_b_id?personName(people[m.participant_b_id]):waitingFor(m,"b")}</strong><button type="button" className="primary" style={{whiteSpace:"nowrap"}} disabled={busy||m.status==="completed"||!m.participant_b_id} onClick={()=>m.participant_b_id&&void winner(m,m.participant_b_id)}>{L.winner}</button></div><div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><span className="status-pill" style={{marginTop:0}}>{m.status==="completed"?L.completed:m.status==="in_progress"?L.running:m.status==="cancelled"?L.cancelled:L.scheduled}</span></div></article>})}</div>{orderedMatches.length===0&&<div className="empty-state">{L.empty}</div>}
+  <div className="form-card"><div className="eyebrow">{L.title}</div><h2>{L.form}</h2><p className="muted">{L.ready}</p>{readyCats.length?<div style={{display:"grid",gap:8,marginBottom:12}}>{readyCats.map(c=><div key={c.id} style={{display:"flex",justifyContent:"space-between",gap:12}}><strong>{c.name}</strong><span className="muted">{c.count}</span></div>)}</div>:<p className="muted">{L.noneReady}</p>}<button type="button" className="primary" disabled={busy||!readyCats.length} onClick={()=>void formBrackets()}>{busy?L.forming:L.form}</button></div>
+  {message&&<p className="error" role="status">{message}</p>}
+  <div className="category-list">{formedCategories.map(category=>{
+   const group=matches.filter(m=>m.category_id===category.id).sort((a,b)=>a.round_number-b.round_number||a.match_number-b.match_number);
+   const locked=group.some(m=>m.winner_id||!(["scheduled","ready"].includes(m.status)));
+   const picked=selected[category.id]??[];
+   const name=(id:string|null)=>id?personName(people[id]):L.waiting;
+   return <details key={category.id} className="form-card">
+    <summary style={{cursor:"pointer",fontWeight:800,fontSize:18}}>{category.name} · {group.length} {kk?"жекпе-жек":"боёв"}</summary>
+    <div style={{display:"flex",justifyContent:"flex-end",marginTop:12}}><button type="button" className="secondary" onClick={()=>share(category)}>{L.share}</button></div>
+    {isOwner&&!locked&&<p className="muted">{L.choose}</p>}{isOwner&&locked&&<p className="muted">{L.locked}</p>}
+    {group.map(m=><article key={m.id} className="participant-card" style={{display:"grid",gap:10,marginTop:12}}>
+     <strong>{L.round} {m.round_number} · {L.fight} #{m.match_number}</strong>
+     {(["participant_a_id","participant_b_id"] as const).map(side=>{const id=m[side];const previous=!id?group.find(x=>x.next_match_id===m.id):null;
+      return <div key={side}>{id&&isOwner&&!locked?<button type="button" className={picked.includes(id)?"primary":"secondary"} disabled={busy} aria-pressed={picked.includes(id)} onClick={()=>selectAthlete(category.id,id)}>{name(id)}</button>:<strong>{id?name(id):previous?`${L.waiting}: ${L.winner} #${previous.match_number}`:L.waiting}</strong>}</div>})}
+     <span className="status-pill">{L.status[m.status as keyof typeof L.status]??m.status}</span>
+    </article>)}
+    {isOwner&&!locked&&<button type="button" className="primary" style={{marginTop:12}} disabled={busy||picked.length!==2} onClick={()=>void swap(category.id)}>{L.swap}</button>}
+   </details>})}</div>{formedCategories.length===0&&<div className="empty-state">{L.empty}</div>}
  </section>;
 }
