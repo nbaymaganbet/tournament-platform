@@ -1,14 +1,16 @@
 "use client";
 import {useEffect,useMemo,useState} from "react";
 import {createClient} from "@/lib/supabase/client";
+import ShareEventButton from "@/components/share-event-button";
+import {isByeSeed,matchRole,pendingAthlete} from "@/lib/bracket-display";
 
 type Category={id:string;name:string};
 type Person={id:string;first_name:string;last_name:string};
-type Match={id:string;match_number:number;round_number:number;status:string;participant_a_id:string|null;participant_b_id:string|null;winner_id:string|null;next_match_id:string|null;category_id:string};
+type Match={id:string;match_number:number;round_number:number;status:string;participant_a_id:string|null;participant_b_id:string|null;winner_id:string|null;next_match_id:string|null;loser_next_match_id:string|null;category_id:string};
 type ReadyCategory=Category&{count:number};
 const personName=(p?:Person)=>p?`${p.last_name} ${p.first_name}`.trim():"Ожидается участник";
 
-export default function BracketsClient({categories,tournamentId,isOwner}:{categories:Category[];tournamentId:string;isOwner:boolean}){
+export default function BracketsClient({categories,tournamentId,isOwner,isPublic}:{categories:Category[];tournamentId:string;isOwner:boolean;isPublic:boolean}){
  const [matches,setMatches]=useState<Match[]>([]);
  const [people,setPeople]=useState<Record<string,Person>>({});
  const [readyCats,setReadyCats]=useState<ReadyCategory[]>([]);
@@ -16,9 +18,9 @@ export default function BracketsClient({categories,tournamentId,isOwner}:{catego
  const [busy,setBusy]=useState(false),[message,setMessage]=useState("");
  const [kk]=useState(()=>typeof window!=="undefined"&&localStorage.getItem("tp-lang")==="kk");
  const s=useMemo(()=>createClient(),[]);
- const L=kk?{title:"Жекпе-жек торлары",form:"Торларды қалыптастыру",forming:"Қалыптастырылуда…",ready:"Қалыптастыруға дайын санаттар",noneReady:"Әзірге қалыптастыруға дайын санаттар жоқ.",empty:"Жекпе-жектер әлі қалыптастырылған жоқ.",fight:"Жекпе-жек",round:"Кезең",waiting:"Қатысушы күтілуде",winner:"жекпе-жектің жеңімпазы",share:"WhatsApp арқылы бөлісу",choose:"Орындарын ауыстыру үшін екі спортшыны таңдаңыз.",swap:"Орындарын ауыстыру",saved:"Спортшылардың орындары ауыстырылды.",locked:"Жекпе-жек басталған соң орындарын ауыстыру мүмкін емес.",status:{completed:"Аяқталды",in_progress:"Өтіп жатыр",ready:"Дайын",scheduled:"Жоспарда"}}:{title:"Сетки",form:"Сформировать сетки",forming:"Формируем…",ready:"Готовые к формированию категории",noneReady:"Пока нет категорий, готовых к формированию сетки.",empty:"Бои ещё не сформированы.",fight:"Бой",round:"Раунд",waiting:"Ожидается участник",winner:"победитель боя",share:"Поделиться в WhatsApp",choose:"Выберите двух спортсменов, чтобы поменять их местами.",swap:"Поменять местами",saved:"Спортсмены поменялись местами.",locked:"После начала боёв перестановка недоступна.",status:{completed:"Завершён",in_progress:"Идёт",ready:"Готов",scheduled:"Запланирован"}};
+ const L=kk?{title:"Жекпе-жек торлары",form:"Торларды қалыптастыру",forming:"Қалыптастырылуда…",ready:"Қалыптастыруға дайын санаттар",noneReady:"Әзірге қалыптастыруға дайын санаттар жоқ.",empty:"Жекпе-жектер әлі қалыптастырылған жоқ.",fight:"Жекпе-жек",round:"Кезең",final:"Финал",third:"3-орын үшін",bye:"Бойсыз өтті (BYE)",share:"Тормен бөлісу",choose:"Орындарын ауыстыру үшін екі спортшыны таңдаңыз.",swap:"Орындарын ауыстыру",saved:"Спортшылардың орындары ауыстырылды.",locked:"Жекпе-жек басталған соң орындарын ауыстыру мүмкін емес.",status:{completed:"Аяқталды",in_progress:"Өтіп жатыр",ready:"Дайын",scheduled:"Жоспарда"}}:{title:"Сетки",form:"Сформировать сетки",forming:"Формируем…",ready:"Готовые к формированию категории",noneReady:"Пока нет категорий, готовых к формированию сетки.",empty:"Бои ещё не сформированы.",fight:"Бой",round:"Раунд",final:"Финал",third:"За 3-е место",bye:"Прошёл без боя (BYE)",share:"Поделиться сеткой",choose:"Выберите двух спортсменов, чтобы поменять их местами.",swap:"Поменять местами",saved:"Спортсмены поменялись местами.",locked:"После начала боёв перестановка недоступна.",status:{completed:"Завершён",in_progress:"Идёт",ready:"Готов",scheduled:"Запланирован"}};
  async function load(){
-  const {data:m,error}=await s.from("matches").select("id,match_number,round_number,status,participant_a_id,participant_b_id,winner_id,next_match_id,category_id").eq("tournament_id",tournamentId).order("match_number");
+  const {data:m,error}=await s.from("matches").select("id,match_number,round_number,status,participant_a_id,participant_b_id,winner_id,next_match_id,loser_next_match_id,category_id").eq("tournament_id",tournamentId).order("match_number");
   if(error){setMessage(error.message);return}
   const ids=[...new Set((m??[]).flatMap(x=>[x.participant_a_id,x.participant_b_id]).filter(Boolean) as string[])];
   const names:Record<string,Person>={};
@@ -51,10 +53,6 @@ export default function BracketsClient({categories,tournamentId,isOwner}:{catego
   if(error)setMessage(error.message);else{setSelected(current=>({...current,[categoryId]:[]}));await load();setMessage(L.saved)}
   setBusy(false);
  }
- function share(category:Category){
-  const url=new URL(`/tournaments/${tournamentId}/brackets/${category.id}`,window.location.origin).toString();
-  window.open(`https://wa.me/?text=${encodeURIComponent(`${category.name}\n${url}`)}`,"_blank","noopener,noreferrer");
- }
  const formedCategories=categories.filter(c=>matches.some(m=>m.category_id===c.id));
  return <section className="brackets-workspace">
   <div className="form-card"><div className="eyebrow">{L.title}</div><h2>{L.form}</h2><p className="muted">{L.ready}</p>{readyCats.length?<div style={{display:"grid",gap:8,marginBottom:12}}>{readyCats.map(c=><div key={c.id} style={{display:"flex",justifyContent:"space-between",gap:12}}><strong>{c.name}</strong><span className="muted">{c.count}</span></div>)}</div>:<p className="muted">{L.noneReady}</p>}<button type="button" className="primary" disabled={busy||!readyCats.length} onClick={()=>void formBrackets()}>{busy?L.forming:L.form}</button></div>
@@ -63,15 +61,15 @@ export default function BracketsClient({categories,tournamentId,isOwner}:{catego
    const group=matches.filter(m=>m.category_id===category.id).sort((a,b)=>a.round_number-b.round_number||a.match_number-b.match_number);
    const locked=group.some(m=>m.winner_id||!(["scheduled","ready"].includes(m.status)));
    const picked=selected[category.id]??[];
-   const name=(id:string|null)=>id?personName(people[id]):L.waiting;
+   const name=(id:string|null)=>id?personName(people[id]):"";
    return <details key={category.id} className="form-card">
     <summary style={{cursor:"pointer",fontWeight:800,fontSize:18}}>{category.name} · {group.length} {kk?"жекпе-жек":"боёв"}</summary>
-    <div style={{display:"flex",justifyContent:"flex-end",marginTop:12}}><button type="button" className="secondary" onClick={()=>share(category)}>{L.share}</button></div>
+    {isPublic&&<div style={{display:"flex",justifyContent:"flex-end",marginTop:12}}><ShareEventButton title={category.name} locale={kk?"kk":"ru"} url={`/tournaments/${tournamentId}/brackets/${category.id}`} label={L.share}/></div>}
     {isOwner&&!locked&&<p className="muted">{L.choose}</p>}{isOwner&&locked&&<p className="muted">{L.locked}</p>}
     {group.map(m=><article key={m.id} className="participant-card" style={{display:"grid",gap:10,marginTop:12}}>
-     <strong>{L.round} {m.round_number} · {L.fight} #{m.match_number}</strong>
-     {(["participant_a_id","participant_b_id"] as const).map(side=>{const id=m[side];const previous=!id?group.find(x=>x.next_match_id===m.id):null;
-      return <div key={side}>{id&&isOwner&&!locked?<button type="button" className={picked.includes(id)?"primary":"secondary"} disabled={busy} aria-pressed={picked.includes(id)} onClick={()=>selectAthlete(category.id,id)}>{name(id)}</button>:<strong>{id?name(id):previous?`${L.waiting}: ${L.winner} #${previous.match_number}`:L.waiting}</strong>}</div>})}
+     <strong>{L.round} {m.round_number} · {L.fight} #{m.match_number}{matchRole(m,group)==="final"?` · ${L.final}`:matchRole(m,group)==="third"?` · ${L.third}`:""}</strong>
+     {(["participant_a_id","participant_b_id"] as const).map((side,i)=>{const id=m[side];const slot=i===0?"a":"b";const bye=isByeSeed(m,slot,group);
+      return <div key={side}>{id&&isOwner&&!locked?<button type="button" className={picked.includes(id)?"primary":"secondary"} disabled={busy} aria-pressed={picked.includes(id)} onClick={()=>selectAthlete(category.id,id)}>{name(id)}</button>:<strong>{id?name(id):pendingAthlete(m,slot,group,kk)}</strong>}{bye&&<span className="muted"> · {L.bye}</span>}</div>})}
      <span className="status-pill">{L.status[m.status as keyof typeof L.status]??m.status}</span>
     </article>)}
     {isOwner&&!locked&&<button type="button" className="primary" style={{marginTop:12}} disabled={busy||picked.length!==2} onClick={()=>void swap(category.id)}>{L.swap}</button>}
