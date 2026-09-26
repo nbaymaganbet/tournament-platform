@@ -13,7 +13,7 @@ begin
     select * from (values
       ('confirm_tournament_registration','participants','r.tournament_id'),
       ('set_category_weigh_in','weigh_in','c.tournament_id'),
-      ('transfer_category_participant','categories','from_c.tournament_id'),
+      ('transfer_category_participant','weigh_in','from_c.tournament_id'),
       ('generate_single_elimination_bracket','brackets','c.tournament_id'),
       ('rebuild_single_elimination_bracket','brackets','c.tournament_id'),
       ('record_match_winner','running','m.tournament_id'),
@@ -29,9 +29,13 @@ begin
     if ddl is null then raise exception 'Missing function %',item.name; end if;
     old_guard := 'private.is_organizer_of_tournament('||item.tournament_expr||')';
     new_guard := 'private.has_tournament_permission('||item.tournament_expr||','||quote_literal(item.permission)||')';
-    if position(old_guard in ddl)=0 then raise exception 'Unexpected authorization guard in %',item.name; end if;
-    ddl := replace(ddl,old_guard,new_guard);
-    if item.name in ('confirm_tournament_registration','set_category_weigh_in','transfer_category_participant') then
+    if position(old_guard in ddl)>0 then
+      ddl := replace(ddl,old_guard,new_guard);
+    elsif position(new_guard in ddl)=0 then
+      raise exception 'Unexpected authorization guard in %',item.name;
+    end if;
+    if item.name in ('confirm_tournament_registration','set_category_weigh_in','transfer_category_participant')
+       and position('perform set_config' in ddl)=0 then
       -- The authorization guard is followed by a trusted context marker.
       -- It remains local to this request and is read by the row trigger.
       ddl := regexp_replace(ddl,
@@ -42,17 +46,33 @@ begin
     if item.name='confirm_tournament_registration' then
       if position('(weight_limit is null or p.weight<=weight_limit+coalesce(weight_allowance,0))' in ddl)=0
         then raise exception 'Unexpected category assignment in confirmation'; end if;
-      ddl := replace(ddl,
+      if position('(weight_min is null or p.weight>=weight_min)' in ddl)=0 then ddl := replace(ddl,
         '(weight_limit is null or p.weight<=weight_limit+coalesce(weight_allowance,0))',
-        '(weight_min is null or p.weight>=weight_min) and (weight_limit is null or p.weight<=weight_limit+coalesce(weight_allowance,0))');
+        '(weight_min is null or p.weight>=weight_min) and (weight_limit is null or p.weight<=weight_limit+coalesce(weight_allowance,0))'); end if;
     end if;
     -- These RPCs update records from more than one section. Their explicit
     -- permission guard is the authorization boundary for the whole operation.
-    ddl := replace(ddl,'LANGUAGE plpgsql','LANGUAGE plpgsql SECURITY DEFINER');
+    if position('LANGUAGE plpgsql SECURITY DEFINER' in ddl)=0 then
+      ddl := replace(ddl,'LANGUAGE plpgsql','LANGUAGE plpgsql SECURITY DEFINER');
+    end if;
     execute ddl;
   end loop;
 end
 $migration$;
+
+-- Safe to replay if the live database was updated ahead of migration history.
+do $cleanup$
+declare item record;
+begin
+  for item in select tablename,policyname from pg_policies
+    where schemaname='public' and policyname like 'team %'
+      and tablename in ('categories','category_participants','registrations','participants',
+        'tournaments','brackets','matches','match_schedule','mats','results','documents')
+  loop
+    execute format('drop policy if exists %I on public.%I',item.policyname,item.tablename);
+  end loop;
+end
+$cleanup$;
 
 -- Separate reading (needed by several permitted screens and Overview) from writing.
 drop policy if exists "organizers manage own categories" on public.categories;
