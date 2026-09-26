@@ -13,12 +13,15 @@ export type BracketDisplayMatch={
 };
 
 export function matchRole(match:BracketDisplayMatch,group:BracketDisplayMatch[]):"final"|"third"|"normal"{
+ // In a whole three-athlete bracket, the loser of fight 1 faces the BYE athlete.
+ // Fight 2 determines whether a final is needed; it is not a third-place bout.
+ if(group.length<=3&&group.some(previous=>previous.round_number===1&&previous.loser_next_match_id===match.id))return "normal";
  if(group.some(previous=>previous.loser_next_match_id===match.id))return "third";
  return match.next_match_id===null&&match.loser_next_match_id===null?"final":"normal";
 }
 
 export function pendingAthlete(match:BracketDisplayMatch,side:"a"|"b",group:BracketDisplayMatch[],kk:boolean):string{
- const kind=matchRole(match,group)==="third"?"loser":"winner";
+ const kind=group.some(previous=>previous.loser_next_match_id===match.id)?"loser":"winner";
  const sources=group.filter(previous=>(kind==="loser"?previous.loser_next_match_id:previous.next_match_id)===match.id);
  const pending=sources.filter(previous=>!(previous.has_winner||previous.winner_id)).sort((a,b)=>a.match_number-b.match_number);
  if(!pending.length)return kk?"Қатысушы күтілуде":"Ожидается участник";
