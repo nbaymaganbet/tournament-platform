@@ -14,6 +14,7 @@ export default function BracketsClient({categories,tournamentId,isOwner,isPublic
  const [matches,setMatches]=useState<Match[]>([]);
  const [people,setPeople]=useState<Record<string,Person>>({});
  const [readyCats,setReadyCats]=useState<ReadyCategory[]>([]);
+ const [rosterChanges,setRosterChanges]=useState<Record<string,{added:number;removed:number}>>({});
  const [selected,setSelected]=useState<Record<string,string[]>>({});
  const [busy,setBusy]=useState(false),[message,setMessage]=useState("");
  const [kk]=useState(()=>typeof window!=="undefined"&&localStorage.getItem("tp-lang")==="kk");
@@ -33,6 +34,17 @@ export default function BracketsClient({categories,tournamentId,isOwner,isPublic
    const paid=new Set((rg??[]).filter(x=>x.status==="confirmed"&&x.payment_status==="paid").map(x=>x.participant_id));
    const counts=new Map<string,number>();
    for(const x of cp??[])if(x.is_active&&x.weigh_in_status==="in_weight"&&paid.has(x.participant_id))counts.set(x.category_id,(counts.get(x.category_id)??0)+1);
+   const changes:Record<string,{added:number;removed:number}>={};
+   for(const c of categories){
+    const group=(m??[]).filter(x=>x.category_id===c.id);
+    if(!group.length)continue;
+    const eligible=new Set((cp??[]).filter(x=>x.category_id===c.id&&x.is_active&&x.weigh_in_status==="in_weight"&&paid.has(x.participant_id)).map(x=>x.participant_id));
+    const seeded=new Set(group.flatMap(x=>[x.participant_a_id,x.participant_b_id]).filter((id):id is string=>id!==null));
+    const added=[...eligible].filter(id=>!seeded.has(id)).length;
+    const removed=[...seeded].filter(id=>!eligible.has(id)).length;
+    if(added||removed)changes[c.id]={added,removed};
+   }
+   setRosterChanges(changes);
    const formed=new Set((m??[]).map(x=>x.category_id));
    setReadyCats(categories.map(c=>({...c,count:counts.get(c.id)??0})).filter(c=>c.count>=2&&!formed.has(c.id)));
   }
@@ -53,6 +65,14 @@ export default function BracketsClient({categories,tournamentId,isOwner,isPublic
   if(error)setMessage(error.message);else{setSelected(current=>({...current,[categoryId]:[]}));await load();setMessage(L.saved)}
   setBusy(false);
  }
+ async function refreshBracket(categoryId:string){
+  if(!window.confirm(kk?"Осы санаттың торы мен жекпе-жек уақыты жаңартылады. Жалғастыру керек пе?":"Пары этой категории и время боёв обновятся. Продолжить?"))return;
+  setBusy(true);setMessage("");
+  const {error}=await s.rpc("refresh_unstarted_category_bracket",{p_category_id:categoryId});
+  if(error)setMessage(error.message);
+  else{setSelected(current=>({...current,[categoryId]:[]}));await load();setMessage(kk?"Санат торы жаңартылды.":"Сетка категории обновлена.")}
+  setBusy(false);
+ }
  const formedCategories=categories.filter(c=>matches.some(m=>m.category_id===c.id));
  return <section className="brackets-workspace">
   <div className="form-card"><div className="eyebrow">{L.title}</div><h2>{L.form}</h2><p className="muted">{L.ready}</p>{readyCats.length?<div style={{display:"grid",gap:8,marginBottom:12}}>{readyCats.map(c=><div key={c.id} style={{display:"flex",justifyContent:"space-between",gap:12}}><strong>{c.name}</strong><span className="muted">{c.count}</span></div>)}</div>:<p className="muted">{L.noneReady}</p>}<button type="button" className="primary" disabled={busy||!readyCats.length} onClick={()=>void formBrackets()}>{busy?L.forming:L.form}</button></div>
@@ -60,10 +80,12 @@ export default function BracketsClient({categories,tournamentId,isOwner,isPublic
   <div className="category-list">{formedCategories.map(category=>{
    const group=matches.filter(m=>m.category_id===category.id).sort((a,b)=>a.round_number-b.round_number||a.match_number-b.match_number);
    const locked=group.some(m=>m.winner_id||!(["scheduled","ready"].includes(m.status)));
+   const rosterChange=rosterChanges[category.id];
    const picked=selected[category.id]??[];
    const name=(id:string|null)=>id?personName(people[id]):"";
    return <details key={category.id} className="form-card">
-    <summary style={{cursor:"pointer",fontWeight:800,fontSize:18}}>{category.name} · {group.length} {kk?"жекпе-жек":"боёв"}</summary>
+    <summary style={{cursor:"pointer",fontWeight:800,fontSize:18}}>{category.name} · {group.length} {kk?"жекпе-жек":"боёв"}{rosterChange&&<span className="status-pill" style={{marginLeft:8,fontSize:12}}>{rosterChange.added?(kk?"Жаңа қатысушы":"Новый участник"):(kk?"Құрам өзгерді":"Состав изменился")}</span>}</summary>
+    {rosterChange&&<div style={{marginTop:12,display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}><span className="muted">{kk?`Жаңа: ${rosterChange.added} · шығарылған: ${rosterChange.removed}`:`Новых: ${rosterChange.added} · выбывших: ${rosterChange.removed}`}</span>{isOwner&&!locked?<button type="button" className="primary" disabled={busy} onClick={()=>void refreshBracket(category.id)}>{kk?"Торды жаңарту":"Обновить сетку"}</button>:<span className="muted">{kk?"Жекпе-жектер басталған соң торды жаңарту мүмкін емес.":"После начала боёв сетку обновить нельзя."}</span>}</div>}
     {isPublic&&<div style={{display:"flex",justifyContent:"flex-end",marginTop:12}}><ShareEventButton title={category.name} locale={kk?"kk":"ru"} url={`/tournaments/${tournamentId}/brackets/${category.id}`} label={L.share}/></div>}
     {isOwner&&!locked&&<p className="muted">{L.choose}</p>}{isOwner&&locked&&<p className="muted">{L.locked}</p>}
     {group.map(m=><article key={m.id} className="participant-card" style={{display:"grid",gap:10,marginTop:12}}>
