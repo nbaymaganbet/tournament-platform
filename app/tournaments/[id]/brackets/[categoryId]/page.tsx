@@ -13,6 +13,8 @@ export default async function PublicCategoryBracket({params}:{params:Promise<{id
  if(!tournament)notFound();
  const{data:category}=await s.from("categories").select("name").eq("id",categoryId).eq("tournament_id",id).maybeSingle();
  if(!category)notFound();
+ const{data:format}=await s.rpc("get_public_category_format",{p_tournament_id:id,p_category_id:categoryId});
+ const roundRobin=format==="round_robin";
  const{data,error}=await s.rpc("get_public_category_bracket",{p_tournament_id:id,p_category_id:categoryId});
  if(error)throw new Error("Could not load the bracket");
  const matches=(data??[]) as BracketRow[];
@@ -22,7 +24,7 @@ export default async function PublicCategoryBracket({params}:{params:Promise<{id
   {rounds.map(round=><section key={round} className="form-card" style={{marginBottom:16}}>
    <h2>{kk?"Кезең":"Раунд"} {round}</h2>
    <div className="category-list">{matches.filter(m=>m.round_number===round).map(m=><article className="participant-card" key={m.match_number}>
-    <div className="participant-main"><strong>{kk?"Жекпе-жек":"Бой"} #{m.match_number}{matchRole(m,matches)==="final"?" · Финал":matchRole(m,matches)==="third"?(kk?" · 3-орын үшін":" · За 3-е место"):""}</strong>
+    <div className="participant-main"><strong>{kk?"Жекпе-жек":"Бой"} #{m.match_number}{!roundRobin&&matchRole(m,matches)==="final"?" · Финал":!roundRobin&&matchRole(m,matches)==="third"?(kk?" · 3-орын үшін":" · За 3-е место"):""}</strong>
      <span>{m.participant_a_name??pendingAthlete(m,"a",matches,kk)}{isByeSeed(m,"a",matches)?(kk?" · Бойсыз өтті (BYE)":" · Прошёл без боя (BYE)"):""}</span>
      <span>{m.participant_b_name??pendingAthlete(m,"b",matches,kk)}{isByeSeed(m,"b",matches)?(kk?" · Бойсыз өтті (BYE)":" · Прошёл без боя (BYE)"):""}</span>
      {m.next_match_number&&<span className="muted">{kk?"Жеңімпаз келесі жекпе-жекке өтеді":"Победитель переходит в бой"} #{m.next_match_number}</span>}

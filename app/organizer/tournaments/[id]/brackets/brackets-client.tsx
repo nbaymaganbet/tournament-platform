@@ -4,13 +4,13 @@ import {createClient} from "@/lib/supabase/client";
 import ShareEventButton from "@/components/share-event-button";
 import {isByeSeed,matchRole,pendingAthlete} from "@/lib/bracket-display";
 
-type Category={id:string;name:string};
+type Category={id:string;name:string;bracket_format:string|null};
 type Person={id:string;first_name:string;last_name:string};
 type Match={id:string;match_number:number;round_number:number;status:string;participant_a_id:string|null;participant_b_id:string|null;winner_id:string|null;next_match_id:string|null;loser_next_match_id:string|null;category_id:string};
 type ReadyCategory=Category&{count:number};
 const personName=(p?:Person)=>p?`${p.last_name} ${p.first_name}`.trim():"Ожидается участник";
 
-export default function BracketsClient({categories,tournamentId,isOwner,isPublic}:{categories:Category[];tournamentId:string;isOwner:boolean;isPublic:boolean}){
+export default function BracketsClient({categories,tournamentId,defaultFormat,newFormats,isOwner,isPublic}:{categories:Category[];tournamentId:string;defaultFormat:string;newFormats:boolean;isOwner:boolean;isPublic:boolean}){
  const [matches,setMatches]=useState<Match[]>([]);
  const [people,setPeople]=useState<Record<string,Person>>({});
  const [readyCats,setReadyCats]=useState<ReadyCategory[]>([]);
@@ -75,26 +75,27 @@ export default function BracketsClient({categories,tournamentId,isOwner,isPublic
  }
  const formedCategories=categories.filter(c=>matches.some(m=>m.category_id===c.id));
  return <section className="brackets-workspace">
-  <div className="form-card"><div className="eyebrow">{L.title}</div><h2>{L.form}</h2><p className="muted">{L.ready}</p>{readyCats.length?<div style={{display:"grid",gap:8,marginBottom:12}}>{readyCats.map(c=><div key={c.id} style={{display:"flex",justifyContent:"space-between",gap:12}}><strong>{c.name}</strong><span className="muted">{c.count}</span></div>)}</div>:<p className="muted">{L.noneReady}</p>}<button type="button" className="primary" disabled={busy||!readyCats.length} onClick={()=>void formBrackets()}>{busy?L.forming:L.form}</button></div>
+  <div className="form-card"><div className="eyebrow">{L.title}</div><h2>{L.form}</h2><p className="muted">{L.ready}</p>{readyCats.length?<div style={{display:"grid",gap:8,marginBottom:12}}>{readyCats.map(c=><div key={c.id} style={{display:"flex",justifyContent:"space-between",gap:12}}><strong>{c.name}</strong><span className="muted">{c.count}{newFormats?` · ${(c.bracket_format??defaultFormat)==="round_robin"?(kk?"Айналмалы":"Круговая"):(kk?"Олимпиадалық":"Олимпийская")}`:""}</span></div>)}</div>:<p className="muted">{L.noneReady}</p>}<button type="button" className="primary" disabled={busy||!readyCats.length} onClick={()=>void formBrackets()}>{busy?L.forming:L.form}</button></div>
   {message&&<p className="error" role="status">{message}</p>}
   <div className="category-list">{formedCategories.map(category=>{
    const group=matches.filter(m=>m.category_id===category.id).sort((a,b)=>a.round_number-b.round_number||a.match_number-b.match_number);
+   const roundRobin=newFormats&&(category.bracket_format??defaultFormat)==="round_robin";
    const locked=group.some(m=>m.winner_id||!(["scheduled","ready"].includes(m.status)));
    const rosterChange=rosterChanges[category.id];
    const picked=selected[category.id]??[];
    const name=(id:string|null)=>id?personName(people[id]):"";
    return <details key={category.id} className="form-card">
-    <summary style={{cursor:"pointer",fontWeight:800,fontSize:18}}>{category.name} · {group.length} {kk?"жекпе-жек":"боёв"}{rosterChange&&<span className="status-pill" style={{marginLeft:8,fontSize:12}}>{rosterChange.added?(kk?"Жаңа қатысушы":"Новый участник"):(kk?"Құрам өзгерді":"Состав изменился")}</span>}</summary>
+    <summary style={{cursor:"pointer",fontWeight:800,fontSize:18}}>{category.name} · {group.length} {kk?"жекпе-жек":"боёв"}{roundRobin?` · ${kk?"Айналмалы":"Круговая"}`:""}{rosterChange&&<span className="status-pill" style={{marginLeft:8,fontSize:12}}>{rosterChange.added?(kk?"Жаңа қатысушы":"Новый участник"):(kk?"Құрам өзгерді":"Состав изменился")}</span>}</summary>
     {rosterChange&&<div style={{marginTop:12,display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}><span className="muted">{kk?`Жаңа: ${rosterChange.added} · шығарылған: ${rosterChange.removed}`:`Новых: ${rosterChange.added} · выбывших: ${rosterChange.removed}`}</span>{isOwner&&!locked?<button type="button" className="primary" disabled={busy} onClick={()=>void refreshBracket(category.id)}>{kk?"Торды жаңарту":"Обновить сетку"}</button>:<span className="muted">{kk?"Жекпе-жектер басталған соң торды жаңарту мүмкін емес.":"После начала боёв сетку обновить нельзя."}</span>}</div>}
     {isPublic&&<div style={{display:"flex",justifyContent:"flex-end",marginTop:12}}><ShareEventButton title={category.name} locale={kk?"kk":"ru"} url={`/tournaments/${tournamentId}/brackets/${category.id}`} label={L.share}/></div>}
-    {isOwner&&!locked&&<p className="muted">{L.choose}</p>}{isOwner&&locked&&<p className="muted">{L.locked}</p>}
+    {isOwner&&!locked&&!roundRobin&&<p className="muted">{L.choose}</p>}{isOwner&&locked&&<p className="muted">{L.locked}</p>}
     {group.map(m=><article key={m.id} className="participant-card" style={{display:"grid",gap:10,marginTop:12}}>
-     <strong>{L.round} {m.round_number} · {L.fight} #{m.match_number}{matchRole(m,group)==="final"?` · ${L.final}`:matchRole(m,group)==="third"?` · ${L.third}`:""}</strong>
+     <strong>{L.round} {m.round_number} · {L.fight} #{m.match_number}{!roundRobin&&matchRole(m,group)==="final"?` · ${L.final}`:!roundRobin&&matchRole(m,group)==="third"?` · ${L.third}`:""}</strong>
      {(["participant_a_id","participant_b_id"] as const).map((side,i)=>{const id=m[side];const slot=i===0?"a":"b";const bye=isByeSeed(m,slot,group);
-      return <div key={side}>{id&&isOwner&&!locked?<button type="button" className={picked.includes(id)?"primary":"secondary"} disabled={busy} aria-pressed={picked.includes(id)} onClick={()=>selectAthlete(category.id,id)}>{name(id)}</button>:<strong>{id?name(id):pendingAthlete(m,slot,group,kk)}</strong>}{bye&&<span className="muted"> · {L.bye}</span>}</div>})}
+      return <div key={side}>{id&&isOwner&&!locked&&!roundRobin?<button type="button" className={picked.includes(id)?"primary":"secondary"} disabled={busy} aria-pressed={picked.includes(id)} onClick={()=>selectAthlete(category.id,id)}>{name(id)}</button>:<strong>{id?name(id):pendingAthlete(m,slot,group,kk)}</strong>}{!roundRobin&&bye&&<span className="muted"> · {L.bye}</span>}</div>})}
      <span className="status-pill">{L.status[m.status as keyof typeof L.status]??m.status}</span>
     </article>)}
-    {isOwner&&!locked&&<button type="button" className="primary" style={{marginTop:12}} disabled={busy||picked.length!==2} onClick={()=>void swap(category.id)}>{L.swap}</button>}
+    {isOwner&&!locked&&!roundRobin&&<button type="button" className="primary" style={{marginTop:12}} disabled={busy||picked.length!==2} onClick={()=>void swap(category.id)}>{L.swap}</button>}
    </details>})}</div>{formedCategories.length===0&&<div className="empty-state">{L.empty}</div>}
  </section>;
 }

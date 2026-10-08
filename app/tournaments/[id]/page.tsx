@@ -18,6 +18,7 @@ export default async function TournamentPage({ params }: { params: Promise<{ id:
     back: ru ? "← Главная" : "← Басты бет",
     register: ru ? "Подать заявку" : "Өтінім беру",
     regulations: ru ? "Посмотреть положение" : "Ережені көру",
+    results: ru ? "Результаты" : "Нәтижелер",
     share: ru ? "Поделиться событием" : "Жарыспен бөлісу",
     placeUnknown: ru ? "Место уточняется" : "Орыны нақтыланады",
   };
@@ -34,6 +35,7 @@ export default async function TournamentPage({ params }: { params: Promise<{ id:
           {tournament.description && <p>{tournament.description}</p>}
           <div className="event-actions">
             {registrationOpen && <Link className="primary button-link" href={`/tournaments/${id}/register`}>{text.register}</Link>}
+            {tournament.status === "completed" && <Link className="primary button-link" href={`/tournaments/${id}/results`}>{text.results}</Link>}
             {tournament.regulations_text && <Link className="button-link" href={`/tournaments/${id}/regulations`}>{text.regulations}</Link>}
             <ShareEventButton title={tournament.name} locale={locale} label={text.share} />
           </div>

@@ -11,6 +11,8 @@ function slugify(value: string) {
 export default function NewTournamentPage() {
   const router = useRouter();
   const [name, setName] = useState("");
+  const [bracketFormat, setBracketFormat] = useState<"single_elimination" | "round_robin">("single_elimination");
+  const [bronzeBout, setBronzeBout] = useState(true);
   const [posters, setPosters] = useState<File[]>([]);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -62,7 +64,7 @@ export default function NewTournamentPage() {
     const slug = `${slugify(name) || "tournament"}-${Date.now().toString().slice(-6)}`;
     const { data: tournament, error: tournamentError } = await supabase
       .from("tournaments")
-      .insert({ organizer_id: organizer.id, name: name.trim(), slug, status: "draft", is_public: false })
+      .insert({ organizer_id: organizer.id, name: name.trim(), slug, status: "draft", is_public: false, bracket_format: bracketFormat, bronze_bout: bracketFormat === "single_elimination" && bronzeBout })
       .select("id")
       .single();
 
@@ -122,6 +124,17 @@ export default function NewTournamentPage() {
             Название соревнования
             <input className="field" value={name} onChange={(e) => setName(e.target.value)} required />
           </label>
+
+          <label>Формат сеток по умолчанию
+            <select className="field" value={bracketFormat} onChange={e => setBracketFormat(e.target.value as "single_elimination" | "round_robin")}>
+              <option value="single_elimination">Олимпийская</option>
+              <option value="round_robin">Круговая</option>
+            </select>
+          </label>
+          <p className="muted">Этот формат действует для всех категорий по умолчанию. При необходимости его можно изменить в карточке категории до начала боёв.</p>
+          {bracketFormat === "single_elimination" && <label style={{display:"flex",alignItems:"center",gap:10}}>
+            <input type="checkbox" checked={bronzeBout} onChange={e => setBronzeBout(e.target.checked)} /> Проводить бой за 3-е место, если в категории есть два полуфиналиста
+          </label>}
 
           <label>
             Афиши <span className="muted">(до 5 изображений)</span>

@@ -5,10 +5,10 @@ import { createClient } from "@/lib/supabase/client";
 import { translations, type Locale } from "@/lib/i18n";
 
 type Person = { id: string; first_name: string; last_name: string; age: number; weight: number; club: string | null; coach: string | null };
-type Category = { id: string; name: string; age_min: number | null; age_max: number | null; weight_min: number | null; weight_limit: number | null; weight_allowance: number | null; sort_order: number; participantCount: number };
+type Category = { id: string; name: string; age_min: number | null; age_max: number | null; weight_min: number | null; weight_limit: number | null; weight_allowance: number | null; sort_order: number; bracket_format: string | null; participantCount: number };
 type WeightRow = { type: "up_to" | "from"; weight: string; allowance: string };
 
-export default function CategoriesClient({ tournamentId, initialCategories, participants, initialAssignments }: { tournamentId: string; initialCategories: Category[]; participants: Person[]; initialAssignments: Record<string, string> }) {
+export default function CategoriesClient({ tournamentId, defaultFormat, configurable, initialCategories, participants, initialAssignments }: { tournamentId: string; defaultFormat: string; configurable: boolean; initialCategories: Category[]; participants: Person[]; initialAssignments: Record<string, string> }) {
   const [locale] = useState<Locale>(() => typeof window !== "undefined" && localStorage.getItem("tp-lang") === "kk" ? "kk" : "ru");
   const t = translations[locale];
   const labels = locale === "kk"
@@ -25,6 +25,17 @@ export default function CategoriesClient({ tournamentId, initialCategories, part
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
   const supabase = createClient();
+
+  async function setFormat(category: Category, value: string) {
+    if (value === (category.bracket_format ?? defaultFormat)) return;
+    if (!window.confirm(locale === "kk" ? "Егер тор құрылса, жекпе-жектер мен уақыты қайта құрылады. Жалғастыру керек пе?" : "Если сетка уже сформирована, бои категории и их время будут пересобраны. Продолжить?")) return;
+    setBusy(`format:${category.id}`);
+    setError("");
+    const { error: updateError } = await supabase.rpc("set_category_bracket_format", { p_category_id: category.id, p_format: value });
+    if (updateError) setError(updateError.message);
+    else setCategories(rows => rows.map(row => row.id === category.id ? { ...row, bracket_format: value } : row));
+    setBusy(null);
+  }
 
   const groupedCategories = useMemo(() => {
     const groups = new Map<string, { ageMin: number | null; ageMax: number | null; categories: Category[] }>();
@@ -81,7 +92,7 @@ export default function CategoriesClient({ tournamentId, initialCategories, part
       };
     });
 
-    const { data, error: insertError } = await supabase.from("categories").insert(rowsToInsert).select("id,name,age_min,age_max,weight_min,weight_limit,weight_allowance,sort_order").order("sort_order");
+    const { data, error: insertError } = await supabase.from("categories").insert(rowsToInsert).select("id,name,age_min,age_max,weight_min,weight_limit,weight_allowance,sort_order,bracket_format").order("sort_order");
     if (insertError || !data) {
       setError(insertError?.message ?? t.errorGeneric);
     } else {
@@ -209,6 +220,13 @@ export default function CategoriesClient({ tournamentId, initialCategories, part
                 </div>
               </div>
               {open && <div className="form-card" style={{ marginTop: 16 }}>
+                {configurable && <label style={{display:"block",marginBottom:16}}>{locale === "kk" ? "Тор форматы" : "Формат сетки"}
+                  <select className="field" value={c.bracket_format ?? defaultFormat} disabled={busy !== null} onChange={e => void setFormat(c,e.target.value)}>
+                    <option value="single_elimination">{locale === "kk" ? "Олимпиадалық" : "Олимпийская"}</option>
+                    <option value="round_robin">{locale === "kk" ? "Айналмалы" : "Круговая"}</option>
+                  </select>
+                  <span className="muted">{locale === "kk" ? "Турнирдің әдепкі форматы. Жекпе-жек басталғанша өзгертуге болады." : "По умолчанию действует формат турнира. Можно изменить до начала боёв."}</span>
+                </label>}
                 <h2>{labels.details}</h2><p className="muted">{labels.info}</p>
                 {categoryParticipants.length === 0 ? <div className="empty-state">{t.noFreeParticipants}</div> : <div className="participants-list">{categoryParticipants.map(p => <article className="participant-card" key={p.id}><div className="participant-main"><div><strong>{p.last_name} {p.first_name}</strong><span className="muted">{labels.declared}: {p.weight} {labels.kg} · {p.age} {t.years} · {p.club || t.clubNotSet}{p.coach ? ` · ${p.coach}` : ""}</span></div><button type="button" className="danger-button" disabled={busy !== null} onClick={() => void unassign(p.id)}>{t.remove}</button></div></article>)}</div>}
               </div>}
