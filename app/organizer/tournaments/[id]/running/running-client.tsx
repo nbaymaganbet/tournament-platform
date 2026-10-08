@@ -17,15 +17,22 @@ export default function RunningClient({tournamentId,initialMatches,initialSchedu
    const b=s.channel(`running-queue-${tournamentId}`).on("postgres_changes",{event:"*",schema:"public",table:"match_schedule"},update).subscribe();
    return()=>{void s.removeChannel(a);void s.removeChannel(b)}},[s,router,tournamentId]);
  const byId=new Map(matches.map(m=>[m.id,m]));
- const ordered=[...schedule].sort((a,b)=>a.scheduled_order-b.scheduled_order);
+ const scheduled=[...schedule].sort((a,b)=>a.scheduled_order-b.scheduled_order);
+ const ordered=[...scheduled].sort((a,b)=>{
+   const aDone=byId.get(a.match_id)?.status==="completed",bDone=byId.get(b.match_id)?.status==="completed";
+   return Number(aDone)-Number(bDone)||a.scheduled_order-b.scheduled_order;
+ });
  const time=(v:string|null)=>v?new Date(v).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit",timeZone:"Asia/Almaty"}):"—";
  async function win(m:Match,id:string){if(!confirm(`Зафиксировать победу: ${name(id===m.participant_a_id?m.participantA:m.participantB)}?`))return;
    setBusy(m.id);setMessage("");const{error}=await s.rpc("record_match_winner",{p_match_id:m.id,p_winner_id:id});
-   if(error)setMessage(error.message);else router.refresh();setBusy(null)}
+   if(error)setMessage(error.message);else{setMatches(current=>current.map(fight=>fight.id===m.id?{...fight,status:"completed",winner_id:id}:fight));router.refresh()}setBusy(null)}
  async function move(index:number,delta:number){const nextIndex=index+delta;if(nextIndex<0||nextIndex>=ordered.length)return;
    const first=byId.get(ordered[index].match_id),second=byId.get(ordered[nextIndex].match_id);
    if(!first||!second||first.status==="completed"||second.status==="completed")return;
-   setBusy("order");setMessage("");const next=[...ordered];[next[index],next[nextIndex]]=[next[nextIndex],next[index]];
+   setBusy("order");setMessage("");const next=[...scheduled];
+   const firstIndex=next.findIndex(slot=>slot.match_id===ordered[index].match_id);
+   const secondIndex=next.findIndex(slot=>slot.match_id===ordered[nextIndex].match_id);
+   [next[firstIndex],next[secondIndex]]=[next[secondIndex],next[firstIndex]];
    const{error}=await s.rpc("reorder_tournament_schedule",{p_tournament_id:tournamentId,p_match_ids:next.map(r=>r.match_id)});
    if(error)setMessage(error.message);else router.refresh();setBusy(null)}
  return <section className="running-list">
@@ -38,7 +45,7 @@ export default function RunningClient({tournamentId,initialMatches,initialSchedu
        <div className="running-meta"><span>{categoryNames[m.category_id]??"Категория"}</span><span>Раунд {m.round_number}</span><span>Зона: {r.mat_id?zoneNames[r.mat_id]??"—":"—"}</span><span>Примерно: {time(r.approximate_time)}</span></div>
        <div className="running-people">{([{"id":m.participant_a_id,"person":m.participantA},{"id":m.participant_b_id,"person":m.participantB}]).map((f,j)=><div className="running-person" key={j}>
          <span className="running-name"><strong>{name(f.person)}</strong>{f.person?.club&&<small>{f.person.club}</small>}</span>
-         <button type="button" className="primary" disabled={done||!!busy||!f.id} onClick={()=>f.id&&void win(m,f.id)}>{m.winner_id===f.id?"Победил":"Победа"}</button>
+         <button type="button" className={done&&m.winner_id?(m.winner_id===f.id?"result-win":"result-loss"):"primary"} disabled={done||!!busy||!f.id} onClick={()=>f.id&&void win(m,f.id)}>{done&&m.winner_id?(m.winner_id===f.id?"Победил":"Проиграл"):"Победа"}</button>
        </div>)}</div>
        <div className="running-order"><button type="button" aria-label={`Поднять бой ${r.scheduled_order}`} disabled={!!busy||done||!previous||previous.status==="completed"} onClick={()=>void move(i,-1)}>↑</button><button type="button" aria-label={`Опустить бой ${r.scheduled_order}`} disabled={!!busy||done||!next||next.status==="completed"} onClick={()=>void move(i,1)}>↓</button></div>
      </article>})}
@@ -48,7 +55,7 @@ export default function RunningClient({tournamentId,initialMatches,initialSchedu
      .running-meta{display:flex;gap:4px 12px;flex-wrap:wrap;color:var(--muted);font-size:14px;margin:8px 0 12px}
      .running-people{display:grid;gap:7px}.running-person{display:grid;grid-template-columns:minmax(0,1fr) 95px;gap:10px;align-items:center;padding:7px 0;border-top:1px solid var(--line)}
      .running-name{display:grid;gap:2px;min-width:0}.running-name strong{font-size:16px;line-height:1.3;overflow-wrap:break-word}.running-name small{color:var(--muted);font-size:13px}
-     .running-person .primary{padding:9px 4px;font-size:13px;min-height:40px}.running-order{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+     .running-person button{padding:9px 4px;font-size:13px;min-height:40px}.running-person .result-win,.running-person .result-loss{border-radius:10px;color:#fff;font-weight:800;opacity:1;cursor:default}.running-person .result-win{border:1px solid #21864d;background:#21864d}.running-person .result-loss{border:1px solid var(--accent);background:var(--accent)}.running-order{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
      .running-order button{width:40px;height:40px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface-2);color:var(--text)}
      @media(max-width:600px){.running-card{padding:12px}.running-heading strong{font-size:16px}.running-person{grid-template-columns:minmax(0,1fr) 82px;gap:6px}.running-name strong{font-size:15px}}
    `}</style>
