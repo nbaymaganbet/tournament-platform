@@ -1,0 +1,8 @@
+.result-category { margin-bottom: 16px; }
+.result-category-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+.result-category-heading h2 { margin: 0; font-size: 20px; line-height: 1.35; }
+.result-category-heading .public-share .secondary { width: auto; min-height: 42px; }
+.result-category .participant-card { width: 100%; }
+.result-category .participant-main { min-width: 0; }
+.result-category .participant-main strong { overflow-wrap: anywhere; }
+@media (max-width: 600px) { .result-category-heading h2 { font-size: 17px; } }
