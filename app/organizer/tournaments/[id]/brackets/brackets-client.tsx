@@ -16,6 +16,7 @@ export default function BracketsClient({categories,tournamentId,defaultFormat,ne
  const [readyCats,setReadyCats]=useState<ReadyCategory[]>([]);
  const [rosterChanges,setRosterChanges]=useState<Record<string,{added:number;removed:number}>>({});
  const [selected,setSelected]=useState<Record<string,string[]>>({});
+ const [formats,setFormats]=useState<Record<string,string>>({});
  const [busy,setBusy]=useState(false),[message,setMessage]=useState("");
  const [kk]=useState(()=>typeof window!=="undefined"&&localStorage.getItem("tp-lang")==="kk");
  const s=useMemo(()=>createClient(),[]);
@@ -73,19 +74,31 @@ export default function BracketsClient({categories,tournamentId,defaultFormat,ne
   else{setSelected(current=>({...current,[categoryId]:[]}));await load();setMessage(kk?"Санат торы жаңартылды.":"Сетка категории обновлена.")}
   setBusy(false);
  }
+ async function changeFormat(categoryId:string,format:string){
+  if(!window.confirm(kk?"Тор мен осы санаттың жекпе-жек уақыты қайта құрылады. Жалғастыру керек пе?":"Сетка и время боёв этой категории будут пересобраны. Продолжить?"))return;
+  setBusy(true);setMessage("");
+  const{error}=await s.rpc("set_category_bracket_format",{p_category_id:categoryId,p_format:format});
+  if(error)setMessage(error.message);
+  else{setFormats(current=>({...current,[categoryId]:format}));setSelected(current=>({...current,[categoryId]:[]}));await load()}
+  setBusy(false);
+ }
  const formedCategories=categories.filter(c=>matches.some(m=>m.category_id===c.id));
  return <section className="brackets-workspace">
   <div className="form-card"><div className="eyebrow">{L.title}</div><h2>{L.form}</h2><p className="muted">{L.ready}</p>{readyCats.length?<div style={{display:"grid",gap:8,marginBottom:12}}>{readyCats.map(c=><div key={c.id} style={{display:"flex",justifyContent:"space-between",gap:12}}><strong>{c.name}</strong><span className="muted">{c.count}{newFormats?` · ${(c.bracket_format??defaultFormat)==="round_robin"?(kk?"Айналмалы":"Круговая"):(kk?"Олимпиадалық":"Олимпийская")}`:""}</span></div>)}</div>:<p className="muted">{L.noneReady}</p>}<button type="button" className="primary" disabled={busy||!readyCats.length} onClick={()=>void formBrackets()}>{busy?L.forming:L.form}</button></div>
   {message&&<p className="error" role="status">{message}</p>}
   <div className="category-list">{formedCategories.map(category=>{
    const group=matches.filter(m=>m.category_id===category.id).sort((a,b)=>a.round_number-b.round_number||a.match_number-b.match_number);
-   const roundRobin=newFormats&&(category.bracket_format??defaultFormat)==="round_robin";
+   const roundRobin=newFormats&&(formats[category.id]??category.bracket_format??defaultFormat)==="round_robin";
    const locked=group.some(m=>m.winner_id||!(["scheduled","ready"].includes(m.status)));
    const rosterChange=rosterChanges[category.id];
    const picked=selected[category.id]??[];
    const name=(id:string|null)=>id?personName(people[id]):"";
    return <details key={category.id} className="form-card">
     <summary style={{cursor:"pointer",fontWeight:800,fontSize:18}}>{category.name} · {group.length} {kk?"жекпе-жек":"боёв"}{roundRobin?` · ${kk?"Айналмалы":"Круговая"}`:""}{rosterChange&&<span className="status-pill" style={{marginLeft:8,fontSize:12}}>{rosterChange.added?(kk?"Жаңа қатысушы":"Новый участник"):(kk?"Құрам өзгерді":"Состав изменился")}</span>}</summary>
+    {isOwner&&newFormats&&<label style={{display:"block",marginTop:12}}>{kk?"Тор форматы":"Формат сетки"}
+     <select className="field" value={formats[category.id]??category.bracket_format??defaultFormat} disabled={busy||locked} onChange={e=>void changeFormat(category.id,e.target.value)}>
+      <option value="single_elimination">{kk?"Олимпиадалық":"Олимпийская"}</option><option value="round_robin">{kk?"Айналмалы":"Круговая"}</option>
+     </select></label>}
     {rosterChange&&<div style={{marginTop:12,display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}><span className="muted">{kk?`Жаңа: ${rosterChange.added} · шығарылған: ${rosterChange.removed}`:`Новых: ${rosterChange.added} · выбывших: ${rosterChange.removed}`}</span>{isOwner&&!locked?<button type="button" className="primary" disabled={busy} onClick={()=>void refreshBracket(category.id)}>{kk?"Торды жаңарту":"Обновить сетку"}</button>:<span className="muted">{kk?"Жекпе-жектер басталған соң торды жаңарту мүмкін емес.":"После начала боёв сетку обновить нельзя."}</span>}</div>}
     {isPublic&&<div style={{display:"flex",justifyContent:"flex-end",marginTop:12}}><ShareEventButton title={category.name} locale={kk?"kk":"ru"} url={`/tournaments/${tournamentId}/brackets/${category.id}`} label={L.share}/></div>}
     {isOwner&&!locked&&!roundRobin&&<p className="muted">{L.choose}</p>}{isOwner&&locked&&<p className="muted">{L.locked}</p>}
