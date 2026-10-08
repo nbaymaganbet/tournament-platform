@@ -16,7 +16,7 @@ export default async function Image({ params }: { params: Promise<{ id: string; 
   const rows = ((data ?? []) as Result[]).filter(r => r.category_id === categoryId);
   if (!rows.length) return new Response("Not found", { status: 404 });
   return new ImageResponse(<div style={{ width: "100%", height: "100%", display: "flex", background: "#0b0b0e", color: "white", fontFamily: "sans-serif" }}>
-    {tournament.poster_url && <img src={tournament.poster_url} width="420" height="630" style={{ objectFit: "contain", background: "#111" }} alt="" />}
+    {tournament.poster_url && <img src={tournament.poster_url} width={420} height={630} style={{ objectFit: "contain", background: "#111" }} alt="" />}
     <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", padding: "45px", width: tournament.poster_url ? 780 : 1200 }}>
       <div style={{ color: "#ff625d", fontSize: 25, marginBottom: 16 }}>{tournament.name}</div>
       <div style={{ fontSize: 36, fontWeight: 750, marginBottom: 28 }}>{rows[0].category_name}</div>
