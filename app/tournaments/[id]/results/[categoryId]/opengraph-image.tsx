@@ -23,11 +23,11 @@ export default async function Image({ params }: { params: Promise<{ id: string; 
     <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", padding: "45px", width: tournament.poster_url ? 780 : 1200 }}>
       <div style={{ color: "#ff625d", fontSize: 25, marginBottom: 16 }}>{tournament.name}</div>
       <div style={{ fontSize: 36, marginBottom: 28 }}>{rows[0].category_name}</div>
-      {rows.slice(0, 5).map(r => <div key={`${r.place}:${r.athlete_name}`} style={{ fontSize: 27, marginBottom: 13 }}>{r.place}. {r.athlete_name}</div>)}
-      {rows.length > 5 && <div style={{ fontSize: 19, color: "#aaa" }}>+{rows.length - 5} · Полные результаты по ссылке</div>}
+      {rows.slice(0, 5).map(r => <div key={`${r.place}:${r.athlete_name}`} style={{ display: "flex", fontSize: 27, marginBottom: 13 }}>{r.place}. {r.athlete_name}</div>)}
+      {rows.length > 5 && <div style={{ display: "flex", fontSize: 19, color: "#aaa" }}>+{rows.length - 5} · Полные результаты по ссылке</div>}
     </div>
   </div>, { ...size, fonts: [{ name: "Geist", data: font, weight: 400, style: "normal" }] });
   const bytes = await image.arrayBuffer();
   return new Response(bytes, { headers: { "Content-Type": "image/png" } });
-  } catch (error) { return new Response(String(error), { status: 500 }); }
+  } catch (error) { console.error("Category result preview failed", error); return new Response("Image unavailable", { status: 500 }); }
 }
