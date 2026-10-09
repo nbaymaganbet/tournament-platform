@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale } from "@/components/locale-provider";
+
 import { useEffect, useState } from "react";
 
 const slides = {
@@ -10,7 +12,7 @@ const slides = {
   ],
   kk: [
     { kicker: "TOURNAMENT PLATFORM", title: "Жарыстар — бір жерде", text: "Турнирлерді жасаңыз, өтінімдерді қабылдаңыз және қатысушыларды артық қол жұмысынсыз басқарыңыз.", mark: "01" },
-    { kicker: "ДАЙЫНДЫҚ", title: "Өтінімнен торға дейін", text: "Қатысушыларды растаңыз, санаттарға бөліңіз, өлшеуден өткізіп, жарыс торын қалыптастырыңыз.", mark: "02" },
+    { kicker: "ДАЙЫНДЫҚ", title: "Өтінімнен торға дейін", text: "Қатысушыларды растаңыз, санаттарға бөліңіз, салмағын өлшеп, жарыс торын қалыптастырыңыз.", mark: "02" },
     { kicker: "ӨТКІЗУ", title: "Ұйымдастырушыға да, қатысушыға да түсінікті", text: "Кесте, тор және нәтижелер бір платформада. Алғашқы турниріңізді жасаудан бастаңыз.", mark: "03" },
   ],
 };
@@ -18,12 +20,9 @@ const slides = {
 export default function Onboarding() {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
-  const [lang, setLang] = useState<"ru" | "kk">("ru");
+  const lang = useLocale();
 
   useEffect(() => {
-    const savedLang = localStorage.getItem("tp-lang");
-    const nextLang = savedLang === "kk" ? "kk" : "ru";
-    setLang(nextLang);
     if (localStorage.getItem("tp-onboarding-seen") !== "1") setOpen(true);
     const handler = () => { setStep(0); setOpen(true); };
     window.addEventListener("tp-open-onboarding", handler);
@@ -79,3 +78,4 @@ export default function Onboarding() {
     </div>
   );
 }
+

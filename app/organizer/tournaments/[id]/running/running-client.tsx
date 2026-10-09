@@ -1,4 +1,7 @@
 "use client";
+import { uiText } from "@/lib/ui-text";
+import { useLocale } from "@/components/locale-provider";
+
 import {useEffect,useMemo,useState} from "react";
 import {useRouter} from "next/navigation";
 import {createClient} from "@/lib/supabase/client";
@@ -6,8 +9,10 @@ import {createClient} from "@/lib/supabase/client";
 type Person={first_name:string;last_name:string;club:string|null};
 type Match={id:string;match_number:number;round_number:number;status:string;category_id:string;participant_a_id:string|null;participant_b_id:string|null;winner_id:string|null;participantA?:Person|null;participantB?:Person|null};
 type Slot={id:string;match_id:string;scheduled_order:number;approximate_time:string|null;mat_id:string|null};
-const name=(p?:Person|null)=>p?`${p.last_name} ${p.first_name}`:"Ожидается участник";
 export default function RunningClient({tournamentId,initialMatches,initialSchedule,categoryNames,zoneNames}:{tournamentId:string;initialMatches:Match[];initialSchedule:Slot[];categoryNames:Record<string,string>;zoneNames:Record<string,string>}){
+ const locale = useLocale();const L = (text: string) => uiText(locale, text);
+
+ const name=(p?:Person|null)=>p?`${p.last_name} ${p.first_name}`:L("Ожидается участник");
  const[matches,setMatches]=useState(initialMatches),[schedule,setSchedule]=useState(initialSchedule);
  const[busy,setBusy]=useState<string|null>(null),[message,setMessage]=useState("");
  const s=useMemo(()=>createClient(),[]),router=useRouter();
@@ -23,7 +28,7 @@ export default function RunningClient({tournamentId,initialMatches,initialSchedu
    return Number(aDone)-Number(bDone)||a.scheduled_order-b.scheduled_order;
  });
  const time=(v:string|null)=>v?new Date(v).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit",timeZone:"Asia/Almaty"}):"—";
- async function win(m:Match,id:string){if(!confirm(`Зафиксировать победу: ${name(id===m.participant_a_id?m.participantA:m.participantB)}?`))return;
+ async function win(m:Match,id:string){if(!confirm(`${L("Зафиксировать победу: ")}${name(id===m.participant_a_id?m.participantA:m.participantB)}?`))return;
    setBusy(m.id);setMessage("");const{error}=await s.rpc("record_match_winner",{p_match_id:m.id,p_winner_id:id});
    if(error)setMessage(error.message);else{setMatches(current=>current.map(fight=>fight.id===m.id?{...fight,status:"completed",winner_id:id}:fight));router.refresh()}setBusy(null)}
  async function move(index:number,delta:number){const nextIndex=index+delta;if(nextIndex<0||nextIndex>=ordered.length)return;
@@ -37,17 +42,17 @@ export default function RunningClient({tournamentId,initialMatches,initialSchedu
    if(error)setMessage(error.message);else router.refresh();setBusy(null)}
  return <section className="running-list">
    {message&&<p className="muted" role="alert">{message}</p>}
-   {ordered.length===0?<div className="empty-state">Расписание пока не сформировано. Сначала откройте «Зоны и расписание».</div>:
+   {ordered.length===0?<div className="empty-state">{L("Расписание пока не сформировано. Сначала откройте «Зоны и расписание».")}</div>:
    ordered.map((r,i)=>{const m=byId.get(r.match_id);if(!m)return null;const done=m.status==="completed";
      const previous=i>0?byId.get(ordered[i-1].match_id):null,next=i<ordered.length-1?byId.get(ordered[i+1].match_id):null;
      return <article className={`running-card${done?" running-card-done":""}`} key={r.id}>
-       <div className="running-heading"><strong>Очередь #{r.scheduled_order} · Бой #{m.match_number}</strong><span className="status">{done?"Завершён":"Запланирован"}</span></div>
-       <div className="running-meta"><span>{categoryNames[m.category_id]??"Категория"}</span><span>Раунд {m.round_number}</span><span>Зона: {r.mat_id?zoneNames[r.mat_id]??"—":"—"}</span><span>Примерно: {time(r.approximate_time)}</span></div>
+       <div className="running-heading"><strong>{L("Очередь #")}{r.scheduled_order}{L(" · Бой #")}{m.match_number}</strong><span className="status">{done?L("Завершён"):L("Запланирован")}</span></div>
+       <div className="running-meta"><span>{categoryNames[m.category_id]??L("Категория")}</span><span>{L("Раунд ")}{m.round_number}</span><span>{L("Зона: ")}{r.mat_id?zoneNames[r.mat_id]??"—":"—"}</span><span>{L("Примерно: ")}{time(r.approximate_time)}</span></div>
        <div className="running-people">{([{"id":m.participant_a_id,"person":m.participantA},{"id":m.participant_b_id,"person":m.participantB}]).map((f,j)=><div className="running-person" key={j}>
          <span className="running-name"><strong>{name(f.person)}</strong>{f.person?.club&&<small>{f.person.club}</small>}</span>
-         <button type="button" className={done&&m.winner_id?(m.winner_id===f.id?"result-win":"result-loss"):"result-pick"} disabled={done||!!busy||!f.id} onClick={()=>f.id&&void win(m,f.id)}>{done&&m.winner_id?(m.winner_id===f.id?"Победил":"Проиграл"):"Победа"}</button>
+         <button type="button" className={done&&m.winner_id?(m.winner_id===f.id?"result-win":"result-loss"):"result-pick"} disabled={done||!!busy||!f.id} onClick={()=>f.id&&void win(m,f.id)}>{done&&m.winner_id?(m.winner_id===f.id?L("Победил"):L("Проиграл")):L("Победа")}</button>
        </div>)}</div>
-       <div className="running-order"><button type="button" aria-label={`Поднять бой ${r.scheduled_order}`} disabled={!!busy||done||!previous||previous.status==="completed"} onClick={()=>void move(i,-1)}>↑</button><button type="button" aria-label={`Опустить бой ${r.scheduled_order}`} disabled={!!busy||done||!next||next.status==="completed"} onClick={()=>void move(i,1)}>↓</button></div>
+       <div className="running-order"><button type="button" aria-label={`${L("Поднять бой ")}${r.scheduled_order}`} disabled={!!busy||done||!previous||previous.status==="completed"} onClick={()=>void move(i,-1)}>↑</button><button type="button" aria-label={`${L("Опустить бой ")}${r.scheduled_order}`} disabled={!!busy||done||!next||next.status==="completed"} onClick={()=>void move(i,1)}>↓</button></div>
      </article>})}
    <style jsx>{`
      .running-list{display:grid;gap:10px}.running-card{padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}.running-card-done{opacity:.5}
@@ -61,3 +66,4 @@ export default function RunningClient({tournamentId,initialMatches,initialSchedu
    `}</style>
  </section>;
 }
+

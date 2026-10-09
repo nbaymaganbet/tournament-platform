@@ -1,3 +1,4 @@
+import { uiText } from "@/lib/ui-text";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getLocale, getT } from "@/lib/i18n-server";
@@ -90,6 +91,8 @@ type Tournament = {
 };
 
 export default async function Home() {
+ const L = (text: string) => uiText(locale, text);
+
   const t = await getT();
   const locale = await getLocale();
   const supabase = await createClient();
@@ -132,7 +135,7 @@ export default async function Home() {
               return (
                 <section className="tournament-poster-group" key={x.id}>
                   <h2 className="section-title">{x.name}</h2>
-                  <p className="poster-count">{posters.length > 1 ? `Свайпните влево или вправо · ${posters.length} афиши` : ""}</p>
+                  <p className="poster-count">{posters.length > 1 ? locale === "kk" ? `Солға немесе оңға сырғытыңыз · ${posters.length} афиша` : `Свайпните влево или вправо · ${posters.length} афиши` : ""}</p>
                   <div className="poster-carousel">
                     {posters.length ? posters.map((poster, index) => (
                       <article className="poster-card" key={`${x.id}-${index}`}>
@@ -143,9 +146,9 @@ export default async function Home() {
                           <div>
                             <h3>{x.name}</h3>
                             <div className="meta">
-                              {x.date ? new Date(x.date).toLocaleDateString(locale === "kk" ? "kk-KZ" : "ru-RU") : "Дата уточняется"}
+                              {x.date ? new Date(x.date).toLocaleDateString(locale === "kk" ? "kk-KZ" : "ru-RU") : L("Дата уточняется")}
                               <br />
-                              {x.city || "Город уточняется"} · {x.sport || "Вид спорта уточняется"}
+                              {x.city || L("Город уточняется")} · {x.sport || L("Вид спорта уточняется")}
                             </div>
                           </div>
                           <span className="status">
@@ -169,7 +172,7 @@ export default async function Home() {
                         <Link className="poster-slide-info" href={`/tournaments/${x.id}`}>
                           <div>
                             <h3>{x.name}</h3>
-                            <div className="meta">{x.date ? new Date(x.date).toLocaleDateString(locale === "kk" ? "kk-KZ" : "ru-RU") : "Дата уточняется"}</div>
+                            <div className="meta">{x.date ? new Date(x.date).toLocaleDateString(locale === "kk" ? "kk-KZ" : "ru-RU") : L("Дата уточняется")}</div>
                           </div>
                         </Link>
                       </article>
@@ -184,3 +187,4 @@ export default async function Home() {
     </main>
   );
 }
+

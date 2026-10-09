@@ -1,4 +1,5 @@
 "use client";
+import { useLocale } from "@/components/locale-provider";
 
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
@@ -9,7 +10,7 @@ type Locale = "ru" | "kk";
 
 export default function OrganizerRegisterPage() {
   const router = useRouter();
-  const [locale, setLocale] = useState<Locale>("ru");
+  const locale = useLocale();
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -19,11 +20,6 @@ export default function OrganizerRegisterPage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    const saved = localStorage.getItem("tp-lang");
-    if (saved === "kk") setLocale("kk");
-  }, []);
 
   const ru = locale === "ru";
   const tr = {
@@ -93,7 +89,7 @@ export default function OrganizerRegisterPage() {
   }
 
   return <main className="auth-page"><section className="auth-card">
-    <div className="auth-topbar"><Link className="brand" href="/">TOURNAMENT PLATFORM</Link><button className="lang" type="button" onClick={() => { const next = ru ? "kk" : "ru"; setLocale(next); localStorage.setItem("tp-lang", next); document.cookie = `tp-lang=${next}; path=/; max-age=31536000; samesite=lax`; }}>{ru ? "ҚАЗ" : "РУС"}</button></div>
+    <div className="auth-topbar"><Link className="brand" href="/">TOURNAMENT PLATFORM</Link><button className="lang" type="button" onClick={() => { const next = ru ? "kk" : "ru"; window.dispatchEvent(new CustomEvent("tp-language-changed", { detail: next })); document.documentElement.lang = next; localStorage.setItem("tp-lang", next); document.cookie = `tp-lang=${next}; path=/; max-age=31536000; samesite=lax`; }}>{ru ? "ҚАЗ" : "РУС"}</button></div>
     <div className="eyebrow">{ru ? "ОРГАНИЗАТОР" : "ҰЙЫМДАСТЫРУШЫ"}</div><h1>{tr.title}</h1><p className="muted">{tr.text}</p>
     <form onSubmit={submit} className="auth-form">
       <label>{tr.name}<input className="field" value={displayName} onChange={e => setDisplayName(e.target.value)} autoComplete="name" required /></label>
@@ -106,3 +102,4 @@ export default function OrganizerRegisterPage() {
     <p className="muted">{tr.have} <Link href="/login">{tr.login}</Link></p>
   </section></main>;
 }
+

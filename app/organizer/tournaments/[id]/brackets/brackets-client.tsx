@@ -1,4 +1,6 @@
 "use client";
+
+import { useLocale } from "@/components/locale-provider";
 import {useEffect,useMemo,useState} from "react";
 import {createClient} from "@/lib/supabase/client";
 import ShareEventButton from "@/components/share-event-button";
@@ -8,7 +10,6 @@ type Category={id:string;name:string;bracket_format:string|null};
 type Person={id:string;first_name:string;last_name:string};
 type Match={id:string;match_number:number;round_number:number;status:string;participant_a_id:string|null;participant_b_id:string|null;winner_id:string|null;next_match_id:string|null;loser_next_match_id:string|null;category_id:string};
 type ReadyCategory=Category&{count:number};
-const personName=(p?:Person)=>p?`${p.last_name} ${p.first_name}`.trim():"Ожидается участник";
 
 export default function BracketsClient({categories,tournamentId,defaultFormat,newFormats,isOwner,isPublic}:{categories:Category[];tournamentId:string;defaultFormat:string;newFormats:boolean;isOwner:boolean;isPublic:boolean}){
  const [matches,setMatches]=useState<Match[]>([]);
@@ -18,9 +19,10 @@ export default function BracketsClient({categories,tournamentId,defaultFormat,ne
  const [selected,setSelected]=useState<Record<string,string[]>>({});
  const [formats,setFormats]=useState<Record<string,string>>({});
  const [busy,setBusy]=useState(false),[message,setMessage]=useState("");
- const [kk]=useState(()=>typeof window!=="undefined"&&localStorage.getItem("tp-lang")==="kk");
+ const kk = useLocale() === "kk";
  const s=useMemo(()=>createClient(),[]);
  const L=kk?{title:"Жекпе-жек торлары",form:"Торларды қалыптастыру",forming:"Қалыптастырылуда…",ready:"Қалыптастыруға дайын санаттар",noneReady:"Әзірге қалыптастыруға дайын санаттар жоқ.",empty:"Жекпе-жектер әлі қалыптастырылған жоқ.",fight:"Жекпе-жек",round:"Кезең",final:"Финал",third:"3-орын үшін",bye:"Бойсыз өтті (BYE)",share:"Тормен бөлісу",choose:"Орындарын ауыстыру үшін екі спортшыны таңдаңыз.",swap:"Орындарын ауыстыру",saved:"Спортшылардың орындары ауыстырылды.",locked:"Жекпе-жек басталған соң орындарын ауыстыру мүмкін емес.",status:{completed:"Аяқталды",in_progress:"Өтіп жатыр",ready:"Дайын",scheduled:"Жоспарда"}}:{title:"Сетки",form:"Сформировать сетки",forming:"Формируем…",ready:"Готовые к формированию категории",noneReady:"Пока нет категорий, готовых к формированию сетки.",empty:"Бои ещё не сформированы.",fight:"Бой",round:"Раунд",final:"Финал",third:"За 3-е место",bye:"Прошёл без боя (BYE)",share:"Поделиться сеткой",choose:"Выберите двух спортсменов, чтобы поменять их местами.",swap:"Поменять местами",saved:"Спортсмены поменялись местами.",locked:"После начала боёв перестановка недоступна.",status:{completed:"Завершён",in_progress:"Идёт",ready:"Готов",scheduled:"Запланирован"}};
+ const personName=(p?:Person)=>p?`${p.last_name} ${p.first_name}`.trim():(kk?"Қатысушы күтілуде":"Ожидается участник");
  async function load(){
   const {data:m,error}=await s.from("matches").select("id,match_number,round_number,status,participant_a_id,participant_b_id,winner_id,next_match_id,loser_next_match_id,category_id").eq("tournament_id",tournamentId).order("match_number");
   if(error){setMessage(error.message);return}
@@ -112,3 +114,4 @@ export default function BracketsClient({categories,tournamentId,defaultFormat,ne
    </details>})}</div>{formedCategories.length===0&&<div className="empty-state">{L.empty}</div>}
  </section>;
 }
+

@@ -1,3 +1,5 @@
+import { uiText } from "@/lib/ui-text";
+import { getLocale } from "@/lib/i18n-server";
 import Link from "next/link";
 import { hasTournamentPermission, permissionDeniedPage } from "@/lib/tournament-permissions";
 import { notFound } from "next/navigation";
@@ -5,6 +7,8 @@ import { createClient } from "@/lib/supabase/server";
 import WeighInClient from "./weigh-in-client";
 
 export default async function WeighInPage({ params }: { params: Promise<{ id: string }> }) {
+ const locale = await getLocale();const L = (text: string) => uiText(locale, text);
+
   const { id } = await params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -35,5 +39,6 @@ export default async function WeighInPage({ params }: { params: Promise<{ id: st
     weighIns[cp.participant_id] = { categoryId:c.id, weight:cp.weigh_in_weight ?? null, status:cp.weigh_in_status ?? "pending" };
   }
 
-  return <main className="container dashboard-page"><div className="page-topline"><Link className="back-link" href={`/organizer/tournaments/${id}`}>← {tournament.name}</Link></div><header className="section-header"><div><div className="eyebrow">ВЗВЕШИВАНИЕ</div><h1>Взвешивание</h1><p className="muted">Здесь фиксируется фактический вес каждого участника и статус «В весе» или «Не в весе».</p></div></header><WeighInClient tournamentId={id} initialCategories={(categories ?? []).map((c) => ({ id:c.id,name:c.name,age_min:c.age_min,age_max:c.age_max,weight_limit:c.weight_limit,weight_allowance:c.weight_allowance,participantCount:Array.isArray(c.category_participants)?c.category_participants.filter(cp=>cp.is_active!==false).length:0 }))} participants={participants} initialAssignments={assignments} initialWeighIns={weighIns} /></main>;
+  return <main className="container dashboard-page"><div className="page-topline"><Link className="back-link" href={`/organizer/tournaments/${id}`}>← {tournament.name}</Link></div><header className="section-header"><div><div className="eyebrow">{L("ВЗВЕШИВАНИЕ")}</div><h1>{L("Взвешивание")}</h1><p className="muted">{L("Здесь фиксируется фактический вес каждого участника и статус «В весе» или «Не в весе».")}</p></div></header><WeighInClient tournamentId={id} initialCategories={(categories ?? []).map((c) => ({ id:c.id,name:c.name,age_min:c.age_min,age_max:c.age_max,weight_limit:c.weight_limit,weight_allowance:c.weight_allowance,participantCount:Array.isArray(c.category_participants)?c.category_participants.filter(cp=>cp.is_active!==false).length:0 }))} participants={participants} initialAssignments={assignments} initialWeighIns={weighIns} /></main>;
 }
+

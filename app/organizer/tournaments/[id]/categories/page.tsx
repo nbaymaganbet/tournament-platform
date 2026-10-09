@@ -1,3 +1,5 @@
+import { uiText } from "@/lib/ui-text";
+import { getLocale } from "@/lib/i18n-server";
 import Link from "next/link";
 import { hasTournamentPermission, permissionDeniedPage } from "@/lib/tournament-permissions";
 import { notFound } from "next/navigation";
@@ -5,6 +7,8 @@ import { createClient } from "@/lib/supabase/server";
 import CategoriesClient from "./categories-client";
 
 export default async function CategoriesPage({ params }: { params: Promise<{ id: string }> }) {
+ const locale = await getLocale();const L = (text: string) => uiText(locale, text);
+
   const { id } = await params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -29,5 +33,6 @@ export default async function CategoriesPage({ params }: { params: Promise<{ id:
   const assignments: Record<string, string> = {};
   for (const c of categories ?? []) for (const cp of Array.isArray(c.category_participants) ? c.category_participants : []) if (cp.is_active !== false) assignments[cp.participant_id] = c.id;
 
-  return <main className="container dashboard-page"><div className="page-topline"><Link className="back-link" href={`/organizer/tournaments/${id}`}>← {tournament.name}</Link></div><header className="section-header"><div><div className="eyebrow">ПОДГОТОВКА</div><h1>Категории</h1><p className="muted">Здесь создаются возрастные и весовые категории и распределяются подтверждённые участники. Взвешивание проводится в отдельной вкладке.</p></div></header><CategoriesClient tournamentId={id} defaultFormat={tournament.bracket_format} configurable={tournament.bracket_rules_version === 1} initialCategories={(categories ?? []).map((c) => ({ ...c, participantCount: Array.isArray(c.category_participants) ? c.category_participants.filter((cp) => cp.is_active !== false && participants.some((p) => p.id === cp.participant_id)).length : 0 }))} participants={participants} initialAssignments={assignments} /></main>;
+  return <main className="container dashboard-page"><div className="page-topline"><Link className="back-link" href={`/organizer/tournaments/${id}`}>← {tournament.name}</Link></div><header className="section-header"><div><div className="eyebrow">{L("ПОДГОТОВКА")}</div><h1>{L("Категории")}</h1><p className="muted">{L("Здесь создаются возрастные и весовые категории и распределяются подтверждённые участники. Взвешивание проводится в отдельной вкладке.")}</p></div></header><CategoriesClient tournamentId={id} defaultFormat={tournament.bracket_format} configurable={tournament.bracket_rules_version === 1} initialCategories={(categories ?? []).map((c) => ({ ...c, participantCount: Array.isArray(c.category_participants) ? c.category_participants.filter((cp) => cp.is_active !== false && participants.some((p) => p.id === cp.participant_id)).length : 0 }))} participants={participants} initialAssignments={assignments} /></main>;
 }
+

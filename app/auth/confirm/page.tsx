@@ -1,10 +1,15 @@
 "use client";
+import { uiText } from "@/lib/ui-text";
+import { useLocale } from "@/components/locale-provider";
+
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 function AuthConfirmContent() {
+ const locale = useLocale();const L = (text: string) => uiText(locale, text);
+
   const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState("");
@@ -66,22 +71,24 @@ function AuthConfirmContent() {
     <main className="auth-page">
       <section className="auth-card">
         <div className="eyebrow">TOURNAMENT PLATFORM</div>
-        <h1>{error ? "Ошибка подтверждения" : "Подтверждаем email…"}</h1>
-        <p className={error ? "error" : "muted"}>{error || "Подождите, открываем кабинет организатора."}</p>
-        {error && <a className="button-link secondary" href="/login">Вернуться ко входу</a>}
+        <h1>{error ? L("Ошибка подтверждения") : L("Подтверждаем email…")}</h1>
+        <p className={error ? "error" : "muted"}>{error ? L(error) : L("Подождите, открываем кабинет организатора.")}</p>
+        {error && <a className="button-link secondary" href="/login">{L("Вернуться ко входу")}</a>}
       </section>
     </main>
   );
 }
 
 export default function AuthConfirmPage() {
+ const locale = useLocale();const L = (text: string) => uiText(locale, text);
+
   return (
     <Suspense fallback={
       <main className="auth-page">
         <section className="auth-card">
           <div className="eyebrow">TOURNAMENT PLATFORM</div>
-          <h1>Подтверждаем email…</h1>
-          <p className="muted">Подождите, открываем кабинет организатора.</p>
+          <h1>{L("Подтверждаем email…")}</h1>
+          <p className="muted">{L("Подождите, открываем кабинет организатора.")}</p>
         </section>
       </main>
     }>
@@ -89,3 +96,4 @@ export default function AuthConfirmPage() {
     </Suspense>
   );
 }
+

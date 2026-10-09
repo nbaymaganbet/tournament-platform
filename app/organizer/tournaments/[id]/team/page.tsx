@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale } from "@/components/locale-provider";
+
 import { FormEvent, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -19,8 +21,8 @@ const permissionItems:[keyof Permissions,string,string][] = [
   ["participants","Участники","participants"],
   ["categories","Категории","categories"],
   ["weigh_in","Взвешивание","weigh_in"],
-  ["brackets","Сетка","brackets"],
-  ["schedule","Расписание","schedule"],
+  ["brackets","Сетки","brackets"],
+  ["schedule","Зоны и расписание","schedule"],
   ["running","Проведение","running"],
   ["results","Результаты","results"],
   ["settings","Настройки","settings"],
@@ -41,9 +43,7 @@ export default function TournamentTeamPage(){
  const [savingPermissions,setSavingPermissions]=useState<string|null>(null);
  const [openPermissions,setOpenPermissions]=useState<string|null>(null);
  const [error,setError]=useState(""); const [ok,setOk]=useState("");
- const [ru,setRu]=useState(true);
-
- useEffect(()=>{setRu(localStorage.getItem("tp-lang")!=="kk");},[]);
+ const ru = useLocale() === "ru";
 
  async function load(){
    const s=createClient();
@@ -125,7 +125,7 @@ export default function TournamentTeamPage(){
         <div style={{display:"grid",gap:8}}>
          {permissionItems.map(([key,label])=><label key={key} style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer"}}>
            <input type="checkbox" checked={m[key]} onChange={()=>toggle(m.user_id,key)} />
-           <span>{ru?label:({overview:"Шолу",participants:"Қатысушылар",categories:"Санаттар",weigh_in:"Өлшеу",brackets:"Тор",schedule:"Кесте",running:"Өткізу",results:"Нәтижелер",settings:"Баптаулар",team:"Команда",all_tournaments:"Барлық жарыстар"} as Record<string,string>)[key]}</span>
+           <span>{ru?label:({overview:"Шолу",participants:"Қатысушылар",categories:"Санаттар",weigh_in:"Өлшеу",brackets:"Торлар",schedule:"Аймақтар мен кесте",running:"Өткізу",results:"Нәтижелер",settings:"Баптаулар",team:"Команда",all_tournaments:"Барлық жарыстар"} as Record<string,string>)[key]}</span>
          </label>)}
         </div>
         <button className="primary" type="button" style={{marginTop:14}} disabled={savingPermissions===m.user_id} onClick={()=>savePermissions(m)}>
@@ -138,3 +138,4 @@ export default function TournamentTeamPage(){
   </section>
  </main>;
 }
+

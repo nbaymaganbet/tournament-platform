@@ -1,3 +1,5 @@
+import { uiText } from "@/lib/ui-text";
+import { getLocale } from "@/lib/i18n-server";
 import Link from "next/link";
 import {notFound} from "next/navigation";
 import {createClient} from "@/lib/supabase/server";
@@ -5,6 +7,8 @@ import RunningClient from "./running-client";
 import {hasTournamentPermission,permissionDeniedPage} from "@/lib/tournament-permissions";
 
 export default async function RunningPage({params}:{params:Promise<{id:string}>}){
+ const locale = await getLocale();const L = (text: string) => uiText(locale, text);
+
  const{id}=await params,s=await createClient();
  const{data:{user}}=await s.auth.getUser();if(!user)return null;
  if(!(await hasTournamentPermission(s,id,"running")))return permissionDeniedPage();
@@ -22,9 +26,10 @@ export default async function RunningPage({params}:{params:Promise<{id:string}>}
  const zoneNames=Object.fromEntries((mats??[]).map(m=>[m.id,m.name]));
  return <main className="container dashboard-page">
    <div className="page-topline"><Link className="back-link" href={`/organizer/tournaments/${id}`}>← {t.name}</Link></div>
-   <div className="section-header"><div><div className="eyebrow">LIVE</div><h1>Проведение</h1><p className="muted">Очередь поединков и фиксация победителей.</p></div></div>
+   <div className="section-header"><div><div className="eyebrow">LIVE</div><h1>{L("Проведение")}</h1><p className="muted">{L("Очередь поединков и фиксация победителей.")}</p></div></div>
    <RunningClient tournamentId={id} initialMatches={(matches??[]).map((m:any)=>({...m,participantA:Array.isArray(m.participants_a)?m.participants_a[0]:m.participants_a,participantB:Array.isArray(m.participants_b)?m.participants_b[0]:m.participants_b}))}
      initialSchedule={(schedule??[]).map(r=>({id:r.id,match_id:r.match_id,scheduled_order:r.scheduled_order,approximate_time:r.approximate_time,mat_id:r.mat_id}))}
      categoryNames={categoryNames} zoneNames={zoneNames}/>
  </main>;
 }
+

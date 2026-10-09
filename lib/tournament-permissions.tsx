@@ -1,3 +1,5 @@
+import { getLocale } from "@/lib/i18n-server";
+import { uiText } from "@/lib/ui-text";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type TournamentPermission =
@@ -16,6 +18,7 @@ export async function hasTournamentPermission(
   return !error && data === true;
 }
 
-export function permissionDeniedPage(title = "Раздел недоступен") {
-  return <main className="container dashboard-page"><section className="empty-state"><h2>{title}</h2><p className="muted">Этот раздел недоступен для вашей роли.</p></section></main>;
+export async function permissionDeniedPage(title?: string) {
+  const locale = await getLocale();
+  return <main className="container dashboard-page"><section className="empty-state"><h2>{title ?? uiText(locale, "Раздел недоступен")}</h2><p className="muted">{uiText(locale, "Этот раздел недоступен для вашей роли.")}</p></section></main>;
 }

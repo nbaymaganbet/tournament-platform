@@ -1,4 +1,7 @@
 "use client";
+import { uiText } from "@/lib/ui-text";
+
+import { useLocale } from "@/components/locale-provider";
 
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -9,7 +12,9 @@ type Category = { id: string; name: string; age_min: number | null; age_max: num
 type WeightRow = { type: "up_to" | "from"; weight: string; allowance: string };
 
 export default function CategoriesClient({ tournamentId, defaultFormat, configurable, initialCategories, participants, initialAssignments }: { tournamentId: string; defaultFormat: string; configurable: boolean; initialCategories: Category[]; participants: Person[]; initialAssignments: Record<string, string> }) {
-  const [locale] = useState<Locale>(() => typeof window !== "undefined" && localStorage.getItem("tp-lang") === "kk" ? "kk" : "ru");
+ const L = (text: string) => uiText(locale, text);
+
+  const locale = useLocale();
   const t = translations[locale];
   const labels = locale === "kk"
     ? { allowance: "Рұқсат", preview: "Санат атауы", previewEmpty: "Жас тобын және салмақты көрсетіңіз", details: "Санат қатысушылары", info: "Санатқа бекітілген қатысушылар тізімі.", declared: "Мәлімделген салмақ", kg: "кг", open: "Ашу", close: "Жабу", add: "Санат қосу", cancel: "Бас тарту", ageGroup: "Жас тобы", weightCategories: "Салмақ санаттары", addWeight: "Салмақ санатын қосу", removeWeight: "Жою", upTo: "Дейін", from: "Бастап және жоғары", weight: "Салмақ", fromPreview: "және жоғары", upToPreview: "дейін" }
@@ -176,8 +181,7 @@ export default function CategoriesClient({ tournamentId, defaultFormat, configur
           <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
             {weights.map((row, index) => <div className="form-card" key={index} style={{ padding: 12 }}>
               <div className="form-grid">
-                <label>Тип
-                  <select className="field" value={row.type} onChange={e => updateWeight(index, { type: e.target.value as WeightRow["type"] })}>
+                <label>{L("Тип\n                  ")}<select className="field" value={row.type} onChange={e => updateWeight(index, { type: e.target.value as WeightRow["type"] })}>
                     <option value="up_to">{labels.upTo}</option>
                     <option value="from">{labels.from}</option>
                   </select>
@@ -237,3 +241,4 @@ export default function CategoriesClient({ tournamentId, defaultFormat, configur
     </div>
   </section>;
 }
+

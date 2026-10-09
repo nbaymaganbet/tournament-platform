@@ -1,4 +1,7 @@
 "use client";
+import { uiText } from "@/lib/ui-text";
+
+import { useLocale } from "@/components/locale-provider";
 
 import { FormEvent, Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -15,13 +18,8 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [locale, setLocale] = useState<Locale>("ru");
+  const locale = useLocale();
   const t = translations[locale];
-
-  useEffect(() => {
-    const saved = localStorage.getItem("tp-lang");
-    if (saved === "ru" || saved === "kk") setLocale(saved);
-  }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -69,11 +67,14 @@ function LoginForm() {
 }
 
 export default function LoginPage() {
+ const locale = useLocale();const L = (text: string) => uiText(locale, text);
+
   return (
     <main className="auth-page">
-      <Suspense fallback={<section className="auth-card"><p className="muted">Загрузка…</p></section>}>
+      <Suspense fallback={<section className="auth-card"><p className="muted">{L("Загрузка…")}</p></section>}>
         <LoginForm />
       </Suspense>
     </main>
   );
 }
+

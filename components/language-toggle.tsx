@@ -1,15 +1,17 @@
 "use client";
+import { useLocale } from "@/components/locale-provider";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { uiText } from "@/lib/ui-text";
 import type { Locale } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LanguageToggle() {
   const router = useRouter();
   const pathname = usePathname();
-  const [lang, setLang] = useState<Locale>("ru");
+  const lang = useLocale();
   const [open, setOpen] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
   const [email, setEmail] = useState("");
@@ -33,8 +35,6 @@ export default function LanguageToggle() {
   ] : [];
 
   useEffect(() => {
-    const saved = localStorage.getItem("tp-lang");
-    if (saved === "ru" || saved === "kk") setLang(saved);
     let mounted = true;
     const supabase = createClient();
     const loadUser = async () => {
@@ -84,7 +84,8 @@ export default function LanguageToggle() {
   }, [pathname]);
 
   function changeLang(next: Locale) {
-    setLang(next);
+    window.dispatchEvent(new CustomEvent("tp-language-changed", { detail: next }));
+    document.documentElement.lang = next;
     localStorage.setItem("tp-lang", next);
     document.cookie = `tp-lang=${next}; path=/; max-age=31536000; samesite=lax`;
     router.refresh();
@@ -126,21 +127,21 @@ export default function LanguageToggle() {
       <aside style={{position:"fixed",top:0,right:0,zIndex:100,width:"min(340px,90vw)",height:"100dvh",padding:"78px 18px 22px",background:"#0d0f12",borderLeft:"1px solid #292d34",boxShadow:"-18px 0 50px rgba(0,0,0,.55)",display:"flex",flexDirection:"column",overflowY:"auto"}}>
         {tournamentBase ? <>
           <div style={{padding:"0 8px 14px",borderBottom:"1px solid #292d34"}}>
-            <div style={{color:"#8e949f",fontSize:11,fontWeight:900,letterSpacing:".12em"}}>ТУРНИР</div>
-            <div style={{marginTop:6,color:"#f5f5f5",fontSize:18,fontWeight:900}}>Управление соревнованием</div>
+            <div style={{color:"#8e949f",fontSize:11,fontWeight:900,letterSpacing:".12em"}}>{uiText(lang, "ТУРНИР")}</div>
+            <div style={{marginTop:6,color:"#f5f5f5",fontSize:18,fontWeight:900}}>{uiText(lang, "Управление соревнованием")}</div>
           </div>
-          <nav aria-label="Разделы турнира" style={{display:"grid",gap:4,paddingTop:14}}>
+          <nav aria-label={uiText(lang, "Разделы турнира")} style={{display:"grid",gap:4,paddingTop:14}}>
             {tournamentLinks.map(([label, href]) => {
               const keyMap:Record<string,string>={"Обзор":"overview","Участники":"participants","Категории":"categories","Взвешивание":"weigh_in","Сетки":"brackets","Зоны и расписание":"schedule","Проведение":"running","Результаты":"results","Настройки":"settings","Команда":"team"};
               const permissionKey=keyMap[label];
               const allowed=permissions===null || permissions[permissionKey] !== false;
               const active = href === tournamentBase ? pathname === tournamentBase : pathname.startsWith(href);
-              if (!allowed) return <button key={href} type="button" onClick={() => alert(lang === "ru" ? "Этот раздел недоступен для вашей роли." : "Бұл бөлім сіздің рөліңіз үшін қолжетімсіз.")} style={{display:"flex",alignItems:"center",minHeight:44,padding:"0 12px",border:"1px solid transparent",borderRadius:9,color:"#555b65",background:"transparent",fontSize:14,fontWeight:800,textAlign:"left",cursor:"not-allowed"}}>{label}</button>;
-              return <Link key={href} href={href} onClick={() => setOpen(false)} style={{display:"flex",alignItems:"center",minHeight:44,padding:"0 12px",border:`1px solid ${active ? "#292d34" : "transparent"}`,borderRadius:9,color:active?"#fff":"#8e949f",background:active?"#17191e":"transparent",fontSize:14,fontWeight:800}}>{label}</Link>;
+              if (!allowed) return <button key={href} type="button" onClick={() => alert(lang === "ru" ? "Этот раздел недоступен для вашей роли." : "Бұл бөлім сіздің рөліңіз үшін қолжетімсіз.")} style={{display:"flex",alignItems:"center",minHeight:44,padding:"0 12px",border:"1px solid transparent",borderRadius:9,color:"#555b65",background:"transparent",fontSize:14,fontWeight:800,textAlign:"left",cursor:"not-allowed"}}>{uiText(lang, label)}</button>;
+              return <Link key={href} href={href} onClick={() => setOpen(false)} style={{display:"flex",alignItems:"center",minHeight:44,padding:"0 12px",border:`1px solid ${active ? "#292d34" : "transparent"}`,borderRadius:9,color:active?"#fff":"#8e949f",background:active?"#17191e":"transparent",fontSize:14,fontWeight:800}}>{uiText(lang, label)}</Link>;
             })}
           </nav>
           <div style={{marginTop:18,paddingTop:14,borderTop:"1px solid #292d34",display:"grid",gap:4}}>
-            <button type="button" onClick={() => permissions?.all_tournaments === false ? alert(lang === "ru" ? "Этот раздел недоступен для вашей роли." : "Бұл бөлім сіздің рөліңіз үшін қолжетімсіз.") : (setOpen(false), router.push("/organizer"))} style={{border:0,background:"transparent",textAlign:"left",padding:"10px 12px",color:permissions?.all_tournaments === false?"#555b65":"#8e949f",fontSize:13,fontWeight:750,cursor:permissions?.all_tournaments === false?"not-allowed":"pointer"}}>← Все турниры</button>
+            <button type="button" onClick={() => permissions?.all_tournaments === false ? alert(lang === "ru" ? "Этот раздел недоступен для вашей роли." : "Бұл бөлім сіздің рөліңіз үшін қолжетімсіз.") : (setOpen(false), router.push("/organizer"))} style={{border:0,background:"transparent",textAlign:"left",padding:"10px 12px",color:permissions?.all_tournaments === false?"#555b65":"#8e949f",fontSize:13,fontWeight:750,cursor:permissions?.all_tournaments === false?"not-allowed":"pointer"}}>{uiText(lang, "← Все турниры")}</button>
           </div>
         </> : <>
           <div style={{padding:"0 8px 14px",borderBottom:"1px solid #292d34"}}>
@@ -160,9 +161,18 @@ export default function LanguageToggle() {
               <button type="button" onClick={handleAuthAction} style={{textAlign:"center",border:"1px solid #292d34",borderRadius:10,padding:"12px 15px",fontWeight:850,color:"#f5f5f5",background:"#111317"}}>{lang === "ru" ? "Выйти" : "Шығу"}</button>
             </> : <button type="button" onClick={handleAuthAction} style={{textAlign:"center",border:"1px solid #292d34",borderRadius:10,padding:"12px 15px",fontWeight:850,color:"#f5f5f5",background:"#111317"}}>{lang === "ru" ? "Войти" : "Кіру"}</button>}
             <button type="button" onClick={openHelp} style={{textAlign:"left",border:"1px solid #292d34",borderRadius:10,padding:"12px 15px",fontWeight:850,color:"#f5f5f5",background:"#111317",display:"flex",alignItems:"center",gap:10}}><span style={{width:28,height:28,borderRadius:"50%",border:"1px solid #383d46",display:"grid",placeItems:"center"}}>?</span>{lang === "ru" ? "Справка" : "Анықтама"}</button>
+            <details style={{border:"1px solid #292d34",borderRadius:10,padding:"12px 15px",background:"#111317",color:"#f5f5f5"}}>
+              <summary style={{cursor:"pointer",fontWeight:850}}>{lang === "ru" ? "Установить на телефон" : "Телефонға орнату"}</summary>
+              <div style={{fontSize:13,lineHeight:1.6,color:"#b5bac4",marginTop:12}}>
+                <p style={{margin:"0 0 12px"}}><strong style={{color:"#f5f5f5"}}>iPhone</strong><br />{lang === "ru" ? "Откройте сайт в Safari → «Поделиться» → «На экран Домой» → «Добавить». Если есть «Открывать как веб-приложение» — включите." : "Сайтты Safari-де ашыңыз → «Бөлісу» → «Басты экранға қосу» → «Қосу». «Веб-қолданба ретінде ашу» болса, қосыңыз."}</p>
+                <p style={{margin:"0 0 12px"}}><strong style={{color:"#f5f5f5"}}>Android</strong><br />{lang === "ru" ? "Откройте сайт в Chrome → ⋮ → «Добавить на главный экран» или «Установить приложение» → «Установить»." : "Сайтты Chrome-да ашыңыз → ⋮ → «Басты экранға қосу» немесе «Қолданбаны орнату» → «Орнату»."}</p>
+                <p style={{margin:0}}>{lang === "ru" ? "Иконка появится на экране телефона — открывайте приложение через неё." : "Телефон экранында белгіше пайда болады — қолданбаны сол арқылы ашыңыз."}</p>
+              </div>
+            </details>
           </div>
         </>}
       </aside>
     </>}
   </>;
 }
+

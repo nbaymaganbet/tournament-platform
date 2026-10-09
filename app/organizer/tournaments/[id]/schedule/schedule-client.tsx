@@ -1,4 +1,7 @@
 "use client";
+import { uiText } from "@/lib/ui-text";
+
+import { useLocale } from "@/components/locale-provider";
 import {useEffect,useMemo,useState} from "react";
 import {createClient} from "@/lib/supabase/client";
 import {translations,type Locale} from "@/lib/i18n";
@@ -6,7 +9,9 @@ import {translations,type Locale} from "@/lib/i18n";
 type Category={id:string;name:string;count:number;preferred_mat_id:string|null};
 type Mat={id:string;name:string;is_active:boolean};
 export default function ScheduleClient({tournamentId,initialCategories,mats,startTime,scheduledCount}:{tournamentId:string;initialCategories:Category[];mats:Mat[];startTime:string;scheduledCount:number}){
- const[locale]=useState<Locale>(()=>typeof window!=="undefined"&&localStorage.getItem("tp-lang")==="kk"?"kk":"ru");
+ const L = (text: string) => uiText(locale, text);
+
+ const locale = useLocale();
  const t=translations[locale];
  const[categories,setCategories]=useState(initialCategories),[zones,setZones]=useState(mats);
  const[hour,setHour]=useState((startTime||"10:00").slice(0,2)),[minute,setMinute]=useState((startTime||"10:00").slice(3,5));
@@ -16,23 +21,23 @@ export default function ScheduleClient({tournamentId,initialCategories,mats,star
  const startTimeInput=`${hour.padStart(2,"0")}:${minute.padStart(2,"0")}`;
  useEffect(()=>{const refresh=async()=>{const{data}=await s.from("mats").select("id,name,is_active").eq("tournament_id",tournamentId).order("sort_order");if(data)setZones(data)};window.addEventListener("tournament-zones-changed",refresh);return()=>window.removeEventListener("tournament-zones-changed",refresh)},[s,tournamentId]);
  async function setCategoryZone(c:Category,matId:string){setSaving(c.id);setMessage("");const{error}=await s.rpc("set_category_schedule_zone",{p_category_id:c.id,p_mat_id:matId||null});if(error)setMessage(error.message);else setCategories(current=>current.map(x=>x.id===c.id?{...x,preferred_mat_id:matId||null}:x));setSaving(null)}
- async function saveStart(){if(!validTime){setMessage("Укажите время от 00:00 до 23:59.");return}setSaving("time");setMessage("");const{error}=await s.rpc("save_tournament_schedule_start_time",{p_tournament_id:tournamentId,p_start_time:startTimeInput});setMessage(error?error.message:locale==="kk"?"Басталу уақыты сақталды.":"Время начала сохранено.");setSaving(null)}
- async function generate(){if(!validTime){setMessage("Укажите время от 00:00 до 23:59.");return}setSaving("generate");setMessage("");const saved=await s.rpc("save_tournament_schedule_start_time",{p_tournament_id:tournamentId,p_start_time:startTimeInput});if(saved.error){setMessage(saved.error.message);setSaving(null);return}const result=await s.rpc("generate_tournament_schedule",{p_tournament_id:tournamentId});if(result.error){setMessage(result.error.message);setSaving(null);return}window.location.reload()}
+ async function saveStart(){if(!validTime){setMessage(L("Укажите время от 00:00 до 23:59."));return}setSaving("time");setMessage("");const{error}=await s.rpc("save_tournament_schedule_start_time",{p_tournament_id:tournamentId,p_start_time:startTimeInput});setMessage(error?error.message:locale==="kk"?"Басталу уақыты сақталды.":"Время начала сохранено.");setSaving(null)}
+ async function generate(){if(!validTime){setMessage(L("Укажите время от 00:00 до 23:59."));return}setSaving("generate");setMessage("");const saved=await s.rpc("save_tournament_schedule_start_time",{p_tournament_id:tournamentId,p_start_time:startTimeInput});if(saved.error){setMessage(saved.error.message);setSaving(null);return}const result=await s.rpc("generate_tournament_schedule",{p_tournament_id:tournamentId});if(result.error){setMessage(result.error.message);setSaving(null);return}window.location.reload()}
  return <details className="schedule-controls form-card">
    <summary className="schedule-summary">{locale==="kk"?"Жарыс кестесі":"Расписание турнира"}{scheduledCount>0?` · ${scheduledCount}`:""}</summary>
    <p className="muted">{locale==="kk"?"Санаттарға аймақтарды таңдаңыз немесе автоматты бөлуді қалдырыңыз.":"Назначьте зоны категориям или оставьте автоматическое распределение."}</p>
    <div className="schedule-time-label">{locale==="kk"?"Жарыстың басталуы":"Начало соревнований"}</div>
    <div className="schedule-time-fields" role="group" aria-label={locale==="kk"?"Жарыстың басталу уақыты":"Время начала соревнований"}>
-     <input className="field" type="text" inputMode="numeric" pattern="[0-9]*" maxLength={2} aria-label={locale==="kk"?"Сағат":"Часы"} placeholder="ЧЧ" value={hour} onChange={e=>setHour(e.target.value.replace(/\D/g,""))}/>
+     <input className="field" type="text" inputMode="numeric" pattern="[0-9]*" maxLength={2} aria-label={locale==="kk"?"Сағат":"Часы"} placeholder={L("ЧЧ")} value={hour} onChange={e=>setHour(e.target.value.replace(/\D/g,""))}/>
      <span aria-hidden="true">:</span>
-     <input className="field" type="text" inputMode="numeric" pattern="[0-9]*" maxLength={2} aria-label={locale==="kk"?"Минут":"Минуты"} placeholder="ММ" value={minute} onChange={e=>setMinute(e.target.value.replace(/\D/g,""))}/>
+     <input className="field" type="text" inputMode="numeric" pattern="[0-9]*" maxLength={2} aria-label={locale==="kk"?"Минут":"Минуты"} placeholder={L("ММ")} value={minute} onChange={e=>setMinute(e.target.value.replace(/\D/g,""))}/>
    </div>
-   <button className="primary schedule-save" type="button" disabled={!!saving} onClick={()=>void saveStart()}>{saving==="time"?"Сохраняем…":locale==="kk"?"Уақытты сақтау":"Сохранить время"}</button>
+   <button className="primary schedule-save" type="button" disabled={!!saving} onClick={()=>void saveStart()}>{saving==="time"?L("Сохраняем…"):locale==="kk"?"Уақытты сақтау":"Сохранить время"}</button>
    <div className="schedule-category-list">{categories.map(c=><label className="schedule-category" key={c.id}>
      <span><strong>{c.name}</strong><small>{c.count} {locale==="kk"?"жекпе-жек":"боёв"}</small></span>
      <select aria-label={`${c.name}: ${locale==="kk"?"аймақ":"зона"}`} disabled={!!saving} value={c.preferred_mat_id??""} onChange={e=>void setCategoryZone(c,e.target.value)}>
        <option value="">{locale==="kk"?"Автоматты түрде":"Автоматически"}</option>
-       {zones.filter(z=>z.is_active||z.id===c.preferred_mat_id).map(z=><option key={z.id} value={z.id}>{z.name}{z.is_active?"":" (выключена)"}</option>)}
+       {zones.filter(z=>z.is_active||z.id===c.preferred_mat_id).map(z=><option key={z.id} value={z.id}>{z.name}{z.is_active?"":L(" (выключена)")}</option>)}
      </select>
    </label>)}</div>
    <button className="primary schedule-generate" type="button" disabled={!!saving||scheduledCount>0} onClick={()=>void generate()}>{saving==="generate"?t.generating:scheduledCount>0?(locale==="kk"?"Кесте құрылды":"Расписание сформировано"):t.generateSchedule}</button>
@@ -49,3 +54,4 @@ export default function ScheduleClient({tournamentId,initialCategories,mats,star
    `}</style>
  </details>;
 }
+

@@ -1,4 +1,5 @@
 "use client";
+import { useLocale } from "@/components/locale-provider";
 
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -8,7 +9,7 @@ type Row = { id:string; participant_id:string; application_number:string|null; s
 type EditForm = Pick<Row,"first_name"|"last_name"|"age"|"weight"|"experience"|"phone"|"city"|"club"|"coach">;
 
 export default function ParticipantsClient({ tournamentId, initialRows }: { tournamentId:string; initialRows:Row[] }) {
-  const [locale] = useState<Locale>(() => typeof window !== "undefined" && localStorage.getItem("tp-lang") === "kk" ? "kk" : "ru");
+  const locale = useLocale();
   const t = translations[locale];
   const labels=locale==="kk"?{edit:"Өзгерту",delete:"Өтінімді жою",menu:"Әрекеттер",confirm:"Өтінімді растау",confirmed:"Өтінім расталды",deleteConfirm:"Бұл өтінімді жою керек пе?",save:"Сақтау",cancel:"Бас тарту",editTitle:"Өтінімді өзгерту",first:"Аты",last:"Тегі",age:"Жасы",weight:"Салмағы",experience:"Тәжірибесі",phone:"Телефон",city:"Қала",club:"Клуб",coach:"Жаттықтырушы"}:{edit:"Изменить",delete:"Удалить заявку",menu:"Действия",confirm:"Подтвердить заявку",confirmed:"Заявка подтверждена",deleteConfirm:"Удалить эту заявку?",save:"Сохранить",cancel:"Отмена",editTitle:"Изменить заявку",first:"Имя",last:"Фамилия",age:"Возраст",weight:"Заявленный вес",experience:"Опыт",phone:"Телефон",city:"Город",club:"Клуб",coach:"Тренер"};
   const [rows,setRows]=useState(initialRows); const [query,setQuery]=useState(""); const [statusFilter,setStatusFilter]=useState("all"); const [busy,setBusy]=useState<string|null>(null); const [openMenu,setOpenMenu]=useState<string|null>(null); const [editing,setEditing]=useState<Row|null>(null); const [form,setForm]=useState<EditForm|null>(null); const supabase=createClient();
@@ -23,3 +24,4 @@ export default function ParticipantsClient({ tournamentId, initialRows }: { tour
     {editing&&form&&<div style={{position:"fixed",inset:0,zIndex:50,background:"rgba(0,0,0,.7)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={()=>{if(!busy)setEditing(null)}}><div className="form-card" style={{width:"min(100%,520px)",maxHeight:"90vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}><div className="participant-main" style={{marginBottom:16}}><strong>{labels.editTitle}</strong><span className="muted">#{editing.application_number??"—"}</span></div><div className="bracket-editor-grid">{([["first_name",labels.first],["last_name",labels.last],["age",labels.age],["weight",labels.weight],["experience",labels.experience],["phone",labels.phone],["city",labels.city],["club",labels.club],["coach",labels.coach]] as const).map(([key,label])=><label key={key}>{label}<input className="field" type={key==="age"||key==="weight"?"number":"text"} value={form[key]??""} onChange={e=>setForm(f=>f?{...f,[key]:key==="age"||key==="weight"?Number(e.target.value):e.target.value}:f)} /></label>)}</div><div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:16}}><button type="button" className="secondary" disabled={!!busy} onClick={()=>setEditing(null)}>{labels.cancel}</button><button type="button" className="primary" disabled={busy===`edit:${editing.id}`} onClick={()=>void saveEdit()}>{busy===`edit:${editing.id}`?"…":labels.save}</button></div></div></div>}
   </div>;
 }
+

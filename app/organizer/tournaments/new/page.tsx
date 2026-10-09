@@ -1,4 +1,7 @@
 "use client";
+import { uiText } from "@/lib/ui-text";
+import { useLocale } from "@/components/locale-provider";
+
 
 import { ChangeEvent, FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -9,6 +12,8 @@ function slugify(value: string) {
 }
 
 export default function NewTournamentPage() {
+ const locale = useLocale();const L = (text: string) => uiText(locale, text);
+
   const router = useRouter();
   const [name, setName] = useState("");
   const [bracketFormat, setBracketFormat] = useState<"single_elimination" | "round_robin">("single_elimination");
@@ -20,7 +25,7 @@ export default function NewTournamentPage() {
   function selectPosters(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? []).filter((file) => file.type.startsWith("image/"));
     setPosters(files.slice(0, 5));
-    if (files.length > 5) setError("Можно добавить максимум 5 афиш.");
+    if (files.length > 5) setError(L("Можно добавить максимум 5 афиш."));
     else setError("");
   }
 
@@ -36,12 +41,12 @@ export default function NewTournamentPage() {
       return;
     }
     if (!name.trim()) {
-      setError("Введите название соревнования.");
+      setError(L("Введите название соревнования."));
       setSaving(false);
       return;
     }
     if (posters.length > 5) {
-      setError("Можно добавить максимум 5 афиш.");
+      setError(L("Можно добавить максимум 5 афиш."));
       setSaving(false);
       return;
     }
@@ -54,7 +59,7 @@ export default function NewTournamentPage() {
         .select("id")
         .single();
       if (organizerError || !createdOrganizer) {
-        setError(organizerError?.message ?? "Не удалось создать профиль организатора.");
+        setError(organizerError?.message ?? L("Не удалось создать профиль организатора."));
         setSaving(false);
         return;
       }
@@ -69,7 +74,7 @@ export default function NewTournamentPage() {
       .single();
 
     if (tournamentError || !tournament) {
-      setError(tournamentError?.message ?? "Не удалось создать соревнование.");
+      setError(tournamentError?.message ?? L("Не удалось создать соревнование."));
       setSaving(false);
       return;
     }
@@ -87,7 +92,7 @@ export default function NewTournamentPage() {
       });
 
       if (uploadError) {
-        uploadErrors.push(`Афиша ${index + 1}: ${uploadError.message}`);
+        uploadErrors.push(`${L("Афиша ")}${index + 1}: ${uploadError.message}`);
         continue;
       }
 
@@ -97,14 +102,14 @@ export default function NewTournamentPage() {
 
     if (posterRows.length) {
       const { error: postersError } = await supabase.from("tournament_posters").insert(posterRows);
-      if (postersError) uploadErrors.push(`Афиши: ${postersError.message}`);
+      if (postersError) uploadErrors.push(`${L("Афиши")}: ${postersError.message}`);
 
       const firstPoster = posterRows[0];
       await supabase.from("tournaments").update({ poster_url: firstPoster.public_url }).eq("id", tournament.id);
     }
 
     if (uploadErrors.length) {
-      setError(`Черновик создан, но часть афиш не загрузилась. ${uploadErrors.join(" ")}`);
+      setError(`${locale === "kk" ? "Жоба құрылды, бірақ кейбір афишалар жүктелмеді." : "Черновик создан, но часть афиш не загрузилась."} ${uploadErrors.join(" ")}`);
       setSaving(false);
       return;
     }
@@ -114,41 +119,37 @@ export default function NewTournamentPage() {
 
   return (
     <main className="container dashboard-page">
-      <div className="page-topline"><a className="back-link" href="/organizer">← Мои соревнования</a></div>
+      <div className="page-topline"><a className="back-link" href="/organizer">{L("← Мои соревнования")}</a></div>
       <section className="form-card">
-        <div className="eyebrow">НОВОЕ СОРЕВНОВАНИЕ</div>
-        <h1>Создать соревнование</h1>
-        <p className="muted">На первом шаге достаточно названия и афиш. Дату, город, вид спорта, положение и остальные настройки добавите внутри турнира.</p>
+        <div className="eyebrow">{L("НОВОЕ СОРЕВНОВАНИЕ")}</div>
+        <h1>{L("Создать соревнование")}</h1>
+        <p className="muted">{L("На первом шаге достаточно названия и афиш. Дату, город, вид спорта, положение и остальные настройки добавите внутри турнира.")}</p>
         <form className="tournament-form" onSubmit={submit}>
-          <label>
-            Название соревнования
-            <input className="field" value={name} onChange={(e) => setName(e.target.value)} required />
+          <label>{L("\n            Название соревнования\n            ")}<input className="field" value={name} onChange={(e) => setName(e.target.value)} required />
           </label>
 
-          <label>Формат сеток по умолчанию
-            <select className="field" value={bracketFormat} onChange={e => setBracketFormat(e.target.value as "single_elimination" | "round_robin")}>
-              <option value="single_elimination">Олимпийская</option>
-              <option value="round_robin">Круговая</option>
+          <label>{L("Формат сеток по умолчанию\n            ")}<select className="field" value={bracketFormat} onChange={e => setBracketFormat(e.target.value as "single_elimination" | "round_robin")}>
+              <option value="single_elimination">{L("Олимпийская")}</option>
+              <option value="round_robin">{L("Круговая")}</option>
             </select>
           </label>
-          <p className="muted">Этот формат действует для всех категорий по умолчанию. При необходимости его можно изменить в карточке категории до начала боёв.</p>
+          <p className="muted">{L("Этот формат действует для всех категорий по умолчанию. При необходимости его можно изменить в карточке категории до начала боёв.")}</p>
           {bracketFormat === "single_elimination" && <label style={{display:"flex",alignItems:"center",gap:10}}>
-            <input type="checkbox" checked={bronzeBout} onChange={e => setBronzeBout(e.target.checked)} /> Проводить бой за 3-е место, если в категории есть два полуфиналиста
-          </label>}
+            <input type="checkbox" checked={bronzeBout} onChange={e => setBronzeBout(e.target.checked)} />{L(" Проводить бой за 3-е место, если в категории есть два полуфиналиста\n          ")}</label>}
 
-          <label>
-            Афиши <span className="muted">(до 5 изображений)</span>
+          <label>{L("\n            Афиши ")}<span className="muted">{L("(до 5 изображений)")}</span>
             <input className="field" type="file" accept="image/*" multiple onChange={selectPosters} />
           </label>
 
           {posters.length > 0 && (
-            <div className="muted" aria-live="polite">Выбрано афиш: {posters.length} из 5</div>
+            <div className="muted" aria-live="polite">{L("Выбрано афиш: ")}{posters.length}{L(" из 5")}</div>
           )}
 
           {error && <p className="error" role="alert">{error}</p>}
-          <button className="primary" disabled={saving}>{saving ? "Создаём…" : "Создать соревнование"}</button>
+          <button className="primary" disabled={saving}>{saving ? L("Создаём…") : L("Создать соревнование")}</button>
         </form>
       </section>
     </main>
   );
 }
+

@@ -1,8 +1,12 @@
+import { uiText } from "@/lib/ui-text";
+import { getLocale } from "@/lib/i18n-server";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getT } from "@/lib/i18n-server";
 
 export default async function OrganizerDashboard() {
+ const locale = await getLocale();const L = (text: string) => uiText(locale, text);
+
   const supabase = await createClient();
   const t = await getT();
   const { data: { user } } = await supabase.auth.getUser();
@@ -108,7 +112,7 @@ export default async function OrganizerDashboard() {
                 <h3>{tournament.name}</h3>
                 <p className="muted">
                   {tournament.date} · {tournament.city} · {tournament.sport}
-                  {tournament.access === "team" ? " · Команда" : ""}
+                  {tournament.access === "team" ? L(" · Команда") : ""}
                 </p>
               </div>
               <span className="status">{statusLabels[tournament.status] ?? tournament.status}</span>
@@ -119,3 +123,4 @@ export default async function OrganizerDashboard() {
     </main>
   );
 }
+

@@ -1,3 +1,5 @@
+import { uiText } from "@/lib/ui-text";
+import { getLocale } from "@/lib/i18n-server";
 import Link from "next/link";
 import { hasTournamentPermission, permissionDeniedPage } from "@/lib/tournament-permissions";
 import { notFound } from "next/navigation";
@@ -5,6 +7,8 @@ import { createClient } from "@/lib/supabase/server";
 import ParticipantsClient from "./participants-client";
 
 export default async function ParticipantsPage({ params }: { params: Promise<{ id: string }> }) {
+ const locale = await getLocale();const L = (text: string) => uiText(locale, text);
+
   const { id } = await params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -19,5 +23,6 @@ export default async function ParticipantsPage({ params }: { params: Promise<{ i
   const { data: registrations, error } = await supabase.from("registrations").select("id,participant_id,application_number,status,payment_status,participants(first_name,last_name,age,weight,actual_weight,experience,phone,city,club,coach)").eq("tournament_id", id).order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
   const rows = (registrations ?? []).flatMap((r) => { const p = Array.isArray(r.participants) ? r.participants[0] : r.participants; return p ? [{ id:r.id, participant_id:r.participant_id, application_number:r.application_number, status:r.status, payment_status:r.payment_status, ...p }] : []; });
-  return <main className="container dashboard-page"><div className="page-topline"><Link className="back-link" href={`/organizer/tournaments/${id}`}>← {tournament.name}</Link></div><header className="section-header"><div><div className="eyebrow">Управление</div><h1>Участники</h1><p className="muted">Заявки, оплата, подтверждение и официальный вес на взвешивании.</p></div><strong>{rows.length}</strong></header><ParticipantsClient tournamentId={id} initialRows={rows} /></main>;
+  return <main className="container dashboard-page"><div className="page-topline"><Link className="back-link" href={`/organizer/tournaments/${id}`}>← {tournament.name}</Link></div><header className="section-header"><div><div className="eyebrow">{L("Управление")}</div><h1>{L("Участники")}</h1><p className="muted">{L("Заявки, оплата, подтверждение и официальный вес на взвешивании.")}</p></div><strong>{rows.length}</strong></header><ParticipantsClient tournamentId={id} initialRows={rows} /></main>;
 }
+

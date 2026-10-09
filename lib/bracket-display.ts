@@ -29,7 +29,7 @@ export function pendingAthlete(match:BracketDisplayMatch,side:"a"|"b",group:Brac
  const aEmpty=!(emptyBoth.participant_a_id??emptyBoth.participant_a_name);
  const bEmpty=!(emptyBoth.participant_b_id??emptyBoth.participant_b_name);
  const source=aEmpty&&bEmpty&&pending.length>1?pending[side==="a"?0:1]:pending[0];
- const word=kind==="loser"?(kk?"жеңілген":"проигравший"):(kk?"жеңімпазы":"победитель");
+ const word=kind==="loser"?(kk?"жеңілгені":"проигравший"):(kk?"жеңімпазы":"победитель");
  return kk?`#${source.match_number} жекпе-жектің ${word}`:`${word} боя #${source.match_number}`;
 }
 
@@ -40,3 +40,4 @@ export function isByeSeed(match:BracketDisplayMatch,side:"a"|"b",group:BracketDi
  return !!id&&match.round_number>1&&!group.some(previous=>previous.round_number<match.round_number&&
    (previous.participant_a_id===id||previous.participant_b_id===id));
 }
+

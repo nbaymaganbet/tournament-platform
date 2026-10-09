@@ -1,3 +1,5 @@
+import { uiText } from "@/lib/ui-text";
+import { getLocale } from "@/lib/i18n-server";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -6,6 +8,8 @@ import MatsClient from "../mats/mats-client";
 import { hasTournamentPermission, permissionDeniedPage } from "@/lib/tournament-permissions";
 
 export default async function SchedulePage({params}:{params:Promise<{id:string}>}) {
+ const locale = await getLocale();const L = (text: string) => uiText(locale, text);
+
   const {id}=await params;
   const s=await createClient();
   const {data:{user}}=await s.auth.getUser();
@@ -30,11 +34,11 @@ export default async function SchedulePage({params}:{params:Promise<{id:string}>
 
   return <main className="container dashboard-page">
     <div className="page-topline"><Link className="back-link" href={"/organizer/tournaments/"+id}>← {t.name}</Link></div>
-    <div className="section-header"><div><h1>Зоны и расписание</h1><p className="muted">Создайте зоны, назначьте их категориям и задайте начало соревнований.</p></div></div>
+    <div className="section-header"><div><h1>{L("Зоны и расписание")}</h1><p className="muted">{L("Создайте зоны, назначьте их категориям и задайте начало соревнований.")}</p></div></div>
 
     <details className="form-card" style={{marginBottom:16}}>
-      <summary style={{cursor:"pointer",fontWeight:800,fontSize:22}}>Зоны турнира</summary>
-      <p className="muted">Добавляйте, переименовывайте, включайте или выключайте зоны, на которых проходят поединки.</p>
+      <summary style={{cursor:"pointer",fontWeight:800,fontSize:22}}>{L("Зоны турнира")}</summary>
+      <p className="muted">{L("Добавляйте, переименовывайте, включайте или выключайте зоны, на которых проходят поединки.")}</p>
       <MatsClient tournamentId={id} initialMats={mats??[]}/>
     </details>
 
@@ -43,3 +47,4 @@ export default async function SchedulePage({params}:{params:Promise<{id:string}>
       mats={(mats??[]).map(m=>({id:m.id,name:m.name,is_active:m.is_active}))}/>
   </main>
 }
+
