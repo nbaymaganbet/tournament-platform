@@ -1,8 +1,7 @@
 import { ImageResponse } from "next/og";
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import { createClient } from "@/lib/supabase/server";
 import type { Result } from "../page";
+import { resultPreviewFontBase64 } from "@/lib/result-preview-font";
 
 export const alt = "Афиша турнира и результаты категории";
 export const size = { width: 1200, height: 630 };
@@ -17,7 +16,7 @@ export default async function Image({ params }: { params: Promise<{ id: string; 
   if (error) return new Response("Unavailable", { status: 503 });
   const rows = ((data ?? []) as Result[]).filter(r => r.category_id === categoryId);
   if (!rows.length) return new Response("Not found", { status: 404 });
-  const font = await readFile(join(process.cwd(), "public", "fonts", "geist-regular.ttf"));
+  const font = Buffer.from(resultPreviewFontBase64, "base64");
   return new ImageResponse(<div style={{ width: "100%", height: "100%", display: "flex", background: "#0b0b0e", color: "white", fontFamily: "Geist" }}>
     {tournament.poster_url && <img src={tournament.poster_url} width={420} height={630} style={{ objectFit: "contain", background: "#111" }} alt="" />}
     <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", padding: "45px", width: tournament.poster_url ? 780 : 1200 }}>
