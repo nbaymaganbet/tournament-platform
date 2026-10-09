@@ -8,6 +8,7 @@ export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
 export default async function Image({ params }: { params: Promise<{ id: string; categoryId: string }> }) {
+  try {
   const { id, categoryId } = await params;
   const s = await createClient();
   const { data: tournament } = await s.from("tournaments").select("name,poster_url").eq("id", id).eq("is_public", true).eq("status", "completed").maybeSingle();
@@ -17,7 +18,7 @@ export default async function Image({ params }: { params: Promise<{ id: string; 
   const rows = ((data ?? []) as Result[]).filter(r => r.category_id === categoryId);
   if (!rows.length) return new Response("Not found", { status: 404 });
   const font = Buffer.from(resultPreviewFontBase64, "base64");
-  return new ImageResponse(<div style={{ width: "100%", height: "100%", display: "flex", background: "#0b0b0e", color: "white", fontFamily: "Geist" }}>
+  const image = new ImageResponse(<div style={{ width: "100%", height: "100%", display: "flex", background: "#0b0b0e", color: "white", fontFamily: "Geist" }}>
     {tournament.poster_url && <img src={tournament.poster_url} width={420} height={630} style={{ objectFit: "contain", background: "#111" }} alt="" />}
     <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", padding: "45px", width: tournament.poster_url ? 780 : 1200 }}>
       <div style={{ color: "#ff625d", fontSize: 25, marginBottom: 16 }}>{tournament.name}</div>
@@ -26,4 +27,7 @@ export default async function Image({ params }: { params: Promise<{ id: string; 
       {rows.length > 5 && <div style={{ fontSize: 19, color: "#aaa" }}>+{rows.length - 5} · Полные результаты по ссылке</div>}
     </div>
   </div>, { ...size, fonts: [{ name: "Geist", data: font, weight: 400, style: "normal" }] });
+  const bytes = await image.arrayBuffer();
+  return new Response(bytes, { headers: { "Content-Type": "image/png" } });
+  } catch (error) { return new Response(String(error), { status: 500 }); }
 }
