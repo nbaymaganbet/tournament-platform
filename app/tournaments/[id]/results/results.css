@@ -1,7 +1,11 @@
 .result-category { margin-bottom: 16px; }
 .result-category-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
 .result-category-heading h2 { margin: 0; font-size: 20px; line-height: 1.35; }
-.result-category-heading .public-share .secondary { width: auto; min-height: 42px; }
+.result-category-heading h2 { flex: 1; min-width: 0; }
+.result-share { flex: 0 0 auto; }
+.result-share-button { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 0; border: 1px solid #292d34; border-radius: 12px; background: #111317; color: #f5f5f5; box-shadow: 0 6px 22px rgba(0,0,0,.3); }
+.result-share-button:hover { background: #17191e; }
+.result-share-message { margin: 8px 0 0; max-width: 220px; }
 .result-category .participant-card { width: 100%; }
 .result-category .participant-main { min-width: 0; }
 .result-category .participant-main strong { overflow-wrap: anywhere; }

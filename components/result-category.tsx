@@ -1,4 +1,4 @@
-import ShareEventButton from "@/components/share-event-button";
+import ResultShareButton from "@/components/result-share-button";
 import type { Locale } from "@/lib/i18n";
 
 export type ResultAthlete = {
@@ -18,7 +18,7 @@ export default function ResultCategory({ tournamentId, tournamentName, categoryI
   return <section className="form-card result-category">
     <div className="result-category-heading">
       <h2 className="eyebrow">{categoryName}</h2>
-      {share && <ShareEventButton title={`${tournamentName} · ${categoryName} · ${kk ? "Нәтижелер" : "Результаты"}`} locale={locale} url={`/tournaments/${tournamentId}/results/${categoryId}`} />}
+      {share && <ResultShareButton key={locale} tournamentName={tournamentName} categoryName={categoryName} athletes={athletes} locale={locale} url={`/tournaments/${tournamentId}/results/${categoryId}`} />}
     </div>
     <div className="participants-list">
       {athletes.map(a => <article className="participant-card" key={a.id}>

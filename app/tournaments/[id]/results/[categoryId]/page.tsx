@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getLocale } from "@/lib/i18n-server";
 import ResultCategory from "@/components/result-category";
 import type { Result } from "../page";
+import "../results.css";
 
 type Props = { params: Promise<{ id: string; categoryId: string }> };
 
@@ -23,9 +24,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const result = await categoryResults(id, categoryId);
   if (!result) return { title: "Результаты" };
   const title = `${result.categoryName} · ${result.tournament.name}`;
-  const description = result.rows.map(r => `${r.place}. ${r.athlete_name}`).join(" · ");
+  const description = result.rows.map(r => `${r.place === 1 ? "🥇" : r.place === 2 ? "🥈" : r.place === 3 ? "🥉" : `${r.place}.`} ${r.athlete_name} · ${r.age ?? "—"} лет · ${r.club || "Клуб не указан"} · ${r.coach || "Тренер не указан"}`).join(" · ");
   const url = `https://tournament-platform-drab.vercel.app/tournaments/${id}/results/${categoryId}`;
-  return { title, description, openGraph: { title, description, type: "website", url, images: [{ url: `${url}/opengraph-image`, width: 1200, height: 630 }] }, twitter: { card: "summary_large_image", title, description, images: [`${url}/opengraph-image`] } };
+  return { title, description, openGraph: { title, description, type: "website", url, images: [{ url: `${url}/opengraph-image?v=2` }] }, twitter: { card: "summary_large_image", title, description, images: [`${url}/opengraph-image?v=2`] } };
 }
 
 export default async function CategoryResults({ params }: Props) {
