@@ -24,7 +24,8 @@ function lines(value: string, limit: number) {
 
 function medal(place: number) {
   const color = place === 1 ? "#f3c543" : place === 2 ? "#c7cdd5" : "#cf8758";
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="80" viewBox="0 0 64 80"><path d="M12 0h14l17 33-13 7z" fill="#79b9ee"/><path d="M38 0h14L34 40l-13-7z" fill="#e84b46"/><circle cx="32" cy="50" r="27" fill="${color}"/><circle cx="32" cy="50" r="22" fill="none" stroke="#ffffff" stroke-opacity=".45" stroke-width="2"/><text x="32" y="61" text-anchor="middle" font-family="Arial,sans-serif" font-size="29" font-weight="bold" fill="#654a25">${place}</text></svg>`;
+  const numeral = place === 1 ? "M26 42l9-6v27M26 63h18" : place === 2 ? "M22 42c0-12 22-12 22 0 0 8-18 12-22 21h23" : "M22 39c7-8 24-5 21 5-1 4-5 6-10 6 7 0 12 4 11 9-2 10-18 11-23 3";
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="80" viewBox="0 0 64 80"><path d="M12 0h14l17 33-13 7z" fill="#79b9ee"/><path d="M38 0h14L34 40l-13-7z" fill="#e84b46"/><circle cx="32" cy="50" r="27" fill="${color}"/><circle cx="32" cy="50" r="22" fill="none" stroke="#ffffff" stroke-opacity=".45" stroke-width="2"/><path d="${numeral}" fill="none" stroke="#654a25" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
 }
 
