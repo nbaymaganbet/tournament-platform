@@ -101,7 +101,7 @@ export default async function Home() {
     .select("id,name,date,city,sport,status,poster_url,tournament_posters(public_url,sort_order)")
     .eq("is_public", true)
     .neq("status", "draft")
-    .order("date", { ascending: true, nullsFirst: false });
+    .order("created_at", { ascending: false });
 
   return (
     <main>
