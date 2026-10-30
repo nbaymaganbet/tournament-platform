@@ -89,7 +89,7 @@ export default function OrganizerRegisterPage() {
   }
 
   return <main className="auth-page"><section className="auth-card">
-    <div className="auth-topbar"><Link className="brand" href="/">TOURNAMENT PLATFORM</Link><button className="lang" type="button" onClick={() => { const next = ru ? "kk" : "ru"; window.dispatchEvent(new CustomEvent("tp-language-changed", { detail: next })); document.documentElement.lang = next; localStorage.setItem("tp-lang", next); document.cookie = `tp-lang=${next}; path=/; max-age=31536000; samesite=lax`; }}>{ru ? "ҚАЗ" : "РУС"}</button></div>
+    <div className="auth-topbar"><Link className="brand" href="/">TOURNAMENT PLATFORM</Link></div>
     <div className="eyebrow">{ru ? "ОРГАНИЗАТОР" : "ҰЙЫМДАСТЫРУШЫ"}</div><h1>{tr.title}</h1><p className="muted">{tr.text}</p>
     <form onSubmit={submit} className="auth-form">
       <label>{tr.name}<input className="field" value={displayName} onChange={e => setDisplayName(e.target.value)} autoComplete="name" required /></label>

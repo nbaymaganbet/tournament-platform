@@ -3,8 +3,9 @@ import { uiText } from "@/lib/ui-text";
 import { useLocale } from "@/components/locale-provider";
 
 
-import { ChangeEvent, FormEvent, useState } from "react";
+import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import PosterFiles from "@/components/poster-files";
 import { createClient } from "@/lib/supabase/client";
 
 function slugify(value: string) {
@@ -21,13 +22,6 @@ export default function NewTournamentPage() {
   const [posters, setPosters] = useState<File[]>([]);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
-
-  function selectPosters(event: ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.target.files ?? []).filter((file) => file.type.startsWith("image/"));
-    setPosters(files.slice(0, 5));
-    if (files.length > 5) setError(L("Можно добавить максимум 5 афиш."));
-    else setError("");
-  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -137,9 +131,9 @@ export default function NewTournamentPage() {
           {bracketFormat === "single_elimination" && <label style={{display:"flex",alignItems:"center",gap:10}}>
             <input type="checkbox" checked={bronzeBout} onChange={e => setBronzeBout(e.target.checked)} />{L(" Проводить бой за 3-е место, если в категории есть два полуфиналиста\n          ")}</label>}
 
-          <label>{L("\n            Афиши ")}<span className="muted">{L("(до 5 изображений)")}</span>
-            <input className="field" type="file" accept="image/*" multiple onChange={selectPosters} />
-          </label>
+          <div>{L("\n            Афиши ")}<span className="muted">{L("(до 5 изображений)")}</span>
+            <PosterFiles files={posters} onChange={setPosters} disabled={saving} />
+          </div>
 
           {posters.length > 0 && (
             <div className="muted" aria-live="polite">{L("Выбрано афиш: ")}{posters.length}{L(" из 5")}</div>

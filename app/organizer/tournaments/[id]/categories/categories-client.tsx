@@ -110,11 +110,16 @@ export default function CategoriesClient({ tournamentId, defaultFormat, configur
   }
 
   async function remove(id: string) {
-    if (!window.confirm(t.deleteCategory)) return;
+    const warning = locale === "kk"
+      ? "Санатты жою керек пе? Қатысушылар жарыста қалады, бірақ оларды басқа санаттарға бөлу қажет болады. Осы санаттың торы, жекпе-жектері және нәтижелері (бар болса) жойылады."
+      : "Удалить категорию? Участники останутся в турнире, но их потребуется распределить по другим категориям. Сетка, поединки и результаты этой категории (если есть) будут удалены.";
+    if (!window.confirm(warning)) return;
     setBusy(`delete:${id}`);
-    const { error } = await supabase.from("categories").delete().eq("id", id).eq("tournament_id", tournamentId);
+    setError("");
+    const { error } = await supabase.rpc("delete_tournament_category", { p_category_id: id });
     if (!error) {
       setCategories(c => c.filter(x => x.id !== id));
+      setAssigned(rows => Object.fromEntries(Object.entries(rows).filter(([, categoryId]) => categoryId !== id)));
       if (selectedCategory === id) setSelectedCategory("");
     } else setError(error.message);
     setBusy(null);
