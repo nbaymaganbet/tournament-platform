@@ -1,11 +1,12 @@
 "use client";
+import { ActionScope, useActionFeedback } from "@/components/action-feedback";
 import { uiText } from "@/lib/ui-text";
 
 import { useLocale } from "@/components/locale-provider";
 
 import { FormEvent, Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
+import Link from "@/components/pending-link";
 import { createClient } from "@/lib/supabase/client";
 import { translations, type Locale } from "@/lib/i18n";
 
@@ -21,8 +22,8 @@ function LoginForm() {
   const locale = useLocale();
   const t = translations[locale];
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  const action = useActionFeedback(() => { setLoading(false); });
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); return action.run(async () => {
     setLoading(true);
     setError("");
 
@@ -44,9 +45,9 @@ function LoginForm() {
       setError(e instanceof Error ? e.message : t.loginError);
       setLoading(false);
     }
-  }
+   }); }
 
-  return (
+  return <ActionScope pending={action.pending} error={action.error}>{(
     <section className="auth-card">
       <div className="auth-topbar">
         <a className="brand" href="/">TOURNAMENT PLATFORM</a>
@@ -64,7 +65,7 @@ function LoginForm() {
       <div className="auth-secondary"><span className="muted">{locale === "ru" ? "Нет аккаунта?" : "Аккаунт жоқ па?"}</span><Link className="button-link secondary" href="/organizer/register">{locale === "ru" ? "Регистрация организатора" : "Ұйымдастырушы ретінде тіркелу"}</Link></div>
       <a className="back-link" href="/">← {t.home}</a>
     </section>
-  );
+  )}</ActionScope>;
 }
 
 export default function LoginPage() {

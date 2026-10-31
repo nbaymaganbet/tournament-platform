@@ -1,6 +1,7 @@
+import LiveRefresh from "@/components/live-refresh";
 import { uiText } from "@/lib/ui-text";
 import { getLocale } from "@/lib/i18n-server";
-import Link from "next/link";
+import Link from "@/components/pending-link";
 import { createClient } from "@/lib/supabase/server";
 import { getT } from "@/lib/i18n-server";
 
@@ -48,7 +49,7 @@ export default async function OrganizerDashboard() {
 
   if (!organizer) {
     return (
-      <main className="container dashboard-page">
+      <main className="container dashboard-page"><LiveRefresh tables="tournaments,tournament_members" />
         <section className="empty-state">
           <h2>{t.profileMissing}</h2>
           <p className="muted">{t.profileMissingText}</p>

@@ -1,4 +1,5 @@
-import Link from "next/link";
+import LiveRefresh from "@/components/live-refresh";
+import Link from "@/components/pending-link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getLocale } from "@/lib/i18n-server";
@@ -22,7 +23,7 @@ export default async function PublicResults({ params }: { params: Promise<{ id: 
     group.rows.push({ id: `${row.place}:${row.athlete_name}`, place: row.place, name: row.athlete_name, age: row.age, club: row.club, coach: row.coach });
     groups.set(row.category_id, group);
   }
-  return <main className="container dashboard-page">
+  return <main className="container dashboard-page"><LiveRefresh tournamentId={id} tables="tournaments,categories,results" />
     <div className="page-topline"><Link className="back-link" href={`/tournaments/${id}`}>← {tournament.name}</Link></div>
     <header className="section-header"><div><div className="eyebrow">{tournament.name}</div><h1>{kk ? "Нәтижелер" : "Результаты"}</h1></div></header>
     {groups.size === 0 ? <div className="empty-state">{kk ? "Нәтижелер әлі жарияланбаған." : "Результаты пока не опубликованы."}</div> :

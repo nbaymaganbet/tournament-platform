@@ -1,8 +1,9 @@
 "use client";
+import { ActionScope, useActionFeedback } from "@/components/action-feedback";
 import { useLocale } from "@/components/locale-provider";
 
 import { FormEvent, useEffect, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/pending-link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -43,8 +44,8 @@ export default function OrganizerRegisterPage() {
     check: ru ? "Аккаунт создан. Проверьте почту и подтвердите email, затем войдите." : "Аккаунт жасалды. Email-ді тексеріп, растаңыз, содан кейін кіріңіз.",
   };
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  const action = useActionFeedback(() => { setSaving(false); });
+ async function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); return action.run(async () => {
     setError("");
     setMessage("");
     if (!displayName.trim() || !email.trim() || !password) return setError(tr.required);
@@ -86,9 +87,9 @@ export default function OrganizerRegisterPage() {
       setError(e instanceof Error && e.message === "TIMEOUT" ? tr.timeout : (e instanceof Error ? e.message : tr.failed));
       setSaving(false);
     }
-  }
+   }); }
 
-  return <main className="auth-page"><section className="auth-card">
+  return <ActionScope pending={action.pending} error={action.error} paused={true}>{<main className="auth-page"><section className="auth-card">
     <div className="auth-topbar"><Link className="brand" href="/">TOURNAMENT PLATFORM</Link></div>
     <div className="eyebrow">{ru ? "ОРГАНИЗАТОР" : "ҰЙЫМДАСТЫРУШЫ"}</div><h1>{tr.title}</h1><p className="muted">{tr.text}</p>
     <form onSubmit={submit} className="auth-form">
@@ -100,6 +101,6 @@ export default function OrganizerRegisterPage() {
       <button className="primary full" disabled={saving}>{saving ? tr.loading : tr.button}</button>
     </form>
     <p className="muted">{tr.have} <Link href="/login">{tr.login}</Link></p>
-  </section></main>;
+  </section></main>}</ActionScope>;
 }
 

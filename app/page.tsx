@@ -1,5 +1,6 @@
+import LiveRefresh from "@/components/live-refresh";
 import { uiText } from "@/lib/ui-text";
-import Link from "next/link";
+import Link from "@/components/pending-link";
 import { createClient } from "@/lib/supabase/server";
 import { getLocale, getT } from "@/lib/i18n-server";
 
@@ -104,7 +105,7 @@ export default async function Home() {
     .order("created_at", { ascending: false });
 
   return (
-    <main>
+    <main><LiveRefresh tables="tournaments" />
       <style>{posterStyles}</style>
       <header className="topbar">
         <div className="container topbar-inner">

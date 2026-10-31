@@ -1,10 +1,13 @@
 "use client";
+import LoadingIndicator from "@/components/loading-indicator";
+import { useLiveReload } from "@/lib/use-live-refresh";
+import { ActionScope, useActionFeedback } from "@/components/action-feedback";
 
 import { useLocale } from "@/components/locale-provider";
 
 import { FormEvent, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
+import Link from "@/components/pending-link";
 import { createClient } from "@/lib/supabase/client";
 
 type Permissions = {
@@ -45,18 +48,19 @@ export default function TournamentTeamPage(){
  const [error,setError]=useState(""); const [ok,setOk]=useState("");
  const ru = useLocale() === "ru";
 
- async function load(){
+ async function load(){try{
    const s=createClient();
    const {data:user}=await s.auth.getUser();
    if(!user.user){router.replace("/login");return;}
    const {data,error:e}=await s.rpc("list_tournament_members_with_permissions",{p_tournament_uuid:id});
    if(e){setError(e.message);setLoading(false);return;}
    setMembers((data||[]) as Member[]); setLoading(false);
- }
+ }catch{setError(ru?"Не удалось загрузить сотрудников.":"Қызметкерлерді жүктеу мүмкін болмады.")}finally{setLoading(false)}}
  useEffect(()=>{load();},[id]);
+ useLiveReload(()=>{if(!saving&&!savingPermissions&&!email&&openPermissions===null)return load()});
 
- async function add(e:FormEvent){
-   e.preventDefault(); setSaving(true); setError(""); setOk("");
+ const action = useActionFeedback(() => { setSaving(false);setSavingPermissions(null); });
+ async function add(e:FormEvent){ e.preventDefault(); return action.run(async () => { setSaving(true); setError(""); setOk("");
    const {data,error:e2}=await createClient().rpc("add_tournament_member_by_email",{
      tournament_uuid:id,member_email:email.trim().toLowerCase(),member_role:"operator"
    });
@@ -69,13 +73,13 @@ export default function TournamentTeamPage(){
    }
    setEmail(""); setOk(ru?"Сотрудник добавлен. Настройте его разрешения ниже.":"Қызметкер қосылды. Төменде оның рұқсаттарын баптаңыз.");
    setSaving(false);
- }
+  }); }
 
  function toggle(userId:string,key:keyof Permissions){
    setMembers(current=>current.map(m=>m.user_id===userId?{...m,[key]:!m[key]}:m));
  }
 
- async function savePermissions(member:Member){
+ async function savePermissions(member:Member){ return action.run(async () => {
    setSavingPermissions(member.user_id); setError(""); setOk("");
    const {error:e}=await createClient().rpc("set_tournament_member_permissions",{
      p_tournament_uuid:id,p_member_user_id:member.user_id,
@@ -87,18 +91,18 @@ export default function TournamentTeamPage(){
    if(e){setError(e.message);setSavingPermissions(null);return;}
    setOk(ru?"Разрешения сохранены.":"Рұқсаттар сақталды.");
    setSavingPermissions(null);
- }
+  }); }
 
- async function remove(user_id:string){
+ async function remove(user_id:string){ return action.run(async () => {
    if(!confirm(ru?"Убрать доступ этому пользователю?":"Бұл пайдаланушының қолжетімділігін алып тастау керек пе?"))return;
    const {error:e}=await createClient().rpc("remove_tournament_member",{tournament_uuid:id,member_user_id:user_id});
    if(e){setError(e.message);return;}
    setMembers(current=>current.filter(m=>m.user_id!==user_id));
- }
+  }); }
 
- if(loading)return <main className="container dashboard-page"><p className="muted">{ru?"Загрузка…":"Жүктелуде…"}</p></main>;
+ if(loading)return <main className="container dashboard-page"><LoadingIndicator /></main>;
 
- return <main className="container dashboard-page">
+ return <ActionScope pending={action.pending} error={action.error} paused={!!email || openPermissions!==null}>{<main className="container dashboard-page">
   <div className="page-topline"><Link className="back-link" href={`/organizer/tournaments/${id}`}>← {ru?"Турнир":"Жарыс"}</Link></div>
   <section className="form-card">
    <div className="eyebrow">{ru?"КОМАНДА":"КОМАНДА"}</div>
@@ -136,6 +140,6 @@ export default function TournamentTeamPage(){
     </article>)}
    </section>
   </section>
- </main>;
+ </main>}</ActionScope>;
 }
 

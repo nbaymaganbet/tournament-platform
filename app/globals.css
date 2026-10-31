@@ -7,3 +7,15 @@
 /* Shared styling for organizer forms */
 .tournament-form{display:grid;gap:18px;margin-top:24px}.tournament-form>label{display:grid;gap:8px;margin:0}.tournament-form>label>input,.tournament-form>label>textarea,.tournament-form>label>select{width:100%}.tournament-form .form-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:0}.tournament-form .form-grid>label{display:grid;gap:8px;margin:0;min-width:0}.tournament-form .field{min-height:48px}.tournament-form .textarea{min-height:120px;padding:12px;resize:vertical}.tournament-form input[type=file]{padding:10px 12px}.tournament-form .primary{width:100%;min-height:50px;margin-top:4px}.tournament-form .error{margin:0;padding:12px 14px;border-radius:10px;border:1px solid rgba(225,6,0,.35);background:rgba(225,6,0,.08);color:#ff817c}
 @media(max-width:760px){.tournament-form{gap:14px}.tournament-form .form-grid{grid-template-columns:1fr;gap:14px}}
+
+/* Shared navigation and action feedback. */
+.tp-spinner{display:inline-block;width:26px;height:26px;border:3px solid var(--line-strong);border-top-color:var(--accent-2);border-radius:50%;animation:tp-spin .8s linear infinite;flex:none}
+@keyframes tp-spin{to{transform:rotate(360deg)}}
+.tp-loading{display:flex;align-items:center;justify-content:center;gap:12px;min-height:120px;color:var(--text)}
+.tp-loading-overlay{position:fixed;inset:0;z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:rgba(8,9,11,.84);color:var(--text);font-weight:750;cursor:wait;pointer-events:auto}
+.tp-loading-overlay .tp-spinner{width:48px;height:48px;border-width:5px}
+.tp-action-scope{display:block;min-width:0;border:0;padding:0;margin:0}
+.tp-action-status{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:900;display:flex;align-items:center;gap:10px;padding:12px 18px;background:var(--surface);border:1px solid var(--line-strong);border-radius:12px;box-shadow:var(--shadow);color:var(--text);white-space:nowrap}
+button:not(:disabled):active,a.primary:active,a.secondary:active{transform:translateY(1px) scale(.98);box-shadow:none}
+button:disabled,fieldset:disabled button{cursor:wait}
+@media(prefers-reduced-motion:reduce){.tp-spinner{animation-duration:2s}button:active{transform:none}}

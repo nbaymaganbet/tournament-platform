@@ -1,6 +1,7 @@
+import LiveRefresh from "@/components/live-refresh";
 import { uiText } from "@/lib/ui-text";
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/pending-link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getLocale } from "@/lib/i18n-server";
@@ -37,7 +38,7 @@ export default async function CategoryResults({ params }: Props) {
   const result = await categoryResults(id, categoryId);
   if (!result) notFound();
   const locale = await getLocale();
-  return <main className="container dashboard-page">
+  return <main className="container dashboard-page"><LiveRefresh tournamentId={id} tables="tournaments,categories,results" />
     <div className="page-topline"><Link className="back-link" href={`/tournaments/${id}/results`}>← {locale === "kk" ? "Барлық нәтижелер" : "Все результаты"}</Link></div>
     <header className="section-header"><div><div className="eyebrow">{result.tournament.name}</div><h1>{locale === "kk" ? "Нәтижелер" : "Результаты"}</h1></div></header>
     {result.tournament.poster_url && <img src={result.tournament.poster_url} alt={`${result.tournament.name} — афиша`} style={{ display: "block", width: "100%", maxWidth: 520, maxHeight: 680, objectFit: "contain", marginBottom: 20, borderRadius: 14 }} />}

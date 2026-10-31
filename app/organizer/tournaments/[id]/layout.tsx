@@ -1,3 +1,4 @@
+import LiveRefresh from "@/components/live-refresh";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
@@ -31,6 +32,7 @@ export default async function OrganizerTournamentLayout({
   return (
     <>
       <div className="tp-organizer-content">
+        <LiveRefresh tournamentId={id} />
         {children}
       </div>
       <style>{`

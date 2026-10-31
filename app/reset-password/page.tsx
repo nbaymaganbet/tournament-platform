@@ -1,7 +1,8 @@
 "use client";
+import { ActionScope, useActionFeedback } from "@/components/action-feedback";
 
 import { useEffect, useState, type FormEvent } from "react";
-import Link from "next/link";
+import Link from "@/components/pending-link";
 import { useLocale } from "@/components/locale-provider";
 import { createClient } from "@/lib/supabase/client";
 
@@ -36,8 +37,8 @@ export default function ResetPasswordPage() {
     return () => { active = false; };
   }, []);
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  const action = useActionFeedback(() => { setBusy(false); });
+  async function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); return action.run(async () => {
     if (busy || access !== "ready") return;
     setError("");
     if (password.length < 8) {
@@ -67,9 +68,9 @@ export default function ResetPasswordPage() {
     } finally {
       setBusy(false);
     }
-  }
+   }); }
 
-  return <main className="container form-page"><section className="form-card">
+  return <ActionScope pending={action.pending} error={action.error}>{<main className="container form-page"><section className="form-card">
     <div className="auth-topbar"><Link className="brand" href="/">TOURNAMENT PLATFORM</Link></div>
     <h1>{ru ? "Новый пароль" : "Жаңа құпиясөз"}</h1>
     {access === "checking" ? <p className="muted" role="status">{ru ? "Проверяем ссылку…" : "Сілтеме тексерілуде…"}</p>
@@ -89,5 +90,5 @@ export default function ResetPasswordPage() {
         </form>
       </>}
     <div className="auth-secondary"><Link className="back-link" href="/login">{ru ? "← Вернуться ко входу" : "← Кіруге оралу"}</Link></div>
-  </section></main>;
+  </section></main>}</ActionScope>;
 }

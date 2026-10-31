@@ -1,5 +1,6 @@
+import LiveRefresh from "@/components/live-refresh";
 import { uiText } from "@/lib/ui-text";
-import Link from "next/link";
+import Link from "@/components/pending-link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getLocale } from "@/lib/i18n-server";
@@ -27,7 +28,7 @@ export default async function TournamentPage({ params }: { params: Promise<{ id:
   };
 
   return (
-    <main className="container public-tournament">
+    <main className="container public-tournament"><LiveRefresh tournamentId={id} tables="tournaments" />
       <div className="page-topline"><Link className="back-link" href="/">{text.back}</Link></div>
       <header className="public-hero">
         {tournament.poster_url && <img src={tournament.poster_url} alt="" />}

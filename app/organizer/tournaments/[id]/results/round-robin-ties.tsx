@@ -1,4 +1,5 @@
 "use client";
+import { ActionScope, useActionFeedback } from "@/components/action-feedback";
 import { uiText } from "@/lib/ui-text";
 import { useLocale } from "@/components/locale-provider";
 
@@ -16,14 +17,15 @@ export default function RoundRobinTies({categories}:{categories:TieCategory[]}){
  const [orders,setOrders]=useState<Record<string,string[]>>({});
  const [busy,setBusy]=useState("");
  const [error,setError]=useState("");
- async function save(category:TieCategory){
+ const action = useActionFeedback(() => { setBusy(""); });
+ async function save(category:TieCategory){ return action.run(async () => {
   setBusy(category.id);setError("");
   const order=orders[category.id]??category.athletes.map(a=>a.id);
   const {error:failure}=await createClient().rpc("resolve_round_robin_tie",{p_category_id:category.id,p_order:order});
-  if(failure)setError(failure.message);else router.refresh();
+  if(failure)setError(failure.message);else {setOrders(current=>{const next={...current};delete next[category.id];return next});router.refresh();}
   setBusy("");
- }
- return <>{categories.map(category=>{
+  }); }
+ return <ActionScope pending={action.pending} error={action.error} paused={Object.keys(orders).length>0}>{<>{categories.map(category=>{
   const order=orders[category.id]??category.athletes.map(a=>a.id);
   const athletes=order.map(id=>category.athletes.find(a=>a.id===id)!).filter(Boolean);
   return <section className="form-card" key={category.id} style={{marginBottom:16}}>
@@ -36,6 +38,6 @@ export default function RoundRobinTies({categories}:{categories:TieCategory[]}){
    </div>)}
    <button type="button" className="primary" disabled={busy!==""} onClick={()=>save(category)}>{L("Утвердить места")}</button>
   </section>;
- })}{error&&<p role="alert" className="error-message">{error}</p>}</>;
+ })}{error&&<p role="alert" className="error-message">{error}</p>}</>}</ActionScope>;
 }
 

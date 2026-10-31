@@ -1,4 +1,5 @@
 "use client";
+import { ActionScope, useActionFeedback } from "@/components/action-feedback";
 import { uiText } from "@/lib/ui-text";
 import { useLocale } from "@/components/locale-provider";
 
@@ -23,8 +24,8 @@ export default function NewTournamentPage() {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  const action = useActionFeedback(() => { setSaving(false); });
+ async function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); return action.run(async () => {
     setSaving(true);
     setError("");
 
@@ -109,9 +110,9 @@ export default function NewTournamentPage() {
     }
 
     router.push(`/organizer/tournaments/${tournament.id}`);
-  }
+   }); }
 
-  return (
+  return <ActionScope pending={action.pending} error={action.error} paused={true}>{(
     <main className="container dashboard-page">
       <div className="page-topline"><a className="back-link" href="/organizer">{L("← Мои соревнования")}</a></div>
       <section className="form-card">
@@ -144,6 +145,6 @@ export default function NewTournamentPage() {
         </form>
       </section>
     </main>
-  );
+  )}</ActionScope>;
 }
 

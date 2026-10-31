@@ -1,9 +1,10 @@
 "use client";
+import { ActionScope, useActionFeedback } from "@/components/action-feedback";
 import { uiText } from "@/lib/ui-text";
 
 import { useLocale } from "@/components/locale-provider";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { translations, type Locale } from "@/lib/i18n";
 
@@ -31,7 +32,8 @@ export default function CategoriesClient({ tournamentId, defaultFormat, configur
   const [error, setError] = useState("");
   const supabase = createClient();
 
-  async function setFormat(category: Category, value: string) {
+  const action = useActionFeedback(() => { setBusy(null); });
+ async function setFormat(category: Category, value: string) { return action.run(async () => {
     if (value === (category.bracket_format ?? defaultFormat)) return;
     if (!window.confirm(locale === "kk" ? "Егер тор құрылса, жекпе-жектер мен уақыты қайта құрылады. Жалғастыру керек пе?" : "Если сетка уже сформирована, бои категории и их время будут пересобраны. Продолжить?")) return;
     setBusy(`format:${category.id}`);
@@ -40,8 +42,9 @@ export default function CategoriesClient({ tournamentId, defaultFormat, configur
     if (updateError) setError(updateError.message);
     else setCategories(rows => rows.map(row => row.id === category.id ? { ...row, bracket_format: value } : row));
     setBusy(null);
-  }
+   }); }
 
+  useEffect(()=>{if(!busy&&!showForm){setCategories(initialCategories);setAssigned(initialAssignments)}},[initialCategories,initialAssignments]);
   const groupedCategories = useMemo(() => {
     const groups = new Map<string, { ageMin: number | null; ageMax: number | null; categories: Category[] }>();
     for (const category of categories) {
@@ -62,8 +65,7 @@ export default function CategoriesClient({ tournamentId, defaultFormat, configur
     setWeights(rows => rows.map((row, i) => i === index ? { ...row, ...patch } : row));
   }
 
-  async function createCategory(e: React.FormEvent) {
-    e.preventDefault();
+  async function createCategory(e: React.FormEvent) { e.preventDefault(); return action.run(async () => {
     setBusy("category");
     setError("");
     if (!ageGroup.min || !ageGroup.max || Number(ageGroup.min) > Number(ageGroup.max)) {
@@ -107,9 +109,9 @@ export default function CategoriesClient({ tournamentId, defaultFormat, configur
       setShowForm(false);
     }
     setBusy(null);
-  }
+   }); }
 
-  async function remove(id: string) {
+  async function remove(id: string) { return action.run(async () => {
     const warning = locale === "kk"
       ? "Санатты жою керек пе? Қатысушылар жарыста қалады, бірақ оларды басқа санаттарға бөлу қажет болады. Осы санаттың торы, жекпе-жектері және нәтижелері (бар болса) жойылады."
       : "Удалить категорию? Участники останутся в турнире, но их потребуется распределить по другим категориям. Сетка, поединки и результаты этой категории (если есть) будут удалены.";
@@ -123,9 +125,9 @@ export default function CategoriesClient({ tournamentId, defaultFormat, configur
       if (selectedCategory === id) setSelectedCategory("");
     } else setError(error.message);
     setBusy(null);
-  }
+   }); }
 
-  async function assign(participantId: string, targetCategory: string) {
+  async function assign(participantId: string, targetCategory: string) { return action.run(async () => {
     if (!targetCategory) return;
     setBusy(`assign:${participantId}`);
     setError("");
@@ -146,9 +148,9 @@ export default function CategoriesClient({ tournamentId, defaultFormat, configur
     setAssigned(x => ({ ...x, [participantId]: targetCategory }));
     setCategories(x => x.map(c => c.id === targetCategory ? { ...c, participantCount: c.participantCount + 1 } : existing === c.id ? { ...c, participantCount: Math.max(0, c.participantCount - 1) } : c));
     setBusy(null);
-  }
+   }); }
 
-  async function unassign(participantId: string) {
+  async function unassign(participantId: string) { return action.run(async () => {
     const categoryId = assigned[participantId];
     if (!categoryId) return;
     setBusy(`unassign:${participantId}`);
@@ -158,11 +160,11 @@ export default function CategoriesClient({ tournamentId, defaultFormat, configur
     setAssigned(x => { const next = { ...x }; delete next[participantId]; return next; });
     setCategories(x => x.map(c => c.id === categoryId ? { ...c, participantCount: Math.max(0, c.participantCount - 1) } : c));
     setBusy(null);
-  }
+   }); }
 
   const categoryParticipants = useMemo(() => selectedCategory ? participants.filter(p => assigned[p.id] === selectedCategory) : [], [participants, assigned, selectedCategory]);
 
-  return <section className="categories-workspace">
+  return <ActionScope pending={action.pending} error={action.error} paused={showForm}>{<section className="categories-workspace">
     {!showForm ? <button type="button" className="primary" onClick={() => { setError(""); setShowForm(true); }} disabled={busy !== null}>+ {labels.add}</button> :
       <form className="form-card compact-form" onSubmit={createCategory} style={{ marginTop: 12 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
@@ -244,6 +246,6 @@ export default function CategoriesClient({ tournamentId, defaultFormat, configur
         </div>}
       </section>)}
     </div>
-  </section>;
+  </section>}</ActionScope>;
 }
 

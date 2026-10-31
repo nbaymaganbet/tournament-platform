@@ -1,3 +1,4 @@
+import LiveRefresh from "@/components/live-refresh";
 import {notFound} from "next/navigation";
 import {createClient} from "@/lib/supabase/server";
 import {getLocale} from "@/lib/i18n-server";
@@ -19,7 +20,7 @@ export default async function PublicCategoryBracket({params}:{params:Promise<{id
  if(error)throw new Error("Could not load the bracket");
  const matches=(data??[]) as BracketRow[];
  const rounds=[...new Set(matches.map(m=>m.round_number))].sort((a,b)=>a-b);
- return <main className="container dashboard-page">
+ return <main className="container dashboard-page"><LiveRefresh tournamentId={id} tables="tournaments,categories,matches" />
   <div className="section-header"><div><div className="eyebrow">{tournament.name}</div><h1>{category.name}</h1><p className="muted">{kk?"Жекпе-жек торы":"Сетка боёв"}</p></div></div>
   {rounds.map(round=><section key={round} className="form-card" style={{marginBottom:16}}>
    <h2>{kk?"Кезең":"Раунд"} {round}</h2>

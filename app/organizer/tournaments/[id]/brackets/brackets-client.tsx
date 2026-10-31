@@ -1,4 +1,7 @@
 "use client";
+import LoadingIndicator from "@/components/loading-indicator";
+import { useLiveReload } from "@/lib/use-live-refresh";
+import { ActionScope, useActionFeedback } from "@/components/action-feedback";
 
 import { useLocale } from "@/components/locale-provider";
 import {useEffect,useMemo,useState} from "react";
@@ -12,6 +15,7 @@ type Match={id:string;match_number:number;round_number:number;status:string;part
 type ReadyCategory=Category&{count:number};
 
 export default function BracketsClient({categories,tournamentId,defaultFormat,newFormats,isOwner,isPublic}:{categories:Category[];tournamentId:string;defaultFormat:string;newFormats:boolean;isOwner:boolean;isPublic:boolean}){
+ const [loading,setLoading]=useState(true);
  const [matches,setMatches]=useState<Match[]>([]);
  const [people,setPeople]=useState<Record<string,Person>>({});
  const [readyCats,setReadyCats]=useState<ReadyCategory[]>([]);
@@ -23,7 +27,7 @@ export default function BracketsClient({categories,tournamentId,defaultFormat,ne
  const s=useMemo(()=>createClient(),[]);
  const L=kk?{title:"Жекпе-жек торлары",form:"Торларды қалыптастыру",forming:"Қалыптастырылуда…",ready:"Қалыптастыруға дайын санаттар",noneReady:"Әзірге қалыптастыруға дайын санаттар жоқ.",empty:"Жекпе-жектер әлі қалыптастырылған жоқ.",fight:"Жекпе-жек",round:"Кезең",final:"Финал",third:"3-орын үшін",bye:"Бойсыз өтті (BYE)",share:"Тормен бөлісу",choose:"Орындарын ауыстыру үшін екі спортшыны таңдаңыз.",swap:"Орындарын ауыстыру",saved:"Спортшылардың орындары ауыстырылды.",locked:"Жекпе-жек басталған соң орындарын ауыстыру мүмкін емес.",status:{completed:"Аяқталды",in_progress:"Өтіп жатыр",ready:"Дайын",scheduled:"Жоспарда"}}:{title:"Сетки",form:"Сформировать сетки",forming:"Формируем…",ready:"Готовые к формированию категории",noneReady:"Пока нет категорий, готовых к формированию сетки.",empty:"Бои ещё не сформированы.",fight:"Бой",round:"Раунд",final:"Финал",third:"За 3-е место",bye:"Прошёл без боя (BYE)",share:"Поделиться сеткой",choose:"Выберите двух спортсменов, чтобы поменять их местами.",swap:"Поменять местами",saved:"Спортсмены поменялись местами.",locked:"После начала боёв перестановка недоступна.",status:{completed:"Завершён",in_progress:"Идёт",ready:"Готов",scheduled:"Запланирован"}};
  const personName=(p?:Person)=>p?`${p.last_name} ${p.first_name}`.trim():(kk?"Қатысушы күтілуде":"Ожидается участник");
- async function load(){
+ async function load(){try{
   const {data:m,error}=await s.from("matches").select("id,match_number,round_number,status,participant_a_id,participant_b_id,winner_id,next_match_id,loser_next_match_id,category_id").eq("tournament_id",tournamentId).order("match_number");
   if(error){setMessage(error.message);return}
   const ids=[...new Set((m??[]).flatMap(x=>[x.participant_a_id,x.participant_b_id]).filter(Boolean) as string[])];
@@ -51,41 +55,43 @@ export default function BracketsClient({categories,tournamentId,defaultFormat,ne
    const formed=new Set((m??[]).map(x=>x.category_id));
    setReadyCats(categories.map(c=>({...c,count:counts.get(c.id)??0})).filter(c=>c.count>=2&&!formed.has(c.id)));
   }
- }
+ }catch{setMessage(kk?"Торларды жүктеу мүмкін болмады.":"Не удалось загрузить сетки.")}finally{setLoading(false)}}
  useEffect(()=>{void load()},[]);
- async function formBrackets(){
+ useLiveReload(()=>{if(!busy)return load()});
+ const action = useActionFeedback(() => { setBusy(false); });
+ async function formBrackets(){ return action.run(async () => {
   setBusy(true);setMessage("");
   for(const c of readyCats){const{error}=await s.rpc("generate_single_elimination_bracket",{p_category_id:c.id});if(error){setMessage(error.message);setBusy(false);await load();return}}
   await load();setBusy(false);
- }
+  }); }
  function selectAthlete(categoryId:string,id:string){
   setSelected(current=>{const ids=current[categoryId]??[];const next=ids.includes(id)?ids.filter(x=>x!==id):ids.length<2?[...ids,id]:[ids[0],id];return {...current,[categoryId]:next}});
  }
- async function swap(categoryId:string){
+ async function swap(categoryId:string){ return action.run(async () => {
   const ids=selected[categoryId]??[];if(ids.length!==2)return;
   setBusy(true);setMessage("");
   const{error}=await s.rpc("swap_bracket_participants",{p_category_id:categoryId,p_first_id:ids[0],p_second_id:ids[1]});
   if(error)setMessage(error.message);else{setSelected(current=>({...current,[categoryId]:[]}));await load();setMessage(L.saved)}
   setBusy(false);
- }
- async function refreshBracket(categoryId:string){
+  }); }
+ async function refreshBracket(categoryId:string){ return action.run(async () => {
   if(!window.confirm(kk?"Осы санаттың торы мен жекпе-жек уақыты жаңартылады. Жалғастыру керек пе?":"Пары этой категории и время боёв обновятся. Продолжить?"))return;
   setBusy(true);setMessage("");
   const {error}=await s.rpc("refresh_unstarted_category_bracket",{p_category_id:categoryId});
   if(error)setMessage(error.message);
   else{setSelected(current=>({...current,[categoryId]:[]}));await load();setMessage(kk?"Санат торы жаңартылды.":"Сетка категории обновлена.")}
   setBusy(false);
- }
- async function changeFormat(categoryId:string,format:string){
+  }); }
+ async function changeFormat(categoryId:string,format:string){ return action.run(async () => {
   if(!window.confirm(kk?"Тор мен осы санаттың жекпе-жек уақыты қайта құрылады. Жалғастыру керек пе?":"Сетка и время боёв этой категории будут пересобраны. Продолжить?"))return;
   setBusy(true);setMessage("");
   const{error}=await s.rpc("set_category_bracket_format",{p_category_id:categoryId,p_format:format});
   if(error)setMessage(error.message);
   else{setFormats(current=>({...current,[categoryId]:format}));setSelected(current=>({...current,[categoryId]:[]}));await load()}
   setBusy(false);
- }
+  }); }
  const formedCategories=categories.filter(c=>matches.some(m=>m.category_id===c.id));
- return <section className="brackets-workspace">
+ return <ActionScope pending={action.pending} error={action.error} paused={false}>{loading?<LoadingIndicator />:<section className="brackets-workspace">
   <div className="form-card"><div className="eyebrow">{L.title}</div><h2>{L.form}</h2><p className="muted">{L.ready}</p>{readyCats.length?<div style={{display:"grid",gap:8,marginBottom:12}}>{readyCats.map(c=><div key={c.id} style={{display:"flex",justifyContent:"space-between",gap:12}}><strong>{c.name}</strong><span className="muted">{c.count}{newFormats?` · ${(c.bracket_format??defaultFormat)==="round_robin"?(kk?"Айналмалы":"Круговая"):(kk?"Олимпиадалық":"Олимпийская")}`:""}</span></div>)}</div>:<p className="muted">{L.noneReady}</p>}<button type="button" className="primary" disabled={busy||!readyCats.length} onClick={()=>void formBrackets()}>{busy?L.forming:L.form}</button></div>
   {message&&<p className="error" role="status">{message}</p>}
   <div className="category-list">{formedCategories.map(category=>{
@@ -112,6 +118,6 @@ export default function BracketsClient({categories,tournamentId,defaultFormat,ne
     </article>)}
     {isOwner&&!locked&&!roundRobin&&<button type="button" className="primary" style={{marginTop:12}} disabled={busy||picked.length!==2} onClick={()=>void swap(category.id)}>{L.swap}</button>}
    </details>})}</div>{formedCategories.length===0&&<div className="empty-state">{L.empty}</div>}
- </section>;
+ </section>}</ActionScope>;
 }
 

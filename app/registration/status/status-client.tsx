@@ -1,4 +1,5 @@
 "use client";
+import { useLiveRefresh } from "@/lib/use-live-refresh";
 import { useLocale } from "@/components/locale-provider";
 
 import { useEffect, useState } from "react";
@@ -9,9 +10,9 @@ type Status={application_number:string;participant_name:string;tournament_name:s
 
 export default function StatusClient({initialToken}:{initialToken:string}){
  const[token,setToken]=useState(initialToken);const[data,setData]=useState<Status|null>(null);const[busy,setBusy]=useState(Boolean(initialToken));const[error,setError]=useState("");const locale = useLocale();const supabase=createClient();const kk=locale==="kk";
- async function load(value=token,clear=true){const clean=value.trim();if(!clean){setError(kk?"Қолжетімділік кодын енгізіңіз немесе қорғалған сілтемені ашыңыз.":"Введите код доступа или откройте защищённую ссылку.");return}setBusy(true);setError("");if(clear)setData(null);const{data:rows,error:rpcError}=await supabase.rpc("get_registration_status",{p_status_token:clean});if(rpcError||!rows?.[0])setError(rpcError?.message||(kk?"Өтінім табылмады. Сілтемені немесе кодты тексеріңіз.":"Заявка не найдена. Проверьте ссылку или код доступа."));else setData(rows[0] as Status);setBusy(false)}
+ async function load(value=token,clear=true){const clean=value.trim();if(!clean){setError(kk?"Қолжетімділік кодын енгізіңіз немесе қорғалған сілтемені ашыңыз.":"Введите код доступа или откройте защищённую ссылку.");return}setBusy(true);setError("");try{if(clear)setData(null);const{data:rows,error:rpcError}=await supabase.rpc("get_registration_status",{p_status_token:clean});if(rpcError||!rows?.[0])setError(rpcError?.message||(kk?"Өтінім табылмады. Сілтемені немесе кодты тексеріңіз.":"Заявка не найдена. Проверьте ссылку или код доступа."));else setData(rows[0] as Status);}catch{setError(kk?"Деректерді жүктеу мүмкін болмады. Қайталап көріңіз.":"Не удалось загрузить данные. Попробуйте ещё раз.")}finally{setBusy(false)}}
  useEffect(()=>{if(initialToken)void load(initialToken)},[initialToken]);
- useEffect(()=>{if(!data?.tournament_id)return;const ch=supabase.channel(`registration-status-${data.tournament_id}`).on("postgres_changes",{event:"*",schema:"public",table:"match_schedule"},()=>{void load(token,false)}).on("postgres_changes",{event:"*",schema:"public",table:"matches",filter:`tournament_id=eq.${data.tournament_id}`},()=>{void load(token,false)}).subscribe();return()=>{void supabase.removeChannel(ch)}},[data?.tournament_id,token]);
+ useLiveRefresh(data?.tournament_id,data?.tournament_id?"registrations,category_participants,categories,mats,matches,match_schedule,results,tournaments":"",()=>load(token,false),busy,15000);
  const registrationLabel=(status:string)=>({pending_confirmation:kk?"Растауды күтуде":"На рассмотрении",confirmed:kk?"Қатысу расталды":"Заявка подтверждена",category_formed:kk?"Санат қалыптасты":"Категория сформирована",withdrawn:kk?"Қатысу тоқтатылды":"Участник снят"}[status]??status);
  const weighLabel=(status:string)=>({pending:kk?"Өлшенбеген":"Не взвешен",in_weight:kk?"Салмақта":"В весе",out_of_weight:kk?"Салмақта емес":"Не в весе"}[status]??status);
  const matchLabel=(status:string|null)=>({scheduled:kk?"Жоспарланған":"Запланирован",ready:kk?"Шығуға дайын":"Готов к бою",running:kk?"Қазір өтіп жатыр":"Идёт сейчас",completed:kk?"Аяқталды":"Завершён",cancelled:kk?"Болдырылмаған":"Отменён"}[status??""]??status);

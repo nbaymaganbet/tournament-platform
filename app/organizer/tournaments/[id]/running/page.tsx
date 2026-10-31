@@ -1,6 +1,6 @@
 import { uiText } from "@/lib/ui-text";
 import { getLocale } from "@/lib/i18n-server";
-import Link from "next/link";
+import Link from "@/components/pending-link";
 import {notFound} from "next/navigation";
 import {createClient} from "@/lib/supabase/server";
 import RunningClient from "./running-client";

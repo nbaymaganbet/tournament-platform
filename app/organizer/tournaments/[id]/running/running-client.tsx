@@ -1,4 +1,5 @@
 "use client";
+import { ActionScope, useActionFeedback } from "@/components/action-feedback";
 import { uiText } from "@/lib/ui-text";
 import { useLocale } from "@/components/locale-provider";
 
@@ -19,9 +20,6 @@ export default function RunningClient({tournamentId,initialMatches,initialSchedu
  const s=useMemo(()=>createClient(),[]),router=useRouter();
  useEffect(()=>{setMatches(initialMatches)},[initialMatches]);
  useEffect(()=>{setSchedule(initialSchedule)},[initialSchedule]);
- useEffect(()=>{const update=()=>router.refresh();const a=s.channel(`running-matches-${tournamentId}`).on("postgres_changes",{event:"*",schema:"public",table:"matches",filter:`tournament_id=eq.${tournamentId}`},update).subscribe();
-   const b=s.channel(`running-queue-${tournamentId}`).on("postgres_changes",{event:"*",schema:"public",table:"match_schedule"},update).subscribe();
-   return()=>{void s.removeChannel(a);void s.removeChannel(b)}},[s,router,tournamentId]);
  const byId=new Map(matches.map(m=>[m.id,m]));
  const scheduled=[...schedule].sort((a,b)=>a.scheduled_order-b.scheduled_order);
  const ordered=[...scheduled].sort((a,b)=>{
@@ -33,10 +31,11 @@ export default function RunningClient({tournamentId,initialMatches,initialSchedu
    return !!match&&(!zoneFilter||slot.mat_id===zoneFilter)&&(!categoryFilter||match.category_id===categoryFilter);
  });
  const time=(v:string|null)=>v?new Date(v).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit",timeZone:"Asia/Almaty"}):"—";
- async function win(m:Match,id:string){if(!confirm(`${L("Зафиксировать победу: ")}${name(id===m.participant_a_id?m.participantA:m.participantB)}?`))return;
+ const action = useActionFeedback(() => { setBusy(null); });
+ async function win(m:Match,id:string){ return action.run(async () => { if(!confirm(`${L("Зафиксировать победу: ")}${name(id===m.participant_a_id?m.participantA:m.participantB)}?`))return;
    setBusy(m.id);setMessage("");const{error}=await s.rpc("record_match_winner",{p_match_id:m.id,p_winner_id:id});
-   if(error)setMessage(error.message);else{setMatches(current=>current.map(fight=>fight.id===m.id?{...fight,status:"completed",winner_id:id}:fight));router.refresh()}setBusy(null)}
- async function move(index:number,delta:number){const nextIndex=index+delta;if(nextIndex<0||nextIndex>=visible.length)return;
+   if(error)setMessage(error.message);else{setMatches(current=>current.map(fight=>fight.id===m.id?{...fight,status:"completed",winner_id:id}:fight));router.refresh()}setBusy(null) }); }
+ async function move(index:number,delta:number){ return action.run(async () => { const nextIndex=index+delta;if(nextIndex<0||nextIndex>=visible.length)return;
    const first=byId.get(visible[index].match_id),second=byId.get(visible[nextIndex].match_id);
    if(!first||!second||first.status==="completed"||second.status==="completed")return;
    setBusy("order");setMessage("");const next=[...scheduled];
@@ -44,8 +43,8 @@ export default function RunningClient({tournamentId,initialMatches,initialSchedu
    const secondIndex=next.findIndex(slot=>slot.match_id===visible[nextIndex].match_id);
    [next[firstIndex],next[secondIndex]]=[next[secondIndex],next[firstIndex]];
    const{error}=await s.rpc("reorder_tournament_schedule",{p_tournament_id:tournamentId,p_match_ids:next.map(r=>r.match_id)});
-   if(error)setMessage(error.message);else router.refresh();setBusy(null)}
- return <section className="running-list">
+   if(error)setMessage(error.message);else router.refresh();setBusy(null) }); }
+ return <ActionScope pending={action.pending} error={action.error} paused={false}>{<section className="running-list">
    <div className="running-filters">
      <label><span>{locale==="kk"?"Аймақ / кілем":"Зона / ковер"}</span><select className="field" value={zoneFilter} onChange={e=>setZoneFilter(e.target.value)}>
        <option value="">{locale==="kk"?"Барлық аймақтар":"Все зоны"}</option>
@@ -81,6 +80,6 @@ export default function RunningClient({tournamentId,initialMatches,initialSchedu
      .running-order button{width:40px;height:40px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface-2);color:var(--text)}
      @media(max-width:600px){.running-filters{grid-template-columns:1fr}.running-card{padding:12px}.running-heading strong{font-size:16px}.running-person{grid-template-columns:minmax(0,1fr) 82px;gap:6px}.running-name strong{font-size:15px}}
    `}</style>
- </section>;
+ </section>}</ActionScope>;
 }
 

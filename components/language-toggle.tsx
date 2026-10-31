@@ -1,7 +1,7 @@
 "use client";
 import { useLocale } from "@/components/locale-provider";
 
-import Link from "next/link";
+import Link from "@/components/pending-link";
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { uiText } from "@/lib/ui-text";
