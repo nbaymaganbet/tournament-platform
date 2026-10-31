@@ -60,6 +60,7 @@ function LoginForm() {
         {error && <p className="error" role="alert">{error}</p>}
         <button className="primary full" disabled={loading}>{loading ? t.loggingIn : t.login}</button>
       </form>
+      <div className="auth-secondary"><Link className="back-link" href="/forgot-password">{locale === "ru" ? "Забыли пароль?" : "Құпиясөзді ұмыттыңыз ба?"}</Link></div>
       <div className="auth-secondary"><span className="muted">{locale === "ru" ? "Нет аккаунта?" : "Аккаунт жоқ па?"}</span><Link className="button-link secondary" href="/organizer/register">{locale === "ru" ? "Регистрация организатора" : "Ұйымдастырушы ретінде тіркелу"}</Link></div>
       <a className="back-link" href="/">← {t.home}</a>
     </section>
