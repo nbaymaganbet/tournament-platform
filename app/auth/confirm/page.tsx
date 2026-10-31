@@ -4,14 +4,13 @@ import { useLocale } from "@/components/locale-provider";
 
 
 import { Suspense, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 function AuthConfirmContent() {
  const locale = useLocale();const L = (text: string) => uiText(locale, text);
 
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -19,16 +18,7 @@ function AuthConfirmContent() {
 
     async function confirm() {
       const supabase = createClient();
-      const code = searchParams.get("code");
-
-      if (code) {
-        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-        if (exchangeError) {
-          if (active) setError("Не удалось подтвердить email. Откройте ссылку из последнего письма ещё раз.");
-          return;
-        }
-      }
-
+      // getSession waits for the browser client to finish processing the email link.
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) {
         if (active) setError("Сессия подтверждения не найдена. Откройте ссылку из последнего письма ещё раз.");
@@ -65,7 +55,7 @@ function AuthConfirmContent() {
 
     void confirm();
     return () => { active = false; };
-  }, [router, searchParams]);
+  }, [router]);
 
   return (
     <main className="auth-page">
