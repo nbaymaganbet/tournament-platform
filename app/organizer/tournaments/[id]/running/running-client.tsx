@@ -15,6 +15,7 @@ export default function RunningClient({tournamentId,initialMatches,initialSchedu
  const name=(p?:Person|null)=>p?`${p.last_name} ${p.first_name}`:L("Ожидается участник");
  const[matches,setMatches]=useState(initialMatches),[schedule,setSchedule]=useState(initialSchedule);
  const[busy,setBusy]=useState<string|null>(null),[message,setMessage]=useState("");
+ const[zoneFilter,setZoneFilter]=useState(""),[categoryFilter,setCategoryFilter]=useState("");
  const s=useMemo(()=>createClient(),[]),router=useRouter();
  useEffect(()=>{setMatches(initialMatches)},[initialMatches]);
  useEffect(()=>{setSchedule(initialSchedule)},[initialSchedule]);
@@ -27,24 +28,39 @@ export default function RunningClient({tournamentId,initialMatches,initialSchedu
    const aDone=byId.get(a.match_id)?.status==="completed",bDone=byId.get(b.match_id)?.status==="completed";
    return Number(aDone)-Number(bDone)||a.scheduled_order-b.scheduled_order;
  });
+ const visible=ordered.filter(slot=>{
+   const match=byId.get(slot.match_id);
+   return !!match&&(!zoneFilter||slot.mat_id===zoneFilter)&&(!categoryFilter||match.category_id===categoryFilter);
+ });
  const time=(v:string|null)=>v?new Date(v).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit",timeZone:"Asia/Almaty"}):"—";
  async function win(m:Match,id:string){if(!confirm(`${L("Зафиксировать победу: ")}${name(id===m.participant_a_id?m.participantA:m.participantB)}?`))return;
    setBusy(m.id);setMessage("");const{error}=await s.rpc("record_match_winner",{p_match_id:m.id,p_winner_id:id});
    if(error)setMessage(error.message);else{setMatches(current=>current.map(fight=>fight.id===m.id?{...fight,status:"completed",winner_id:id}:fight));router.refresh()}setBusy(null)}
- async function move(index:number,delta:number){const nextIndex=index+delta;if(nextIndex<0||nextIndex>=ordered.length)return;
-   const first=byId.get(ordered[index].match_id),second=byId.get(ordered[nextIndex].match_id);
+ async function move(index:number,delta:number){const nextIndex=index+delta;if(nextIndex<0||nextIndex>=visible.length)return;
+   const first=byId.get(visible[index].match_id),second=byId.get(visible[nextIndex].match_id);
    if(!first||!second||first.status==="completed"||second.status==="completed")return;
    setBusy("order");setMessage("");const next=[...scheduled];
-   const firstIndex=next.findIndex(slot=>slot.match_id===ordered[index].match_id);
-   const secondIndex=next.findIndex(slot=>slot.match_id===ordered[nextIndex].match_id);
+   const firstIndex=next.findIndex(slot=>slot.match_id===visible[index].match_id);
+   const secondIndex=next.findIndex(slot=>slot.match_id===visible[nextIndex].match_id);
    [next[firstIndex],next[secondIndex]]=[next[secondIndex],next[firstIndex]];
    const{error}=await s.rpc("reorder_tournament_schedule",{p_tournament_id:tournamentId,p_match_ids:next.map(r=>r.match_id)});
    if(error)setMessage(error.message);else router.refresh();setBusy(null)}
  return <section className="running-list">
+   <div className="running-filters">
+     <label><span>{locale==="kk"?"Аймақ / кілем":"Зона / ковер"}</span><select className="field" value={zoneFilter} onChange={e=>setZoneFilter(e.target.value)}>
+       <option value="">{locale==="kk"?"Барлық аймақтар":"Все зоны"}</option>
+       {Object.entries(zoneNames).map(([id,title])=><option key={id} value={id}>{title}</option>)}
+     </select></label>
+     <label><span>{locale==="kk"?"Санат":"Категория"}</span><select className="field" value={categoryFilter} onChange={e=>setCategoryFilter(e.target.value)}>
+       <option value="">{locale==="kk"?"Барлық санаттар":"Все категории"}</option>
+       {Object.entries(categoryNames).map(([id,title])=><option key={id} value={id}>{title}</option>)}
+     </select></label>
+   </div>
    {message&&<p className="muted" role="alert">{message}</p>}
    {ordered.length===0?<div className="empty-state">{L("Расписание пока не сформировано. Сначала откройте «Зоны и расписание».")}</div>:
-   ordered.map((r,i)=>{const m=byId.get(r.match_id);if(!m)return null;const done=m.status==="completed";
-     const previous=i>0?byId.get(ordered[i-1].match_id):null,next=i<ordered.length-1?byId.get(ordered[i+1].match_id):null;
+   visible.length===0?<div className="empty-state">{locale==="kk"?"Таңдалған сүзгілер бойынша жекпе-жектер жоқ.":"По выбранным фильтрам поединков нет."}</div>:
+   visible.map((r,i)=>{const m=byId.get(r.match_id);if(!m)return null;const done=m.status==="completed";
+     const previous=i>0?byId.get(visible[i-1].match_id):null,next=i<visible.length-1?byId.get(visible[i+1].match_id):null;
      return <article className={`running-card${done?" running-card-done":""}`} key={r.id}>
        <div className="running-heading"><strong>{L("Очередь #")}{r.scheduled_order}{L(" · Бой #")}{m.match_number}</strong><span className="status">{done?L("Завершён"):L("Запланирован")}</span></div>
        <div className="running-meta"><span>{categoryNames[m.category_id]??L("Категория")}</span><span>{L("Раунд ")}{m.round_number}</span><span>{L("Зона: ")}{r.mat_id?zoneNames[r.mat_id]??"—":"—"}</span><span>{L("Примерно: ")}{time(r.approximate_time)}</span></div>
@@ -55,6 +71,7 @@ export default function RunningClient({tournamentId,initialMatches,initialSchedu
        <div className="running-order"><button type="button" aria-label={`${L("Поднять бой ")}${r.scheduled_order}`} disabled={!!busy||done||!previous||previous.status==="completed"} onClick={()=>void move(i,-1)}>↑</button><button type="button" aria-label={`${L("Опустить бой ")}${r.scheduled_order}`} disabled={!!busy||done||!next||next.status==="completed"} onClick={()=>void move(i,1)}>↓</button></div>
      </article>})}
    <style jsx>{`
+     .running-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.running-filters label{display:grid;gap:6px;min-width:0}.running-filters select{width:100%;min-width:0}
      .running-list{display:grid;gap:10px}.running-card{padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}.running-card-done{opacity:.5}
      .running-heading{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap}.running-heading strong{font-size:17px}
      .running-meta{display:flex;gap:4px 12px;flex-wrap:wrap;color:var(--muted);font-size:14px;margin:8px 0 12px}
@@ -62,7 +79,7 @@ export default function RunningClient({tournamentId,initialMatches,initialSchedu
      .running-name{display:grid;gap:2px;min-width:0}.running-name strong{font-size:16px;line-height:1.3;overflow-wrap:break-word}.running-name small{color:var(--muted);font-size:13px}
      .running-person button{padding:9px 4px;font-size:13px;min-height:40px}.running-person .result-pick,.running-person .result-win,.running-person .result-loss{border-radius:10px;color:#fff;font-weight:800}.running-person .result-pick,.running-person .result-win{border:1px solid #21864d;background:#21864d}.running-person .result-loss{border:1px solid var(--accent);background:var(--accent)}.running-person .result-win,.running-person .result-loss{opacity:1;cursor:default}.running-order{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
      .running-order button{width:40px;height:40px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface-2);color:var(--text)}
-     @media(max-width:600px){.running-card{padding:12px}.running-heading strong{font-size:16px}.running-person{grid-template-columns:minmax(0,1fr) 82px;gap:6px}.running-name strong{font-size:15px}}
+     @media(max-width:600px){.running-filters{grid-template-columns:1fr}.running-card{padding:12px}.running-heading strong{font-size:16px}.running-person{grid-template-columns:minmax(0,1fr) 82px;gap:6px}.running-name strong{font-size:15px}}
    `}</style>
  </section>;
 }
