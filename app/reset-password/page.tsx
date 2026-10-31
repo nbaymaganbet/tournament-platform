@@ -69,7 +69,7 @@ export default function ResetPasswordPage() {
     }
   }
 
-  return <main className="auth-page"><section className="auth-card">
+  return <main className="container form-page"><section className="form-card">
     <div className="auth-topbar"><Link className="brand" href="/">TOURNAMENT PLATFORM</Link></div>
     <h1>{ru ? "Новый пароль" : "Жаңа құпиясөз"}</h1>
     {access === "checking" ? <p className="muted" role="status">{ru ? "Проверяем ссылку…" : "Сілтеме тексерілуде…"}</p>
