@@ -7,11 +7,12 @@ import { useLocale } from "@/components/locale-provider";
 import {useEffect,useMemo,useState} from "react";
 import {createClient} from "@/lib/supabase/client";
 import ShareEventButton from "@/components/share-event-button";
+import { swappableAthletes } from "@/lib/bracket-swap";
 import {isByeSeed,matchRole,pendingAthlete} from "@/lib/bracket-display";
 
 type Category={id:string;name:string;bracket_format:string|null};
 type Person={id:string;first_name:string;last_name:string};
-type Match={id:string;match_number:number;round_number:number;status:string;participant_a_id:string|null;participant_b_id:string|null;winner_id:string|null;next_match_id:string|null;loser_next_match_id:string|null;category_id:string};
+type Match={id:string;match_number:number;round_number:number;status:string;participant_a_id:string|null;participant_b_id:string|null;winner_id:string|null;completed_at:string|null;next_match_id:string|null;loser_next_match_id:string|null;category_id:string};
 type ReadyCategory=Category&{count:number};
 
 export default function BracketsClient({categories,tournamentId,defaultFormat,newFormats,isOwner,isPublic}:{categories:Category[];tournamentId:string;defaultFormat:string;newFormats:boolean;isOwner:boolean;isPublic:boolean}){
@@ -25,10 +26,10 @@ export default function BracketsClient({categories,tournamentId,defaultFormat,ne
  const [busy,setBusy]=useState(false),[message,setMessage]=useState("");
  const kk = useLocale() === "kk";
  const s=useMemo(()=>createClient(),[]);
- const L=kk?{title:"Жекпе-жек торлары",form:"Торларды қалыптастыру",forming:"Қалыптастырылуда…",ready:"Қалыптастыруға дайын санаттар",noneReady:"Әзірге қалыптастыруға дайын санаттар жоқ.",empty:"Жекпе-жектер әлі қалыптастырылған жоқ.",fight:"Жекпе-жек",round:"Кезең",final:"Финал",third:"3-орын үшін",bye:"Бойсыз өтті (BYE)",share:"Тормен бөлісу",choose:"Орындарын ауыстыру үшін екі спортшыны таңдаңыз.",swap:"Орындарын ауыстыру",saved:"Спортшылардың орындары ауыстырылды.",locked:"Жекпе-жек басталған соң орындарын ауыстыру мүмкін емес.",status:{completed:"Аяқталды",in_progress:"Өтіп жатыр",ready:"Дайын",scheduled:"Жоспарда"}}:{title:"Сетки",form:"Сформировать сетки",forming:"Формируем…",ready:"Готовые к формированию категории",noneReady:"Пока нет категорий, готовых к формированию сетки.",empty:"Бои ещё не сформированы.",fight:"Бой",round:"Раунд",final:"Финал",third:"За 3-е место",bye:"Прошёл без боя (BYE)",share:"Поделиться сеткой",choose:"Выберите двух спортсменов, чтобы поменять их местами.",swap:"Поменять местами",saved:"Спортсмены поменялись местами.",locked:"После начала боёв перестановка недоступна.",status:{completed:"Завершён",in_progress:"Идёт",ready:"Готов",scheduled:"Запланирован"}};
+ const L=kk?{title:"Жекпе-жек торлары",form:"Торларды қалыптастыру",forming:"Қалыптастырылуда…",ready:"Қалыптастыруға дайын санаттар",noneReady:"Әзірге қалыптастыруға дайын санаттар жоқ.",empty:"Жекпе-жектер әлі қалыптастырылған жоқ.",fight:"Жекпе-жек",round:"Кезең",final:"Финал",third:"3-орын үшін",bye:"Бойсыз өтті (BYE)",share:"Тормен бөлісу",choose:"Орындарын ауыстыру үшін екі спортшыны таңдаңыз.",swap:"Орындарын ауыстыру",saved:"Спортшылардың орындары ауыстырылды.",locked:"Тек алғашқы жекпе-жегін бастамаған спортшылардың орындарын ауыстыруға болады.",status:{completed:"Аяқталды",in_progress:"Өтіп жатыр",ready:"Дайын",scheduled:"Жоспарда"}}:{title:"Сетки",form:"Сформировать сетки",forming:"Формируем…",ready:"Готовые к формированию категории",noneReady:"Пока нет категорий, готовых к формированию сетки.",empty:"Бои ещё не сформированы.",fight:"Бой",round:"Раунд",final:"Финал",third:"За 3-е место",bye:"Прошёл без боя (BYE)",share:"Поделиться сеткой",choose:"Выберите двух спортсменов, чтобы поменять их местами.",swap:"Поменять местами",saved:"Спортсмены поменялись местами.",locked:"Можно менять местами только спортсменов, которые ещё не начали свой первый бой.",status:{completed:"Завершён",in_progress:"Идёт",ready:"Готов",scheduled:"Запланирован"}};
  const personName=(p?:Person)=>p?`${p.last_name} ${p.first_name}`.trim():(kk?"Қатысушы күтілуде":"Ожидается участник");
  async function load(){try{
-  const {data:m,error}=await s.from("matches").select("id,match_number,round_number,status,participant_a_id,participant_b_id,winner_id,next_match_id,loser_next_match_id,category_id").eq("tournament_id",tournamentId).order("match_number");
+  const {data:m,error}=await s.from("matches").select("id,match_number,round_number,status,participant_a_id,participant_b_id,winner_id,completed_at,next_match_id,loser_next_match_id,category_id").eq("tournament_id",tournamentId).order("match_number");
   if(error){setMessage(error.message);return}
   const ids=[...new Set((m??[]).flatMap(x=>[x.participant_a_id,x.participant_b_id]).filter(Boolean) as string[])];
   const names:Record<string,Person>={};
@@ -65,10 +66,13 @@ export default function BracketsClient({categories,tournamentId,defaultFormat,ne
   await load();setBusy(false);
   }); }
  function selectAthlete(categoryId:string,id:string){
-  setSelected(current=>{const ids=current[categoryId]??[];const next=ids.includes(id)?ids.filter(x=>x!==id):ids.length<2?[...ids,id]:[ids[0],id];return {...current,[categoryId]:next}});
+  const available=swappableAthletes(matches.filter(m=>m.category_id===categoryId));
+  if(!available.has(id))return;
+  setSelected(current=>{const ids=(current[categoryId]??[]).filter(x=>available.has(x));const next=ids.includes(id)?ids.filter(x=>x!==id):ids.length<2?[...ids,id]:[ids[0],id];return {...current,[categoryId]:next}});
  }
  async function swap(categoryId:string){ return action.run(async () => {
-  const ids=selected[categoryId]??[];if(ids.length!==2)return;
+  const available=swappableAthletes(matches.filter(m=>m.category_id===categoryId));
+  const ids=(selected[categoryId]??[]).filter(id=>available.has(id));if(ids.length!==2)return;
   setBusy(true);setMessage("");
   const{error}=await s.rpc("swap_bracket_participants",{p_category_id:categoryId,p_first_id:ids[0],p_second_id:ids[1]});
   if(error)setMessage(error.message);else{setSelected(current=>({...current,[categoryId]:[]}));await load();setMessage(L.saved)}
@@ -99,7 +103,8 @@ export default function BracketsClient({categories,tournamentId,defaultFormat,ne
    const roundRobin=newFormats&&(formats[category.id]??category.bracket_format??defaultFormat)==="round_robin";
    const locked=group.some(m=>m.winner_id||!(["scheduled","ready"].includes(m.status)));
    const rosterChange=rosterChanges[category.id];
-   const picked=selected[category.id]??[];
+   const available=roundRobin?new Set<string>():swappableAthletes(group);
+   const picked=(selected[category.id]??[]).filter(id=>available.has(id));
    const name=(id:string|null)=>id?personName(people[id]):"";
    return <details key={category.id} className="form-card">
     <summary style={{cursor:"pointer",fontWeight:800,fontSize:18}}>{category.name} · {group.length} {kk?"жекпе-жек":"боёв"}{roundRobin?` · ${kk?"Айналмалы":"Круговая"}`:""}{rosterChange&&<span className="status-pill" style={{marginLeft:8,fontSize:12}}>{rosterChange.added?(kk?"Жаңа қатысушы":"Новый участник"):(kk?"Құрам өзгерді":"Состав изменился")}</span>}</summary>
@@ -109,14 +114,14 @@ export default function BracketsClient({categories,tournamentId,defaultFormat,ne
      </select></label>}
     {rosterChange&&<div style={{marginTop:12,display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}><span className="muted">{kk?`Жаңа: ${rosterChange.added} · шығарылған: ${rosterChange.removed}`:`Новых: ${rosterChange.added} · выбывших: ${rosterChange.removed}`}</span>{isOwner&&!locked?<button type="button" className="primary" disabled={busy} onClick={()=>void refreshBracket(category.id)}>{kk?"Торды жаңарту":"Обновить сетку"}</button>:<span className="muted">{kk?"Жекпе-жектер басталған соң торды жаңарту мүмкін емес.":"После начала боёв сетку обновить нельзя."}</span>}</div>}
     {isPublic&&<div style={{display:"flex",justifyContent:"flex-end",marginTop:12}}><ShareEventButton title={category.name} locale={kk?"kk":"ru"} url={`/tournaments/${tournamentId}/brackets/${category.id}`} label={L.share}/></div>}
-    {isOwner&&!locked&&!roundRobin&&<p className="muted">{L.choose}</p>}{isOwner&&locked&&<p className="muted">{L.locked}</p>}
+    {isOwner&&available.size>=2&&!roundRobin&&<p className="muted">{L.choose}</p>}{isOwner&&locked&&!roundRobin&&<p className="muted">{L.locked}</p>}
     {group.map(m=><article key={m.id} className="participant-card" style={{display:"grid",gap:10,marginTop:12}}>
      <strong>{L.round} {m.round_number} · {L.fight} #{m.match_number}{!roundRobin&&matchRole(m,group)==="final"?` · ${L.final}`:!roundRobin&&matchRole(m,group)==="third"?` · ${L.third}`:""}</strong>
      {(["participant_a_id","participant_b_id"] as const).map((side,i)=>{const id=m[side];const slot=i===0?"a":"b";const bye=isByeSeed(m,slot,group);
-      return <div key={side}>{id&&isOwner&&!locked&&!roundRobin?<button type="button" className={picked.includes(id)?"primary":"secondary"} disabled={busy} aria-pressed={picked.includes(id)} onClick={()=>selectAthlete(category.id,id)}>{name(id)}</button>:<strong>{id?name(id):pendingAthlete(m,slot,group,kk)}</strong>}{!roundRobin&&bye&&<span className="muted"> · {L.bye}</span>}</div>})}
+      return <div key={side}>{id&&isOwner&&available.has(id)&&!roundRobin?<button type="button" className={picked.includes(id)?"primary":"secondary"} disabled={busy} aria-pressed={picked.includes(id)} onClick={()=>selectAthlete(category.id,id)}>{name(id)}</button>:<strong>{id?name(id):pendingAthlete(m,slot,group,kk)}</strong>}{!roundRobin&&bye&&<span className="muted"> · {L.bye}</span>}</div>})}
      <span className="status-pill">{L.status[m.status as keyof typeof L.status]??m.status}</span>
     </article>)}
-    {isOwner&&!locked&&!roundRobin&&<button type="button" className="primary" style={{marginTop:12}} disabled={busy||picked.length!==2} onClick={()=>void swap(category.id)}>{L.swap}</button>}
+    {isOwner&&available.size>=2&&!roundRobin&&<button type="button" className="primary" style={{marginTop:12}} disabled={busy||picked.length!==2} onClick={()=>void swap(category.id)}>{L.swap}</button>}
    </details>})}</div>{formedCategories.length===0&&<div className="empty-state">{L.empty}</div>}
  </section>}</ActionScope>;
 }
