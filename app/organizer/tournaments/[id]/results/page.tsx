@@ -5,7 +5,8 @@ import {notFound} from "next/navigation";
 import {createClient} from "@/lib/supabase/server";
 import { hasTournamentPermission, permissionDeniedPage } from "@/lib/tournament-permissions";
 import RoundRobinTies, {type TieCategory} from "./round-robin-ties";
-import ResultCategory, {type ResultAthlete} from "@/components/result-category";
+import type { ResultAthlete } from "@/components/result-category";
+import ResultsFilter from "./results-filter";
 
 import "@/app/tournaments/[id]/results/results.css";
 
@@ -39,6 +40,6 @@ export default async function ResultsPage({params}:{params:Promise<{id:string}>}
   group.athletes.push({id:r.id,place:r.place,name:`${participant?.first_name??""} ${participant?.last_name??""}`.trim(),age:participant?.age??null,club:participant?.club??null,coach:participant?.coach??null});
   groups.set(r.category_id,group);
  }
- return <main className="container dashboard-page"><div className="page-topline"><Link className="back-link" href={`/organizer/tournaments/${id}`}>← {tournament.name}</Link></div><header className="section-header"><div><div className="eyebrow">{L("Итоги")}</div><h1>{L("Результаты")}</h1><p className="muted">{L("Места по завершённым категориям.")}</p></div></header><RoundRobinTies categories={ties}/>{groups.size===0?<div className="empty-state">{L("Результатов пока нет.")}</div>:[...groups].map(([categoryId,group])=><ResultCategory key={categoryId} tournamentId={id} tournamentName={tournament.name} categoryId={categoryId} categoryName={group.name} athletes={group.athletes} locale={locale} share={tournament.is_public&&tournament.status==="completed"}/>)}</main>;
+ return <main className="container dashboard-page"><div className="page-topline"><Link className="back-link" href={`/organizer/tournaments/${id}`}>← {tournament.name}</Link></div><header className="section-header"><div><div className="eyebrow">{L("Итоги")}</div><h1>{L("Результаты")}</h1><p className="muted">{L("Места по завершённым категориям.")}</p></div></header><RoundRobinTies categories={ties}/>{groups.size===0?<div className="empty-state">{L("Результатов пока нет.")}</div>:<ResultsFilter tournamentId={id} tournamentName={tournament.name} groups={[...groups].map(([categoryId,group])=>({id:categoryId,...group}))} locale={locale} share={tournament.is_public&&tournament.status==="completed"}/>}</main>;
 }
 
