@@ -1,4 +1,5 @@
 "use client";
+import {useLiveRefresh} from "@/lib/use-live-refresh";
 import { useLocale } from "@/components/locale-provider";
 
 import Link from "@/components/pending-link";
@@ -16,6 +17,7 @@ export default function LanguageToggle() {
   const [signedIn, setSignedIn] = useState(false);
   const [email, setEmail] = useState("");
   const [organizerName, setOrganizerName] = useState("");
+  const [rosterAlert,setRosterAlert]=useState(false);
   const [permissions, setPermissions] = useState<Record<string, boolean> | null>(null);
 
   const tournamentMatch = pathname.match(/^\/organizer\/tournaments\/([^/]+)/);
@@ -83,6 +85,10 @@ export default function LanguageToggle() {
     return () => { mounted = false; listener.subscription.unsubscribe(); };
   }, [pathname]);
 
+  useLiveRefresh(tournamentId??undefined,"category_participants,registrations,matches,brackets",async()=>{
+    if(!tournamentId){setRosterAlert(false);return;}
+    const {data,error}=await createClient().rpc("bracket_roster_alert",{p_tournament_id:tournamentId});setRosterAlert(!error&&data===true);
+  },false,15000);
   function changeLang(next: Locale) {
     window.dispatchEvent(new CustomEvent("tp-language-changed", { detail: next }));
     document.documentElement.lang = next;
@@ -137,7 +143,7 @@ export default function LanguageToggle() {
               const allowed=permissions===null || permissions[permissionKey] !== false;
               const active = href === tournamentBase ? pathname === tournamentBase : pathname.startsWith(href);
               if (!allowed) return <button key={href} type="button" onClick={() => alert(lang === "ru" ? "Этот раздел недоступен для вашей роли." : "Бұл бөлім сіздің рөліңіз үшін қолжетімсіз.")} style={{display:"flex",alignItems:"center",minHeight:44,padding:"0 12px",border:"1px solid transparent",borderRadius:9,color:"#555b65",background:"transparent",fontSize:14,fontWeight:800,textAlign:"left",cursor:"not-allowed"}}>{uiText(lang, label)}</button>;
-              return <Link key={href} href={href} onClick={() => setOpen(false)} style={{display:"flex",alignItems:"center",minHeight:44,padding:"0 12px",border:`1px solid ${active ? "#292d34" : "transparent"}`,borderRadius:9,color:active?"#fff":"#8e949f",background:active?"#17191e":"transparent",fontSize:14,fontWeight:800}}>{uiText(lang, label)}</Link>;
+              return <Link key={href} href={href} onClick={() => setOpen(false)} style={{display:"flex",alignItems:"center",minHeight:44,padding:"0 12px",border:`1px solid ${active ? "#292d34" : "transparent"}`,borderRadius:9,color:active?"#fff":"#8e949f",background:active?"#17191e":"transparent",fontSize:14,fontWeight:800}}>{uiText(lang, label)}{label==="Сетки"&&rosterAlert&&<span aria-label={lang==="ru"?"Есть участник вне сетки":"Тордан тыс қатысушы бар"} style={{color:"#ef3535",marginLeft:6}}>●</span>}</Link>;
             })}
           </nav>
           <div style={{marginTop:18,paddingTop:14,borderTop:"1px solid #292d34",display:"grid",gap:4}}>

@@ -1,7 +1,7 @@
 "use client";
 import { ActionScope, useActionFeedback } from "@/components/action-feedback";
 import { useLocale } from "@/components/locale-provider";
-import {useEffect,useState} from "react";
+import {useState} from "react";
 import Link from "@/components/pending-link";
 import {createClient} from "@/lib/supabase/client";
 import {translations,type Locale} from "@/lib/i18n";
@@ -9,7 +9,7 @@ import {translations,type Locale} from "@/lib/i18n";
 export type RegisteredParticipant = { id:string; first_name:string; last_name:string; age:number; weight:number; club:string|null; coach:string|null };
 
 export default function RegistrationForm({tournamentId, categoryId, onRegistered}:{tournamentId:string; categoryId?:string; onRegistered?:(participant:RegisteredParticipant)=>void}){
- const[form,setForm]=useState<Record<string,string>>({});const[busy,setBusy]=useState(false);const[result,setResult]=useState<{application:string;token:string}|null>(null);const[error,setError]=useState("");const locale = useLocale();const t=translations[locale];const supabase=createClient();
+ const[form,setForm]=useState<Record<string,string>>({});const[busy,setBusy]=useState(false);const[result,setResult]=useState(false);const[error,setError]=useState("");const locale = useLocale();const t=translations[locale];const supabase=createClient();
  const fields:[string,string,string][]=[["first_name",t.firstName,"text"],["last_name",t.lastName,"text"],["age",t.age,"number"],["weight",locale==="kk"?"Салмақ, кг":"Заявленный вес, кг","number"],["experience",t.experience,"text"],["phone",t.phone,"tel"],["city",locale==="kk"?"Қала":"Город","text"],["club",t.club,"text"],["coach",t.coach,"text"]];
  const requiredKeys=["first_name","last_name","age","weight"];
  const action = useActionFeedback(() => { setBusy(false); });
@@ -19,8 +19,9 @@ export default function RegistrationForm({tournamentId, categoryId, onRegistered
   if(error||!data?.id){setError(error?.message?.includes("Duplicate registration")?t.duplicateRegistration:(error?.message||t.applicationError));setBusy(false);return;}
   setForm({});setBusy(false);onRegistered?.(data as RegisteredParticipant);return;
  }
- const{data,error}=await supabase.rpc("submit_tournament_registration",{p_tournament_id:tournamentId,...values});if(error||!data?.[0]){const duplicate=error?.message?.includes("Duplicate registration");setError(duplicate?t.duplicateRegistration:(error?.message||t.applicationError));setBusy(false);return}setResult({application:data[0].application_number,token:data[0].status_token});setBusy(false) }); }
- if(result){const statusUrl=`/registration/status?token=${encodeURIComponent(result.token)}`;const reviewText=locale==="kk"?"Өтінім қаралуда. Ұйымдастырушы жарна төленгенін алғаннан кейін қатысуыңызды растайды.":"Заявка на рассмотрении. Организатор подтвердит участие после получения взноса.";return <div className="success-card"><h2>{t.accepted}</h2><p>{t.applicationNumber}:</p><strong className="application-number">{result.application}</strong><p className="muted"><strong>{reviewText}</strong></p><p className="muted">{t.saveStatusLink}</p><div className="button-row"><Link className="primary" href={statusUrl}>{t.openStatus}</Link><button className="secondary" type="button" onClick={()=>navigator.clipboard?.writeText(`${window.location.origin}${statusUrl}`)}>{t.copyLink}</button></div></div>}
+ const{data,error}=await supabase.rpc("submit_tournament_registration",{p_tournament_id:tournamentId,...values});if(error||!data?.[0]){const duplicate=error?.message?.includes("Duplicate registration");setError(duplicate?t.duplicateRegistration:(error?.message||t.applicationError));setBusy(false);return}setResult(true);setBusy(false) }); }
+ if(result)return <div className="success-card registration-success" role="status"><div className="success-check" aria-hidden="true">✓</div><h2>{locale==="kk"?"Өтінім жіберілді":"Заявка отправлена"}</h2><p>{locale==="kk"?"Ұйымдастырушының растауын күтіңіз.":"Ожидайте подтверждения организатора."}</p><Link className="button-link" href={`/tournaments/${tournamentId}`}>{locale==="kk"?"Жарысқа оралу":"Вернуться к событию"}</Link></div>;
+
  return <ActionScope pending={action.pending} error={action.error} paused={true}>{<form className="form-grid" onSubmit={submit}>{fields.map(([key,label,type])=><label className="form-field" key={key}><span>{label}{requiredKeys.includes(key)&&" *"}</span>{key==="weight"&&<p className="muted">{locale==="kk"?"Нақты салмағыңызды килограмммен көрсетіңіз. Егер «… кг және одан жоғары» санатына қатыссаңыз, нақты салмағыңызды да көрсетіңіз.":"Укажите свой фактический вес в килограммах. Если вы участвуете в категории «от … кг и выше», также укажите свой фактический вес."}</p>}<input required={requiredKeys.includes(key)} type={type} value={form[key]??""} onChange={e=>setForm({...form,[key]:e.target.value})}/></label>)}{error&&<div className="error-box">{error}</div>}<p className="muted">* {locale==="kk"?"Міндетті өрістер":"Обязательные поля"}</p><button className="primary submit-button" disabled={busy} type="submit">{busy?t.sending:categoryId?(locale==="kk"?"Қатысушы қосу":"Добавить участника"):t.submit}</button></form>}</ActionScope>;
 }
 

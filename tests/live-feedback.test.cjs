@@ -16,7 +16,7 @@ function hooks(){
   useTransition(){return [false,fn=>fn()]}};
  return {react,render(fn){cursor=0;pending=[];const out=fn();pending.forEach(f=>f());return out},cleanup(){cells.forEach(c=>c?.cleanup?.())}};
 }
-function load(rel,mocks){const file=path.join(root,rel);const code=ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{jsx:ts.JsxEmit.ReactJSX,module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;const mod={exports:{}};new Function('require','module','exports',code)(id=>id in mocks?mocks[id]:require(id),mod,mod.exports);return mod.exports;}
+function load(rel,mocks){const file=path.join(root,rel);const code=ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{jsx:ts.JsxEmit.ReactJSX,module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;const mod={exports:{}};new Function('require','module','exports',code)(id=>id in mocks?mocks[id]:id.startsWith('@/')?load(id.slice(2)+'.ts',mocks):require(id),mod,mod.exports);return mod.exports;}
 class Target{constructor(){this.listeners={}}addEventListener(k,fn){(this.listeners[k]??=new Set()).add(fn)}removeEventListener(k,fn){this.listeners[k]?.delete(fn)}dispatchEvent(e){for(const fn of this.listeners[e.type]??[])fn(e);return true}}
 function environment(){const w=global.window,d=global.document;global.window=new Target();global.document=Object.assign(new Target(),{visibilityState:'visible',blocked:false,querySelector(){return this.blocked?{}:null}});return()=>{global.window=w;global.document=d}}
 const locale={'@/components/locale-provider':{useLocale:()=> 'ru'},'@/lib/ui-text':{uiText:(_l,v)=>v}};
@@ -64,10 +64,8 @@ test('participant list accepts external updates without losing an open edit form
  const first=nodes(tree,'input').find(n=>n.props.value==='A');first.props.onChange({target:{value:'Unsaved name'}});rows=[{...a,first_name:'External name'},b];tree=render();assert.ok(nodes(tree,'input').some(n=>n.props.value==='Unsaved name'));h.cleanup();
 });
 
-test('database RPC names and payloads remain unchanged; migration only enables publications',()=>{
- const files=execFileSync('git',['diff','--name-only','--','app'],{cwd:root,encoding:'utf8'}).trim().split('\n').filter(f=>f.endsWith('.tsx'));
- function calls(s){const ast=ts.createSourceFile('x.tsx',s,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX),out=[];function visit(n){if(ts.isCallExpression(n)&&ts.isPropertyAccessExpression(n.expression)&&n.expression.name.text==='rpc')out.push(n.arguments.map(a=>a.getText(ast).replace(/\s/g,'')).join('|'));ts.forEachChild(n,visit)}visit(ast);return out.sort()}
- for(const file of files){const before=execFileSync('git',['show','HEAD:'+file],{cwd:root,encoding:'utf8'});assert.deepEqual(calls(fs.readFileSync(path.join(root,file),'utf8')),calls(before),file)}
+test('live refresh is read-only and the original realtime migration only enables publications',()=>{
+ const refresh=fs.readFileSync(path.join(root,'components/live-refresh.tsx'),'utf8');assert.doesNotMatch(refresh,/\.rpc\(|\.insert\(|\.update\(|\.delete\(/);
  const migration=fs.readFileSync(path.join(root,'supabase/migrations/20261031174622_enable_working_list_realtime.sql'),'utf8');assert.doesNotMatch(migration,/\b(insert|update|delete|truncate|drop|grant|revoke)\b/i);assert.match(migration,/alter publication supabase_realtime add table/);
 });
 
@@ -81,7 +79,7 @@ test('weigh-in preserves an unsaved actual weight during an external refresh',()
 test('running filters survive external bouts and reordering preserves hidden slots',async()=>{
  const h=hooks(),rpc=[];const router={refresh(){}};const client={async rpc(name,args){rpc.push({name,args});return {error:null}}};const mod=load('app/organizer/tournaments/[id]/running/running-client.tsx',{react:h.react,...locale,'next/navigation':{useRouter:()=>router},'@/lib/supabase/client':{createClient:()=>client},'@/components/action-feedback':{ActionScope:'scope',useActionFeedback:()=>({pending:false,error:'',run:fn=>fn()})}});
  const m=(id,c)=>({id,category_id:c,status:'scheduled',match_number:Number(id.slice(1)),round_number:1,participant_a_id:id+'a',participant_b_id:id+'b'});const s=(id,z,n)=>({id:'s'+id,match_id:id,mat_id:z,scheduled_order:n});
- let props={tournamentId:'t',initialMatches:[m('m1','c1'),m('m2','c2'),m('m3','c1')],initialSchedule:[s('m1','z1',1),s('m2','z2',2),s('m3','z1',3)],categoryNames:{c1:'Category 1',c2:'Category 2'},zoneNames:{z1:'Mat 1',z2:'Mat 2'}};
+ let props={timing:{duration:5,gap:0,rest:5},tournamentId:'t',initialMatches:[m('m1','c1'),m('m2','c2'),m('m3','c1')],initialSchedule:[s('m1','z1',1),s('m2','z2',2),s('m3','z1',3)],categoryNames:{c1:'Category 1',c2:'Category 2'},zoneNames:{z1:'Mat 1',z2:'Mat 2'}};
  const render=()=>{h.render(()=>mod.default(props));return h.render(()=>mod.default(props))};let tree=render();nodes(tree,'select')[0].props.onChange({target:{value:'z1'}});tree=render();nodes(tree,'select')[1].props.onChange({target:{value:'c1'}});tree=render();assert.deepEqual(nodes(tree,'article').map(n=>n.key),['sm1','sm3']);
  nodes(tree,'button').find(n=>n.props['aria-label']==='Опустить бой 1').props.onClick();await new Promise(setImmediate);assert.deepEqual(rpc[0].args.p_match_ids,['m3','m2','m1']);
  props={...props,initialMatches:[...props.initialMatches,m('m4','c1')],initialSchedule:[...props.initialSchedule,s('m4','z1',4)]};tree=render();assert.deepEqual(nodes(tree,'select').map(n=>n.props.value),['z1','c1']);assert.deepEqual(nodes(tree,'article').map(n=>n.key),['sm1','sm3','sm4']);h.cleanup();

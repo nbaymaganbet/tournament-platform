@@ -16,7 +16,7 @@ export default async function SchedulePage({params}:{params:Promise<{id:string}>
   if(!user)return null;
   if(!(await hasTournamentPermission(s,id,"schedule")))return permissionDeniedPage();
 
-  const {data:t}=await s.from("tournaments").select("id,name,organizer_id,schedule_start_time").eq("id",id).single();
+  const {data:t}=await s.from("tournaments").select("id,name,organizer_id,schedule_start_time,bout_minutes,bout_interval_minutes,athlete_rest_minutes").eq("id",id).single();
   if(!t)notFound();
 
   const [{data:o},{data:member}]=await Promise.all([
@@ -42,7 +42,7 @@ export default async function SchedulePage({params}:{params:Promise<{id:string}>
       <MatsClient tournamentId={id} initialMats={mats??[]}/>
     </details>
 
-    <ScheduleClient tournamentId={id} startTime={t.schedule_start_time??"10:00"} scheduledCount={scheduledCount??0}
+    <ScheduleClient tournamentId={id} startTime={t.schedule_start_time??"10:00"} scheduledCount={scheduledCount??0} timing={{duration:t.bout_minutes,gap:t.bout_interval_minutes,rest:t.athlete_rest_minutes}}
       initialCategories={(categories??[]).filter(c=>matchCounts.has(c.id)).map(c=>({id:c.id,name:c.name,count:matchCounts.get(c.id)??0,preferred_mat_id:c.preferred_mat_id}))}
       mats={(mats??[]).map(m=>({id:m.id,name:m.name,is_active:m.is_active}))}/>
   </main>

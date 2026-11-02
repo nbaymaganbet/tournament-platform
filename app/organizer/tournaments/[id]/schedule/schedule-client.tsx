@@ -9,11 +9,12 @@ import {translations,type Locale} from "@/lib/i18n";
 
 type Category={id:string;name:string;count:number;preferred_mat_id:string|null};
 type Mat={id:string;name:string;is_active:boolean};
-export default function ScheduleClient({tournamentId,initialCategories,mats,startTime,scheduledCount}:{tournamentId:string;initialCategories:Category[];mats:Mat[];startTime:string;scheduledCount:number}){
+export default function ScheduleClient({tournamentId,initialCategories,mats,startTime,scheduledCount,timing}:{tournamentId:string;initialCategories:Category[];mats:Mat[];startTime:string;scheduledCount:number;timing:{duration:number;gap:number;rest:number}}){
  const L = (text: string) => uiText(locale, text);
 
  const locale = useLocale();
  const t=translations[locale];
+ const[bout,setBout]=useState(timing);
  const[timeDirty,setTimeDirty]=useState(false);
  const[categories,setCategories]=useState(initialCategories),[zones,setZones]=useState(mats);
  const[hour,setHour]=useState((startTime||"10:00").slice(0,2)),[minute,setMinute]=useState((startTime||"10:00").slice(3,5));
@@ -27,6 +28,7 @@ export default function ScheduleClient({tournamentId,initialCategories,mats,star
  const action = useActionFeedback(() => { setSaving(null); });
  async function setCategoryZone(c:Category,matId:string){ return action.run(async () => { setSaving(c.id);setMessage("");const{error}=await s.rpc("set_category_schedule_zone",{p_category_id:c.id,p_mat_id:matId||null});if(error)setMessage(error.message);else setCategories(current=>current.map(x=>x.id===c.id?{...x,preferred_mat_id:matId||null}:x));setSaving(null) }); }
  async function saveStart(){ return action.run(async () => { if(!validTime){setMessage(L("Укажите время от 00:00 до 23:59."));return}setSaving("time");setMessage("");const{error}=await s.rpc("save_tournament_schedule_start_time",{p_tournament_id:tournamentId,p_start_time:startTimeInput});if(!error)setTimeDirty(false);setMessage(error?error.message:locale==="kk"?"Басталу уақыты сақталды.":"Время начала сохранено.");setSaving(null) }); }
+ async function saveTiming(){return action.run(async()=>{setSaving("timing");setMessage("");const {error}=await s.rpc("save_bout_timing",{p_tournament_id:tournamentId,p_duration:bout.duration,p_interval:bout.gap,p_rest:bout.rest});setMessage(error?error.message:locale==="kk"?"Сақталды":"Сохранено");setSaving(null);});}
  async function generate(){ return action.run(async () => { if(!validTime){setMessage(L("Укажите время от 00:00 до 23:59."));return}setSaving("generate");setMessage("");const saved=await s.rpc("save_tournament_schedule_start_time",{p_tournament_id:tournamentId,p_start_time:startTimeInput});if(saved.error){setMessage(saved.error.message);setSaving(null);return}const result=await s.rpc("generate_tournament_schedule",{p_tournament_id:tournamentId});if(result.error){setMessage(result.error.message);setSaving(null);return}setTimeDirty(false);window.dispatchEvent(new Event("tp-action-finished")) }); }
  return <ActionScope pending={action.pending} error={action.error} paused={timeDirty}>{<details className="schedule-controls form-card">
    <summary className="schedule-summary">{locale==="kk"?"Жарыс кестесі":"Расписание турнира"}{scheduledCount>0?` · ${scheduledCount}`:""}</summary>
@@ -38,6 +40,7 @@ export default function ScheduleClient({tournamentId,initialCategories,mats,star
      <input className="field" type="text" inputMode="numeric" pattern="[0-9]*" maxLength={2} aria-label={locale==="kk"?"Минут":"Минуты"} placeholder={L("ММ")} value={minute} onChange={e=>{setTimeDirty(true);setMinute(e.target.value.replace(/\D/g,""))}}/>
    </div>
    <button className="primary schedule-save" type="button" disabled={!!saving} onClick={()=>void saveStart()}>{saving==="time"?L("Сохраняем…"):locale==="kk"?"Уақытты сақтау":"Сохранить время"}</button>
+   <div className="bracket-filters">{(["duration","gap","rest"] as const).map(key=><label key={key}>{key==="duration"?(locale==="kk"?"Жекпе-жек, мин":"Длительность боя, мин"):key==="gap"?(locale==="kk"?"Аралық, мин":"Интервал, мин"):(locale==="kk"?"Спортшының демалысы, мин":"Отдых спортсмена, мин")}<input type="number" min={key==="duration"?1:0} max={key==="gap"?60:120} value={bout[key]} onChange={e=>setBout(v=>({...v,[key]:Number(e.target.value)}))}/></label>)}</div><button type="button" className="secondary" disabled={!!saving} onClick={()=>void saveTiming()}>{locale==="kk"?"Параметрлерді сақтау":"Сохранить параметры"}</button>
    <div className="schedule-category-list">{categories.map(c=><label className="schedule-category" key={c.id}>
      <span><strong>{c.name}</strong><small>{c.count} {locale==="kk"?"жекпе-жек":"боёв"}</small></span>
      <select aria-label={`${c.name}: ${locale==="kk"?"аймақ":"зона"}`} disabled={!!saving} value={c.preferred_mat_id??""} onChange={e=>void setCategoryZone(c,e.target.value)}>
@@ -45,11 +48,11 @@ export default function ScheduleClient({tournamentId,initialCategories,mats,star
        {zones.filter(z=>z.is_active||z.id===c.preferred_mat_id).map(z=><option key={z.id} value={z.id}>{z.name}{z.is_active?"":L(" (выключена)")}</option>)}
      </select>
    </label>)}</div>
-   <button className="primary schedule-generate" type="button" disabled={!!saving||scheduledCount>0} onClick={()=>void generate()}>{saving==="generate"?t.generating:scheduledCount>0?(locale==="kk"?"Кесте құрылды":"Расписание сформировано"):t.generateSchedule}</button>
-   {scheduledCount>0&&<p className="muted">{locale==="kk"?"Келесі дайын жекпе-жектер кезекке автоматты түрде қосылады. Кезек «Өткізу» бөлімінде.":"Следующие готовые бои появятся в очереди автоматически. Очередь находится во вкладке «Проведение»."}</p>}
+   <button className="primary schedule-generate" type="button" disabled={!!saving} onClick={()=>void generate()}>{saving==="generate"?t.generating:scheduledCount>0?(locale==="kk"?"Кестені жаңарту":"Обновить расписание"):t.generateSchedule}</button>
+   {scheduledCount>0&&<p className="muted">{locale==="kk"?"Кезекте болашақ жекпе-жектерді қоса барлық кезеңдер бар. Кезек «Өткізу» бөлімінде.":"В очередь включены все раунды, включая будущие бои. Очередь находится во вкладке «Проведение»."}</p>}
    {message&&<p className="muted" role="status">{message}</p>}
    <style jsx>{`
-     .schedule-controls{width:100%;padding:20px;margin-bottom:18px}.schedule-summary{cursor:pointer;font-size:22px;font-weight:800}.schedule-controls>p{margin:10px 0}
+     .schedule-controls{width:100%;padding:20px;margin-bottom:18px}.schedule-summary{cursor:pointer;font-size:18px;font-weight:800}.schedule-controls>p{margin:10px 0}
      .schedule-time-label{margin-top:16px}.schedule-time-fields{display:flex;align-items:center;gap:7px;width:max-content;max-width:100%;margin-top:8px}
      .schedule-time-fields input{width:66px;min-width:0;min-height:46px;padding:8px;text-align:center;font-variant-numeric:tabular-nums}.schedule-time-fields span{font-size:22px;font-weight:700}
      .schedule-save,.schedule-generate{display:block;margin-top:12px}.schedule-category-list{display:grid;gap:8px;margin-top:18px}

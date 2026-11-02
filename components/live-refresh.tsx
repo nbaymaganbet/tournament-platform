@@ -13,6 +13,6 @@ export default function LiveRefresh({ tournamentId, tables = workingTables }: { 
   useLiveRefresh(tournamentId, pathname.endsWith("/settings") ? "" : tables, () => {
     startTransition(() => router.refresh());
     window.dispatchEvent(new Event("tp-live-refresh"));
-  }, pending, pathname.endsWith("/team") ? 15000 : 0);
+  }, pending, pathname.endsWith("/team")||pathname.startsWith("/tournaments/") ? 15000 : 0);
   return null;
 }

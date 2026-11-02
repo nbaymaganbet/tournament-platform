@@ -13,7 +13,7 @@ type Props = { params: Promise<{ id: string; categoryId: string }> };
 
 async function categoryResults(id: string, categoryId: string) {
   const s = await createClient();
-  const { data: tournament } = await s.from("tournaments").select("name,poster_url").eq("id", id).eq("is_public", true).eq("status", "completed").maybeSingle();
+  const { data: tournament } = await s.from("tournaments").select("name,poster_url").eq("id", id).eq("is_public", true).neq("status", "draft").maybeSingle();
   if (!tournament) return null;
   const { data, error } = await s.rpc("get_public_tournament_results_detailed", { p_tournament_id: id });
   if (error) throw new Error("Could not load tournament results");

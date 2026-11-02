@@ -3,6 +3,7 @@ import Link from "@/components/pending-link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getLocale } from "@/lib/i18n-server";
+import ResultsFilter from "@/app/organizer/tournaments/[id]/results/results-filter";
 import ResultCategory, { type ResultAthlete } from "@/components/result-category";
 import "./results.css";
 
@@ -13,7 +14,7 @@ export default async function PublicResults({ params }: { params: Promise<{ id: 
   const s = await createClient();
   const locale = await getLocale();
   const kk = locale === "kk";
-  const { data: tournament } = await s.from("tournaments").select("name").eq("id", id).eq("is_public", true).eq("status", "completed").maybeSingle();
+  const { data: tournament } = await s.from("tournaments").select("name").eq("id", id).eq("is_public", true).neq("status", "draft").maybeSingle();
   if (!tournament) notFound();
   const { data, error } = await s.rpc("get_public_tournament_results_detailed", { p_tournament_id: id });
   if (error) throw new Error("Could not load tournament results");
@@ -27,6 +28,7 @@ export default async function PublicResults({ params }: { params: Promise<{ id: 
     <div className="page-topline"><Link className="back-link" href={`/tournaments/${id}`}>← {tournament.name}</Link></div>
     <header className="section-header"><div><div className="eyebrow">{tournament.name}</div><h1>{kk ? "Нәтижелер" : "Результаты"}</h1></div></header>
     {groups.size === 0 ? <div className="empty-state">{kk ? "Нәтижелер әлі жарияланбаған." : "Результаты пока не опубликованы."}</div> :
-      [...groups].map(([categoryId, group]) => <ResultCategory key={categoryId} tournamentId={id} tournamentName={tournament.name} categoryId={categoryId} categoryName={group.name} athletes={group.rows} locale={locale} />)}
+      <ResultsFilter tournamentId={id} tournamentName={tournament.name} groups={[...groups].map(([id,g])=>({id,name:g.name,athletes:g.rows}))} locale={locale} share/>}
+
   </main>;
 }

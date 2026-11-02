@@ -34,7 +34,7 @@ export default async function Image({ params }: { params: Promise<{ id: string; 
     const { id, categoryId } = await params;
     const s = await createClient();
     const kk = (await getLocale()) === "kk";
-    const { data: tournament } = await s.from("tournaments").select("name").eq("id", id).eq("is_public", true).eq("status", "completed").maybeSingle();
+    const { data: tournament } = await s.from("tournaments").select("name").eq("id", id).eq("is_public", true).neq("status", "draft").maybeSingle();
     if (!tournament) return new Response("Not found", { status: 404 });
     const { data, error } = await s.rpc("get_public_tournament_results_detailed", { p_tournament_id: id });
     if (error) return new Response("Unavailable", { status: 503 });

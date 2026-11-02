@@ -39,7 +39,9 @@ export default async function TournamentPage({ params }: { params: Promise<{ id:
           {tournament.description && <p>{tournament.description}</p>}
           <div className="event-actions">
             {registrationOpen && <Link className="primary button-link" href={`/tournaments/${id}/register`}>{text.register}</Link>}
-            {tournament.status === "completed" && <Link className="primary button-link" href={`/tournaments/${id}/results`}>{text.results}</Link>}
+            {<Link className="primary button-link" href={`/tournaments/${id}/results`}>{text.results}</Link>}
+            <Link className="button-link" href={`/tournaments/${id}/participants`}>{ru?"Участники":"Қатысушылар"}</Link>
+            <Link className="button-link" href={`/tournaments/${id}/brackets`}>{ru?"Сетки и расписание":"Торлар мен кесте"}</Link>
             {tournament.regulations_text && <Link className="button-link" href={`/tournaments/${id}/regulations`}>{text.regulations}</Link>}
             <ShareEventButton title={tournament.name} locale={locale} label={text.share} />
           </div>
