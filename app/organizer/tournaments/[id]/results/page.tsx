@@ -19,6 +19,8 @@ export default async function ResultsPage({params}:{params:Promise<{id:string}>}
  const{data:member}=await supabase.from("tournament_members").select("role").eq("tournament_id",id).eq("user_id",user.id).maybeSingle();
  if(organizer?.id!==tournament.organizer_id&&!member)notFound();
  const{data:results,error}=await supabase.from("results").select("id,place,category_id,participant_id,categories(name),participants(first_name,last_name,age,club,coach)").eq("tournament_id",id).order("category_id").order("place");if(error)throw new Error(error.message);
+ const{data:incompleteBouts}=await supabase.from("matches").select("category_id").eq("tournament_id",id).not("status","in","(completed,cancelled)");
+ const incomplete=new Set((incompleteBouts??[]).map(m=>m.category_id));
  const{data:tournamentCategories}=await supabase.from("categories").select("id").eq("tournament_id",id);
  const categoryIds=(tournamentCategories??[]).map(c=>c.id);
  const{data:formatRows}=categoryIds.length?await supabase.from("brackets").select("category_id,categories(name),matches(id,status,participant_a_id,participant_b_id,winner_id)").eq("format","round_robin").in("category_id",categoryIds):{data:[]};
@@ -34,12 +36,13 @@ export default async function ResultsPage({params}:{params:Promise<{id:string}>}
  const locale=await getLocale();
  const groups=new Map<string,{name:string;athletes:ResultAthlete[]}>();
  for(const r of (results??[]) as any[]){
+  if(incomplete.has(r.category_id))continue;
   const category=Array.isArray(r.categories)?r.categories[0]:r.categories;
   const participant=Array.isArray(r.participants)?r.participants[0]:r.participants;
   const group=groups.get(r.category_id)??{name:category?.name??L("Категория"),athletes:[] as ResultAthlete[]};
   group.athletes.push({id:r.id,place:r.place,name:`${participant?.first_name??""} ${participant?.last_name??""}`.trim(),age:participant?.age??null,club:participant?.club??null,coach:participant?.coach??null});
   groups.set(r.category_id,group);
  }
- return <main className="container dashboard-page"><div className="page-topline"><Link className="back-link" href={`/organizer/tournaments/${id}`}>← {tournament.name}</Link></div><header className="section-header"><div><div className="eyebrow">{L("Итоги")}</div><h1>{L("Результаты")}</h1><p className="muted">{L("Места по завершённым категориям.")}</p></div></header><RoundRobinTies categories={ties}/>{groups.size===0?<div className="empty-state">{L("Результатов пока нет.")}</div>:<ResultsFilter tournamentId={id} tournamentName={tournament.name} groups={[...groups].map(([categoryId,group])=>({id:categoryId,...group}))} locale={locale} share={tournament.is_public&&tournament.status==="completed"}/>}</main>;
+ return <main className="container dashboard-page"><div className="page-topline"><Link className="back-link" href={`/organizer/tournaments/${id}`}>← {tournament.name}</Link></div><header className="section-header"><div><div className="eyebrow">{L("Итоги")}</div><h1>{L("Результаты")}</h1><p className="muted">{L("Места по завершённым категориям.")}</p></div></header><RoundRobinTies categories={ties}/>{groups.size===0?<div className="empty-state">{L("Результатов пока нет.")}</div>:<ResultsFilter tournamentId={id} tournamentName={tournament.name} groups={[...groups].map(([categoryId,group])=>({id:categoryId,...group}))} locale={locale} share={tournament.is_public&&tournament.status!=="draft"}/>}</main>;
 }
 
