@@ -24,3 +24,8 @@ test('bracket diagram preserves both semifinal links and separate bronze branch'
  const rows=[match('1',1,{next_match_id:'3',loser_next_match_id:'4'}),match('2',2,{next_match_id:'3',loser_next_match_id:'4'}),match('3',3,{round_number:2}),match('4',4,{round_number:2})];const layout=bracketLayout(rows);
  assert.equal(layout.boxes.length,4);assert.equal(layout.links.length,4);assert.equal(layout.links.filter(l=>l.loser).length,2);assert.ok(layout.boxes.find(b=>b.match.id==='4').y>layout.boxes.find(b=>b.match.id==='3').y);
 });
+
+test('diagram columns follow feeder links even when stored round numbers repeat',()=>{
+ const rows=[match('1',1,{round_number:3,next_match_id:'3'}),match('2',2,{round_number:2,next_match_id:'3'}),match('3',3,{round_number:3})];const layout=bracketLayout(rows);
+ for(const {from,to} of layout.links)assert.ok(to.x>from.x);
+});

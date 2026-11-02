@@ -49,13 +49,14 @@ export function bracketLayout(matches:EventMatch[]):{boxes:BracketBox[];width:nu
  function place(m:EventMatch):BracketBox{
   const found=positioned.get(m.id);if(found)return found;
   const parents=incoming(m).map(place);
+  const loserParents=matches.filter(p=>p.loser_next_match_id===m.id).map(place);
   let y:number;
   if(parents.length===2)y=(parents[0].y+parents[1].y)/2;
   else if(parents.length===1){y=(parents[0].y+row*126)/2;row++;}
   else {y=row*126;row++;}
-  const box={match:m,x:rounds.indexOf(m.round_number)*300,y};positioned.set(m.id,box);boxes.push(box);return box;
+  const box={match:m,x:Math.max(-300,...parents.map(p=>p.x),...loserParents.map(p=>p.x))+300,y};positioned.set(m.id,box);boxes.push(box);return box;
  }
  const roots=matches.filter(m=>!m.next_match_id&&!matches.some(p=>p.loser_next_match_id===m.id));
  roots.forEach(place);matches.forEach(m=>{if(!positioned.has(m.id))place(m)});
- return {boxes,width:Math.max(300,rounds.length*300),height:Math.max(126,...boxes.map(b=>b.y+126)),links:boxes.flatMap(from=>[from.match.next_match_id,from.match.loser_next_match_id].flatMap((id,index)=>{const to=id?positioned.get(id):null;return to?[{from,to,loser:index===1}]:[]}))};
+ return {boxes,width:Math.max(300,...boxes.map(b=>b.x+300)),height:Math.max(126,...boxes.map(b=>b.y+126)),links:boxes.flatMap(from=>[from.match.next_match_id,from.match.loser_next_match_id].flatMap((id,index)=>{const to=id?positioned.get(id):null;return to?[{from,to,loser:index===1}]:[]}))};
 }
