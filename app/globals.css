@@ -53,3 +53,6 @@ button:disabled,fieldset:disabled button{cursor:wait}
 .bracket-category-card > details > summary { padding: 4px 0; font-size: 14px; }
 .bracket-share small{display:block;font-size:12px}
 .public-tournament .event-actions .button-link,.public-tournament .event-actions button{padding:9px 12px;font-size:14px;min-height:40px}.success-check{font-size:28px;color:#39b878;animation:registration-check .35s ease-out}@keyframes registration-check{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}@media(prefers-reduced-motion:reduce){.success-check{animation:none}}@media(max-width:420px){.bracket-filters{gap:8px}.bracket-category-heading h2{font-size:16px}}
+
+/* Posters keep their full proportions; originals open separately for zooming. */
+.tournament-poster-gallery{min-width:0;display:grid;gap:14px}.tournament-poster-gallery a{display:block;min-width:0}.public-hero .tournament-poster-gallery img{width:100%;height:auto;max-height:80svh;object-fit:contain;background:#090a0c}.tournament-poster-gallery span{display:block;margin-top:6px}

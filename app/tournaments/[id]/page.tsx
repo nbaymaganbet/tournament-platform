@@ -16,6 +16,12 @@ export default async function TournamentPage({ params }: { params: Promise<{ id:
   const { data: tournament } = await s.from("tournaments").select("id,name,date,city,venue,sport,description,registration_deadline,status,poster_url,is_public,regulations_text").eq("id", id).eq("is_public", true).maybeSingle();
   if (!tournament) notFound();
 
+  const { data: posters } = await s.from("tournament_posters").select("public_url,storage_path,sort_order").eq("tournament_id", id).order("sort_order");
+  const posterImages = posters?.length ? posters.map(p => ({
+    display: p.public_url,
+    original: s.storage.from("posters").getPublicUrl(p.storage_path).data.publicUrl,
+  })) : tournament.poster_url ? [{ display: tournament.poster_url, original: tournament.poster_url }] : [];
+
   const registrationOpen = tournament.status === "registration_open";
   const dateLocale = locale === "kk" ? "kk-KZ" : "ru-RU";
   const text = {
@@ -31,7 +37,10 @@ export default async function TournamentPage({ params }: { params: Promise<{ id:
     <main className="container public-tournament"><LiveRefresh tournamentId={id} tables="tournaments" />
       <div className="page-topline"><Link className="back-link" href="/">{text.back}</Link></div>
       <header className="public-hero">
-        {tournament.poster_url && <img src={tournament.poster_url} alt="" />}
+        {posterImages.length > 0 && <div className="tournament-poster-gallery">{posterImages.map((poster, index) => <a key={poster.display} href={poster.original} target="_blank" rel="noreferrer" aria-label={ru ? "Открыть оригинал афиши" : "Афишаның түпнұсқасын ашу"}>
+          <img src={poster.display} alt={`${tournament.name} — ${index + 1}`} loading={index ? "lazy" : "eager"} />
+          <span className="muted">{ru ? "Открыть оригинал ↗" : "Түпнұсқаны ашу ↗"}</span>
+        </a>)}</div>}
         <div>
           <div className="eyebrow">{tournament.sport} · {tournament.city}</div>
           <h1>{tournament.name}</h1>

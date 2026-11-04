@@ -6,6 +6,7 @@ import { useLocale } from "@/components/locale-provider";
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { uploadPoster } from "@/lib/poster-upload";
 import PosterFiles from "@/components/poster-files";
 import { createClient } from "@/lib/supabase/client";
 
@@ -79,20 +80,12 @@ export default function NewTournamentPage() {
 
     for (let index = 0; index < posters.length; index += 1) {
       const poster = posters[index];
-      const safeName = poster.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-      const path = `${organizer.id}/${tournament.id}/${Date.now()}-${index}-${safeName}`;
-      const { error: uploadError } = await supabase.storage.from("posters").upload(path, poster, {
-        upsert: true,
-        contentType: poster.type || undefined,
-      });
-
-      if (uploadError) {
-        uploadErrors.push(`${L("Афиша ")}${index + 1}: ${uploadError.message}`);
-        continue;
+      try {
+        const uploaded = await uploadPoster(supabase, poster, organizer.id, tournament.id);
+        posterRows.push({ tournament_id: tournament.id, ...uploaded, sort_order: index });
+      } catch (error) {
+        uploadErrors.push(`${L("Афиша ")}${index + 1}: ${error instanceof Error ? error.message : String(error)}`);
       }
-
-      const { data: publicUrl } = supabase.storage.from("posters").getPublicUrl(path);
-      posterRows.push({ tournament_id: tournament.id, storage_path: path, public_url: publicUrl.publicUrl, sort_order: index });
     }
 
     if (posterRows.length) {

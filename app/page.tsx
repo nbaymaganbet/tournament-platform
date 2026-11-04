@@ -24,6 +24,8 @@ const posterStyles = `
     min-height: 430px;
     display: grid;
     grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
     overflow: hidden;
     border: 1px solid var(--line);
     border-radius: 16px;
@@ -32,6 +34,7 @@ const posterStyles = `
     scroll-snap-align: start;
   }
   .poster-frame {
+    min-width: 0;
     min-height: 0;
     display: flex;
     align-items: center;
@@ -41,8 +44,8 @@ const posterStyles = `
   }
   .poster-image-full {
     display: block;
-    width: auto;
-    height: auto;
+    width: 100%;
+    height: 100%;
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
@@ -51,17 +54,19 @@ const posterStyles = `
     user-select: none;
     -webkit-user-drag: none;
   }
-  .poster-fallback { width: 100%; height: 100%; pointer-events: none; display: grid; place-items: center; font-size: 32px; }
+  .poster-fallback { width: 100%; height: 100%; min-width: 0; aspect-ratio: auto; padding: 16px; pointer-events: none; display: grid; place-items: center; font-size: clamp(16px, 5vw, 32px); text-align: center; overflow-wrap: anywhere; }
   .poster-slide-info {
     min-height: 78px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
+    flex-wrap: wrap;
+    gap: 12px;
     padding: 12px 16px;
     border-top: 1px solid var(--line);
     background: rgba(17,19,23,.96);
   }
+  .poster-slide-info > div { min-width: 0; flex: 1 1 180px; overflow-wrap: anywhere; }
   .poster-slide-info h3 { margin: 0 0 3px; font-size: 17px; }
   .poster-slide-info .meta { line-height: 1.35; }
   .poster-slide-info .status { flex: none; margin: 0; }
@@ -175,6 +180,17 @@ export default async function Home() {
                             <h3>{x.name}</h3>
                             <div className="meta">{x.date ? new Date(x.date).toLocaleDateString(locale === "kk" ? "kk-KZ" : "ru-RU") : L("Дата уточняется")}</div>
                           </div>
+                          <span className="status">
+                            {x.status === "registration_open"
+                              ? t.open
+                              : x.status === "registration_closed"
+                                ? t.registrationClosed
+                                : x.status === "preparation"
+                                  ? t.preparation
+                                  : x.status === "running"
+                                    ? t.running
+                                    : t.completed}
+                          </span>
                         </Link>
                       </article>
                     )}
