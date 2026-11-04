@@ -17,6 +17,7 @@ export default function LanguageToggle() {
   const [signedIn, setSignedIn] = useState(false);
   const [email, setEmail] = useState("");
   const [organizerName, setOrganizerName] = useState("");
+  const [registrationAlert,setRegistrationAlert]=useState(false);
   const [rosterAlert,setRosterAlert]=useState(false);
   const [permissions, setPermissions] = useState<Record<string, boolean> | null>(null);
 
@@ -89,6 +90,13 @@ export default function LanguageToggle() {
     if(!tournamentId){setRosterAlert(false);return;}
     const {data,error}=await createClient().rpc("bracket_roster_alert",{p_tournament_id:tournamentId});setRosterAlert(!error&&data===true);
   },false,15000);
+  async function loadRegistrationAlert(markRead=false){
+    if(!tournamentId||!signedIn||permissions?.participants===false){setRegistrationAlert(false);return;}
+    const {data,error}=await createClient().rpc("registration_notifications",{p_tournament_id:tournamentId,p_mark_read:markRead});
+    setRegistrationAlert(!error&&data===true);
+  }
+  useEffect(()=>{void loadRegistrationAlert(pathname===`${tournamentBase}/participants`)},[pathname,tournamentId,signedIn,permissions]);
+  useLiveRefresh(tournamentId??undefined,"registrations",()=>loadRegistrationAlert(),false,15000);
   function changeLang(next: Locale) {
     window.dispatchEvent(new CustomEvent("tp-language-changed", { detail: next }));
     document.documentElement.lang = next;
@@ -99,7 +107,7 @@ export default function LanguageToggle() {
 
   function openHelp() {
     setOpen(false);
-    window.dispatchEvent(new Event("tp-open-onboarding"));
+    router.push("/help");
   }
 
   async function handleAuthAction() {
@@ -113,6 +121,7 @@ export default function LanguageToggle() {
     setOpen(false); router.push("/login");
   }
 
+  if(pathname.startsWith("/scoreboard/"))return null;
   return <>
     <Link
       href="/"
@@ -143,7 +152,7 @@ export default function LanguageToggle() {
               const allowed=permissions===null || permissions[permissionKey] !== false;
               const active = href === tournamentBase ? pathname === tournamentBase : pathname.startsWith(href);
               if (!allowed) return <button key={href} type="button" onClick={() => alert(lang === "ru" ? "Этот раздел недоступен для вашей роли." : "Бұл бөлім сіздің рөліңіз үшін қолжетімсіз.")} style={{display:"flex",alignItems:"center",minHeight:44,padding:"0 12px",border:"1px solid transparent",borderRadius:9,color:"#555b65",background:"transparent",fontSize:14,fontWeight:800,textAlign:"left",cursor:"not-allowed"}}>{uiText(lang, label)}</button>;
-              return <Link key={href} href={href} onClick={() => setOpen(false)} style={{display:"flex",alignItems:"center",minHeight:44,padding:"0 12px",border:`1px solid ${active ? "#292d34" : "transparent"}`,borderRadius:9,color:active?"#fff":"#8e949f",background:active?"#17191e":"transparent",fontSize:14,fontWeight:800}}>{uiText(lang, label)}{label==="Сетки"&&rosterAlert&&<span aria-label={lang==="ru"?"Есть участник вне сетки":"Тордан тыс қатысушы бар"} style={{color:"#ef3535",marginLeft:6}}>●</span>}</Link>;
+              return <Link key={href} href={href} onClick={() => setOpen(false)} style={{display:"flex",alignItems:"center",minHeight:44,padding:"0 12px",border:`1px solid ${active ? "#292d34" : "transparent"}`,borderRadius:9,color:active?"#fff":"#8e949f",background:active?"#17191e":"transparent",fontSize:14,fontWeight:800}}>{uiText(lang, label)}{label==="Участники"&&registrationAlert&&<span aria-label={lang==="ru"?"Новые заявки":"Жаңа өтінімдер"} style={{color:"#ef3535",marginLeft:6}}>●</span>}{label==="Сетки"&&rosterAlert&&<span aria-label={lang==="ru"?"Есть участник вне сетки":"Тордан тыс қатысушы бар"} style={{color:"#ef3535",marginLeft:6}}>●</span>}</Link>;
             })}
           </nav>
           <div style={{marginTop:18,paddingTop:14,borderTop:"1px solid #292d34",display:"grid",gap:4}}>
@@ -166,7 +175,6 @@ export default function LanguageToggle() {
               <Link href="/organizer" onClick={() => setOpen(false)} style={{display:"block",border:"1px solid #292d34",borderRadius:10,padding:"12px 15px",color:"#f5f5f5",background:"#111317",textDecoration:"none"}}><div style={{fontWeight:850}}>{organizerName || (lang === "ru" ? "Организатор" : "Ұйымдастырушы")}</div><div style={{marginTop:4,color:"#8e949f",fontSize:12,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{email}</div></Link>
               <button type="button" onClick={handleAuthAction} style={{textAlign:"center",border:"1px solid #292d34",borderRadius:10,padding:"12px 15px",fontWeight:850,color:"#f5f5f5",background:"#111317"}}>{lang === "ru" ? "Выйти" : "Шығу"}</button>
             </> : <button type="button" onClick={handleAuthAction} style={{textAlign:"center",border:"1px solid #292d34",borderRadius:10,padding:"12px 15px",fontWeight:850,color:"#f5f5f5",background:"#111317"}}>{lang === "ru" ? "Войти" : "Кіру"}</button>}
-            <button type="button" onClick={openHelp} style={{textAlign:"left",border:"1px solid #292d34",borderRadius:10,padding:"12px 15px",fontWeight:850,color:"#f5f5f5",background:"#111317",display:"flex",alignItems:"center",gap:10}}><span style={{width:28,height:28,borderRadius:"50%",border:"1px solid #383d46",display:"grid",placeItems:"center"}}>?</span>{lang === "ru" ? "Справка" : "Анықтама"}</button>
             <details style={{border:"1px solid #292d34",borderRadius:10,padding:"12px 15px",background:"#111317",color:"#f5f5f5"}}>
               <summary style={{cursor:"pointer",fontWeight:850}}>{lang === "ru" ? "Установить на телефон" : "Телефонға орнату"}</summary>
               <div style={{fontSize:13,lineHeight:1.6,color:"#b5bac4",marginTop:12}}>
@@ -177,6 +185,7 @@ export default function LanguageToggle() {
             </details>
           </div>
         </>}
+            <button type="button" onClick={openHelp} style={{textAlign:"left",border:"1px solid #292d34",borderRadius:10,padding:"12px 15px",fontWeight:850,color:"#f5f5f5",background:"#111317",display:"flex",alignItems:"center",gap:10}}><span style={{width:28,height:28,borderRadius:"50%",border:"1px solid #383d46",display:"grid",placeItems:"center"}}>?</span>{lang === "ru" ? "Справка" : "Анықтама"}</button>
       </aside>
     </>}
   </>;

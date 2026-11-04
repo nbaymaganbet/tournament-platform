@@ -24,7 +24,7 @@ export default function ResultCategory({ tournamentId, tournamentName, categoryI
       {athletes.map(a => <article className="participant-card" key={a.id}>
         <div className="participant-main">
           <strong>{a.place === 1 ? "🥇" : a.place === 2 ? "🥈" : a.place === 3 ? "🥉" : `${a.place}.`} {a.name || (kk ? "Қатысушы" : "Участник")}</strong>
-          <span className="muted">{a.age ?? "—"} {kk ? "жас" : "лет"} · {a.club || (kk ? "Клуб көрсетілмеген" : "Клуб не указан")} · {a.coach || (kk ? "Жаттықтырушы көрсетілмеген" : "Тренер не указан")}</span>
+          <span className="muted">{[a.age!=null?`${a.age} ${kk?"жас":"лет"}`:null,a.club,a.coach].filter(Boolean).join(" · ")}</span>
         </div>
       </article>)}
     </div>

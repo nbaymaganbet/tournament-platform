@@ -1,5 +1,6 @@
 "use client";
 
+import {usePathname} from "next/navigation";
 import { useLocale } from "@/components/locale-provider";
 
 import { useEffect, useState } from "react";
@@ -18,6 +19,7 @@ const slides = {
 };
 
 export default function Onboarding() {
+  const pathname=usePathname();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
   const lang = useLocale();
@@ -29,7 +31,7 @@ export default function Onboarding() {
     return () => window.removeEventListener("tp-open-onboarding", handler);
   }, []);
 
-  if (!open) return null;
+  if (!open || pathname.startsWith("/scoreboard/")) return null;
   const content = slides[lang][step];
   const last = step === slides[lang].length - 1;
 

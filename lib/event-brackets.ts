@@ -1,6 +1,6 @@
 import type { BracketDisplayMatch } from "./bracket-display";
 export type BracketPerson={id:string;name:string;club?:string|null;city?:string|null;coach?:string|null;age?:number|null;weight?:number|null;status?:string;category_id?:string|null};
-export type EventMatch=BracketDisplayMatch & {category_id:string;status:string;winner_id:string|null;participant_a_id:string|null;participant_b_id:string|null;started_at?:string|null;completed_at?:string|null;mat_id?:string|null;mat_name?:string|null;scheduled_order?:number|null;approximate_time?:string|null};
+export type EventMatch=BracketDisplayMatch & {category_id:string;duration_seconds?:number|null;victory_method?:string|null;score_a?:number|null;score_b?:number|null;status:string;winner_id:string|null;participant_a_id:string|null;participant_b_id:string|null;started_at?:string|null;completed_at?:string|null;mat_id?:string|null;mat_name?:string|null;scheduled_order?:number|null;approximate_time?:string|null};
 export type EventCategory={id:string;name:string;age_min?:number|null;age_max?:number|null;weight_limit?:number|null;format?:string|null;published?:boolean};
 export type BracketResult={category_id:string;participant_id:string;place:number};
 export type EventData={results:BracketResult[];categories:EventCategory[];participants:BracketPerson[];matches:EventMatch[];bout_minutes:number;bout_interval_minutes:number;athlete_rest_minutes:number};
@@ -10,7 +10,7 @@ export function projectSchedule<T extends EventMatch>(matches:T[],duration=5,gap
  if(!active)return matches;
  const result=matches.map(m=>({...m}));
  const stamp=(value?:string|null)=>value?new Date(value).getTime():0;
- const end=(m:EventMatch)=>m.status==="completed"?stamp(m.completed_at):m.status==="running"?Math.max(stamp(m.started_at)+duration*60000,now):stamp(m.approximate_time)+duration*60000;
+ const end=(m:EventMatch)=>m.status==="completed"?stamp(m.completed_at):m.status==="running"?Math.max(stamp(m.started_at)+(m.duration_seconds??duration*60)*1000,now):stamp(m.approximate_time)+(m.duration_seconds??duration*60)*1000;
  const queue=result.filter(m=>m.status!=="completed"&&m.status!=="cancelled").sort((a,b)=>(a.scheduled_order??Infinity)-(b.scheduled_order??Infinity));
  for(const m of queue)if(m.status!=="running"&&m.approximate_time)m.approximate_time=new Date(Math.max(now,stamp(m.approximate_time))).toISOString();
  for(let pass=0;pass<=queue.length;pass++){

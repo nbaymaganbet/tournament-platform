@@ -1,4 +1,5 @@
 "use client";
+import CategoryTiming, {TimingFields,emptyTiming,type CategoryTimingValue} from "@/components/category-timing";
 import { ActionScope, useActionFeedback } from "@/components/action-feedback";
 import { uiText } from "@/lib/ui-text";
 
@@ -9,7 +10,7 @@ import { createClient } from "@/lib/supabase/client";
 import { translations, type Locale } from "@/lib/i18n";
 
 type Person = { id: string; first_name: string; last_name: string; age: number; weight: number; club: string | null; coach: string | null };
-type Category = { id: string; name: string; age_min: number | null; age_max: number | null; weight_min: number | null; weight_limit: number | null; weight_allowance: number | null; sort_order: number; bracket_format: string | null; participantCount: number };
+type Category = CategoryTimingValue & { id: string; name: string; age_min: number | null; age_max: number | null; weight_min: number | null; weight_limit: number | null; weight_allowance: number | null; sort_order: number; bracket_format: string | null; participantCount: number };
 type WeightRow = { type: "up_to" | "from"; weight: string; allowance: string };
 
 export default function CategoriesClient({ tournamentId, defaultFormat, configurable, initialCategories, participants, initialAssignments }: { tournamentId: string; defaultFormat: string; configurable: boolean; initialCategories: Category[]; participants: Person[]; initialAssignments: Record<string, string> }) {
@@ -27,6 +28,7 @@ export default function CategoriesClient({ tournamentId, defaultFormat, configur
   const [assigned, setAssigned] = useState(initialAssignments);
   const [ageGroup, setAgeGroup] = useState({ min: "", max: "" });
   const [weights, setWeights] = useState<WeightRow[]>([{ type: "up_to", weight: "", allowance: "" }]);
+  const [newTiming,setNewTiming]=useState<CategoryTimingValue>(emptyTiming);
   const [showForm, setShowForm] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -88,6 +90,7 @@ export default function CategoriesClient({ tournamentId, defaultFormat, configur
         ? `${ageGroup.min}–${ageGroup.max} ${locale === "kk" ? "жас" : "лет"} — ${labels.upToPreview} ${weight} кг`
         : `${ageGroup.min}–${ageGroup.max} ${locale === "kk" ? "жас" : "лет"} — ${weight}+ кг`;
       return {
+        ...newTiming,
         tournament_id: tournamentId,
         name,
         age_min: Number(ageGroup.min),
@@ -99,7 +102,7 @@ export default function CategoriesClient({ tournamentId, defaultFormat, configur
       };
     });
 
-    const { data, error: insertError } = await supabase.from("categories").insert(rowsToInsert).select("id,name,age_min,age_max,weight_min,weight_limit,weight_allowance,sort_order,bracket_format").order("sort_order");
+    const { data, error: insertError } = await supabase.from("categories").insert(rowsToInsert).select("id,name,age_min,age_max,weight_min,weight_limit,weight_allowance,sort_order,bracket_format,round_seconds,round_count,round_rest_seconds").order("sort_order");
     if (insertError || !data) {
       setError(insertError?.message ?? t.errorGeneric);
     } else {
@@ -202,6 +205,7 @@ export default function CategoriesClient({ tournamentId, defaultFormat, configur
           </div>
         </div>
 
+        <TimingFields value={newTiming} onChange={setNewTiming} kk={locale==="kk"} disabled={busy!==null}/>
         {error && <p className="error">{error}</p>}
         <button className="primary" disabled={busy !== null} style={{ marginTop: 14 }}>{busy === "category" ? t.creating : t.createCategory}</button>
       </form>}
@@ -231,6 +235,7 @@ export default function CategoriesClient({ tournamentId, defaultFormat, configur
                 </div>
               </div>
               {open && <div className="form-card" style={{ marginTop: 16 }}>
+                <CategoryTiming key={c.id} category={c} kk={locale==="kk"} onSaved={value=>setCategories(rows=>rows.map(row=>row.id===c.id?{...row,...value}:row))}/>
                 {configurable && <label style={{display:"block",marginBottom:16}}>{locale === "kk" ? "Тор форматы" : "Формат сетки"}
                   <select className="field" value={c.bracket_format ?? defaultFormat} disabled={busy !== null} onChange={e => void setFormat(c,e.target.value)}>
                     <option value="single_elimination">{locale === "kk" ? "Олимпиадалық" : "Олимпийская"}</option>

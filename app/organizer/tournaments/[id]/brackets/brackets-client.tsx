@@ -13,7 +13,7 @@ import {projectSchedule,nextMatchIds,categoryDone,type BracketPerson,type Bracke
 import { swappableAthletes } from "@/lib/bracket-swap";
 import {isByeSeed,matchRole,pendingAthlete} from "@/lib/bracket-display";
 
-type Category={id:string;name:string;bracket_format:string|null;age_min?:number|null;age_max?:number|null;weight_limit?:number|null};
+type Category={round_seconds?:number|null;round_count?:number|null;round_rest_seconds?:number|null;id:string;name:string;bracket_format:string|null;age_min?:number|null;age_max?:number|null;weight_limit?:number|null};
 type Person={id:string;first_name:string;last_name:string;club:string|null;city:string|null;coach:string|null};
 type Match=EventMatch&{completed_at:string|null};
 type ReadyCategory=Category&{count:number};
@@ -40,7 +40,7 @@ export default function BracketsClient({categories,tournamentId,defaultFormat,ne
  const L=kk?{title:"Жекпе-жек торлары",form:"Торларды қалыптастыру",forming:"Қалыптастырылуда…",ready:"Қалыптастыруға дайын санаттар",noneReady:"Әзірге қалыптастыруға дайын санаттар жоқ.",empty:"Жекпе-жектер әлі қалыптастырылған жоқ.",fight:"Жекпе-жек",round:"Кезең",final:"Финал",third:"3-орын үшін",bye:"Бойсыз өтті (BYE)",share:"Тормен бөлісу",choose:"Орындарын ауыстыру үшін екі спортшыны таңдаңыз.",swap:"Орындарын ауыстыру",saved:"Спортшылардың орындары ауыстырылды.",locked:"Тек алғашқы жекпе-жегін бастамаған спортшылардың орындарын ауыстыруға болады.",status:{completed:"Аяқталды",running:"Өтіп жатыр",ready:"Дайын",scheduled:"Жоспарда"}}:{title:"Сетки",form:"Сформировать сетки",forming:"Формируем…",ready:"Готовые к формированию категории",noneReady:"Пока нет категорий, готовых к формированию сетки.",empty:"Бои ещё не сформированы.",fight:"Бой",round:"Раунд",final:"Финал",third:"За 3-е место",bye:"Прошёл без боя (BYE)",share:"Поделиться сеткой",choose:"Выберите двух спортсменов, чтобы поменять их местами.",swap:"Поменять местами",saved:"Спортсмены поменялись местами.",locked:"Можно менять местами только спортсменов, которые ещё не начали свой первый бой.",status:{completed:"Завершён",running:"Идёт",ready:"Готов",scheduled:"Запланирован"}};
  const personName=(p?:Person)=>p?`${p.last_name} ${p.first_name}`.trim():(kk?"Қатысушы күтілуде":"Ожидается участник");
  async function load(){try{
-  const {data:m,error}=await s.from("matches").select("id,match_number,round_number,status,participant_a_id,participant_b_id,winner_id,completed_at,next_match_id,loser_next_match_id,category_id,started_at").eq("tournament_id",tournamentId).order("match_number");
+  const {data:m,error}=await s.from("matches").select("id,match_number,round_number,status,participant_a_id,participant_b_id,winner_id,completed_at,next_match_id,loser_next_match_id,category_id,started_at,match_scoreboards(score_a,score_b,victory_method)").eq("tournament_id",tournamentId).order("match_number");
   if(error){setMessage(error.message);return}
   const ids=[...new Set((m??[]).flatMap(x=>[x.participant_a_id,x.participant_b_id]).filter(Boolean) as string[])];
   const names:Record<string,Person>={};
@@ -49,7 +49,7 @@ export default function BracketsClient({categories,tournamentId,defaultFormat,ne
   const {data:brackets}=await s.from("brackets").select("category_id,published_at").in("category_id",categories.map(c=>c.id));
   setPublished(new Set((brackets??[]).filter(b=>b.published_at).map(b=>b.category_id)));
   const {data:places}=await s.from("results").select("category_id,participant_id,place").eq("tournament_id",tournamentId);setResults(places??[]);
-  setMatches((m??[]).map(match=>{const slot=(slots??[]).find(x=>x.match_id===match.id);return {...match,...(slot?{mat_id:slot.mat_id,scheduled_order:slot.scheduled_order,approximate_time:slot.approximate_time,mat_name:(Array.isArray(slot.mats)?slot.mats[0]:slot.mats)?.name}:{} )}}));setPeople(names);
+  setMatches((m??[]).map(match=>{const slot=(slots??[]).find(x=>x.match_id===match.id);const sc=Array.isArray(match.match_scoreboards)?match.match_scoreboards[0]:match.match_scoreboards;return {...match,...(sc??{}),...(slot?{mat_id:slot.mat_id,scheduled_order:slot.scheduled_order,approximate_time:slot.approximate_time,mat_name:(Array.isArray(slot.mats)?slot.mats[0]:slot.mats)?.name}:{} )}}));setPeople(names);
   if(categories.length){
    const{data:cp}=await s.from("category_participants").select("category_id,participant_id,is_active,weigh_in_status").in("category_id",categories.map(c=>c.id));
    const pids=[...new Set((cp??[]).filter(x=>x.is_active).map(x=>x.participant_id))];
@@ -119,7 +119,7 @@ export default function BracketsClient({categories,tournamentId,defaultFormat,ne
   setBusy(false);
   }); }
  async function publish(categoryId:string){return action.run(async()=>{setBusy(true);const {error}=await s.rpc("publish_category_bracket",{p_category_id:categoryId});if(error)setMessage(error.message);else await load();setBusy(false);});}
- const projected=projectSchedule(matches,timing.duration,timing.gap,timing.rest,now);
+ const projected=projectSchedule(matches.map(m=>{const c=categories.find(c=>c.id===m.category_id);return {...m,duration_seconds:c?.round_seconds!=null?c.round_seconds*(c.round_count??1)+(c.round_rest_seconds??0)*((c.round_count??1)-1):timing.duration*60}}),timing.duration,timing.gap,timing.rest,now);
  const next=nextMatchIds(projected);
  const visibleCats=filterCategories(categories,rosterPeople,filter);
  const formedCategories=visibleCats.filter(c=>matches.some(m=>m.category_id===c.id));

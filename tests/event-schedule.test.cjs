@@ -29,3 +29,9 @@ test('diagram columns follow feeder links even when stored round numbers repeat'
  const rows=[match('1',1,{round_number:3,next_match_id:'3'}),match('2',2,{round_number:2,next_match_id:'3'}),match('3',3,{round_number:3})];const layout=bracketLayout(rows);
  for(const {from,to} of layout.links)assert.ok(to.x>from.x);
 });
+
+test('category-specific full round duration drives the following mat slot',()=>{
+ const rows=projectSchedule([match('1',1,{duration_seconds:480}),match('2',2,{participant_a_id:'c',participant_b_id:'d',duration_seconds:120}),match('3',3,{participant_a_id:'e',participant_b_id:'f'})],5,1,0,now);
+ assert.equal(Date.parse(rows[1].approximate_time),now+9*60000);
+ assert.equal(Date.parse(rows[2].approximate_time),now+12*60000);
+});

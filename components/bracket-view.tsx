@@ -1,4 +1,5 @@
 "use client";
+import {victoryLabel} from "@/lib/scoreboard";
 import {useEffect,useState} from "react";
 import {bracketLayout,nextMatchIds,type BracketPerson,type BracketResult,type EventMatch} from "@/lib/event-brackets";
 import {isByeSeed,matchRole,pendingAthlete} from "@/lib/bracket-display";
@@ -11,10 +12,10 @@ export default function BracketView({matches,people,kk,roundRobin=false,nextIds,
  const role=(m:EventMatch)=>!roundRobin&&matchRole(m,matches)==="final"?" · Финал":!roundRobin&&matchRole(m,matches)==="third"?(kk?" · 3-орын":" · За 3-е место"):"";
  const layout=bracketLayout(matches);
  return <div className="bracket-view">
-  {[...new Set(matches.map(m=>m.round_number))].sort((a,b)=>a-b).map(round=><section key={round}><h3>{kk?"Кезең":"Раунд"} {round}</h3>{matches.filter(m=>m.round_number===round).map(m=><article key={m.id} className="bracket-bout">
+  {[...new Set(matches.map(m=>m.round_number))].sort((a,b)=>a-b).map(round=><section key={round}><h3>{kk?"Тор кезеңі":"Этап сетки"} {round}</h3>{matches.filter(m=>m.round_number===round).map(m=><article key={m.id} className="bracket-bout">
    <div className="bracket-bout-heading"><strong>#{m.match_number}{role(m)}</strong><span className="status-pill">{status(m)}</span></div>
    {(["a","b"] as const).map(side=>{const {id,p,name}=person(m,side);return <div className={id&&m.winner_id===id?"bracket-winner":""} key={side}><strong>{name}</strong>{p&&<small>{[p.club,p.city].filter(Boolean).join(" · ")}</small>}{!roundRobin&&isByeSeed(m,side,matches)&&<small>{kk?"Бойсыз өтті (BYE)":"Прошёл без боя (BYE)"}</small>}</div>})}
-   <small className="muted">{m.mat_name??(kk?"Кілем тағайындалмаған":"Ковёр не назначен")}</small>
+   {m.mat_name&&<small className="muted">{m.mat_name}</small>}{m.status==="completed"&&m.victory_method&&<small className="muted">{victoryLabel(m.victory_method,kk)}{m.victory_method==="points"?` · ${m.score_a}:${m.score_b}`:""}</small>}
   </article>)}</section>)}
   {roundRobin?<div className="bracket-scroll"><table><thead><tr><th>{kk?"Спортшы":"Спортсмен"}</th><th>{kk?"Жеңістер":"Победы"}</th><th>{kk?"Орын":"Место"}</th></tr></thead><tbody>{[...new Set(matches.flatMap(m=>[m.participant_a_id,m.participant_b_id]).filter((id):id is string=>!!id))].map(id=>({id,wins:matches.filter(m=>m.winner_id===id).length})).sort((a,b)=>b.wins-a.wins).map(row=><tr key={row.id}><td>{names.get(row.id)?.name}</td><td>{row.wins}</td><td>{results.find(r=>r.participant_id===row.id)?.place??"—"}</td></tr>)}</tbody></table></div>:<>
    <button type="button" className="secondary" onClick={()=>setDiagram(v=>!v)}>{diagram?(kk?"Торды жасыру":"Скрыть сетку"):(kk?"Торды көрсету":"Показать сетку")}</button>

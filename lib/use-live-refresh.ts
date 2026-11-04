@@ -37,7 +37,7 @@ export function useLiveRefresh(tournamentId: string | undefined, tables: string,
     const channel = s.channel(`live-${tournamentId ?? "all"}-${Math.random().toString(36).slice(2)}`);
     for (const table of tables.split(",")) {
       const filter = tournamentId && table === "tournaments" ? `id=eq.${tournamentId}`
-        : tournamentId && ["registrations", "categories", "mats", "matches", "results", "tournament_members"].includes(table) ? `tournament_id=eq.${tournamentId}` : undefined;
+        : tournamentId && ["match_scoreboards", "registrations", "categories", "mats", "matches", "results", "tournament_members"].includes(table) ? `tournament_id=eq.${tournamentId}` : undefined;
       channel.on("postgres_changes", { event: "*", schema: "public", table, ...(filter ? { filter } : {}) }, schedule);
     }
     const fallback = fallbackMs ? setInterval(visibleFallback, fallbackMs) : undefined;
