@@ -4,6 +4,7 @@ import {victoryMethods,victoryLabel,type Scoreboard} from "@/lib/scoreboard";
 import {useRef} from "react";
 import {projectSchedule,nextMatchIds} from "@/lib/event-brackets";
 import {pendingAthlete} from "@/lib/bracket-display";
+import {bracketStage} from "@/lib/bracket-stage";
 import { ActionScope, useActionFeedback } from "@/components/action-feedback";
 import { uiText } from "@/lib/ui-text";
 import { useLocale } from "@/components/locale-provider";
@@ -15,7 +16,7 @@ import {createClient} from "@/lib/supabase/client";
 type Person={first_name:string;last_name:string;club:string|null};
 type Match={duration_seconds?:number;round_seconds?:number;round_count?:number;round_rest_seconds?:number;scoreboard?:Scoreboard|null;id:string;match_number:number;round_number:number;status:string;category_id:string;participant_a_id:string|null;participant_b_id:string|null;winner_id:string|null;next_match_id:string|null;loser_next_match_id:string|null;started_at:string|null;completed_at:string|null;participantA?:Person|null;participantB?:Person|null};
 type Slot={id:string;match_id:string;scheduled_order:number;approximate_time:string|null;mat_id:string|null};
-export default function RunningClient({tournamentId,initialMatches,initialSchedule,categoryNames,zoneNames,timing}:{tournamentId:string;initialMatches:Match[];initialSchedule:Slot[];categoryNames:Record<string,string>;zoneNames:Record<string,string>;timing:{duration:number;gap:number;rest:number}}){
+export default function RunningClient({tournamentId,initialMatches,initialSchedule,categoryNames,zoneNames,timing,categoryFormats={}}:{tournamentId:string;initialMatches:Match[];initialSchedule:Slot[];categoryNames:Record<string,string>;zoneNames:Record<string,string>;categoryFormats?:Record<string,string>;timing:{duration:number;gap:number;rest:number}}){
  const locale = useLocale();const L = (text: string) => uiText(locale, text);
 
  const name=(p?:Person|null)=>p?`${p.last_name} ${p.first_name}`:L("Ожидается участник");
@@ -88,7 +89,7 @@ export default function RunningClient({tournamentId,initialMatches,initialSchedu
      const previous=i>0?byId.get(visible[i-1].match_id):null,next=i<visible.length-1?byId.get(visible[i+1].match_id):null;
      return <article className={`running-card${done?" running-card-done":""}`} key={r.id}>
        <div className="running-heading"><strong>#{m.match_number}</strong><span className="status">{done?L("Завершён"):m.status==="running"?(locale==="kk"?"Өтіп жатыр":"Идёт"):nextIds.has(m.id)?(locale==="kk"?"Келесі":"Следующий"):L("Запланирован")}</span></div>
-       <div className="running-meta"><span>{categoryNames[m.category_id]??L("Категория")}</span><span>{locale==="kk"?"Тор кезеңі ":"Этап сетки "}{m.round_number}</span><span>{L("Зона: ")}{r.mat_id?zoneNames[r.mat_id]??"—":"—"}</span>{!done&&m.status!=="running"&&!nextIds.has(m.id)&&<span>≈ {time(forecast.get(m.id)?.approximate_time??r.approximate_time)}</span>}</div>
+       <div className="running-meta"><span>{categoryNames[m.category_id]??L("Категория")}</span><span>{bracketStage(m,matches.filter(row=>row.category_id===m.category_id),locale==="kk",categoryFormats[m.category_id]==="round_robin")}</span><span>{L("Зона: ")}{r.mat_id?zoneNames[r.mat_id]??"—":"—"}</span>{!done&&m.status!=="running"&&!nextIds.has(m.id)&&<span>≈ {time(forecast.get(m.id)?.approximate_time??r.approximate_time)}</span>}</div>
        {!done&&m.status!=="running"&&<button type="button" className="primary" disabled={!!busy||!m.participant_a_id||!m.participant_b_id||matches.some(x=>x.status==="running"&&schedule.some(s=>s.match_id===x.id&&s.mat_id===r.mat_id))} onClick={()=>void start(m)}>{locale==="kk"?"Бастау":"Начать"}</button>}
        <div className="running-people">{([{"id":m.participant_a_id,"person":m.participantA},{"id":m.participant_b_id,"person":m.participantB}]).map((f,j)=><div className="running-person" key={j}>
          <span className="running-name"><strong>{f.person?name(f.person):pendingAthlete(m,j===0?"a":"b",matches,locale==="kk")}</strong>{f.person?.club&&<small>{f.person.club}</small>}</span>

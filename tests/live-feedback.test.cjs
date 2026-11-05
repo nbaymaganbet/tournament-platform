@@ -123,3 +123,42 @@ test('moving zone controls retains manual assignments and only writes after an e
   assert.equal(nodes(tree,'select')[0].props.value,'');assert.deepEqual(rpc,[{name:'set_category_schedule_zone',args:{p_category_id:'c',p_mat_id:null}}]);
  }finally{h.cleanup();restore()}
 });
+
+test('public and organizer bracket cards and diagram share PDF stage names even when round numbers repeat',()=>{
+ const h=hooks();try{
+  const mod=load('components/bracket-view.tsx',{react:h.react});
+  const match=(id,num,next=null,loser=null)=>({id,match_number:num,round_number:1,category_id:'c',next_match_id:next,loser_next_match_id:loser,status:'scheduled',winner_id:null,participant_a_id:null,participant_b_id:null});
+  const matches=[match('s1',1,'f','b'),match('s2',2,'f','b'),match('f',3),match('b',4)];
+  const render=()=>h.render(()=>mod.default({matches,people:[],kk:false}));let tree=render();
+  const text=node=>node==null?'':Array.isArray(node)?node.map(text).join(''):typeof node==='object'?text(node.props?.children):String(node);
+  assert.deepEqual(nodes(tree,'h3').map(text),['Полуфинал','Финал','За 3-е место']);
+  assert.deepEqual(nodes(tree,'article').map(n=>text(nodes(n,'strong')[0])),['#1 · Полуфинал','#2 · Полуфинал','#3 · Финал','#4 · За 3-е место']);
+  nodes(tree,'button').find(n=>text(n)==='Показать сетку').props.onClick();tree=render();
+  const labels=nodes(nodes(tree,'svg')[0],'text').map(text);
+  for(const label of ['#1 · Полуфинал','#3 · Финал','#4 · За 3-е место'])assert.ok(labels.some(value=>value.startsWith(label)));
+  const robin=h.render(()=>mod.default({matches,people:[],kk:false,roundRobin:true}));
+  assert.deepEqual(nodes(robin,'h3').map(text),['Тур 1']);
+ }finally{h.cleanup()}
+});
+test('running uses each complete category bracket for stages and preserves round-robin labels',()=>{
+ const h=hooks();try{
+  const mod=load('app/organizer/tournaments/[id]/running/running-client.tsx',{react:h.react,...locale,'@/components/match-scoreboard':{__esModule:true,default:()=>null},'next/navigation':{useRouter:()=>({refresh(){}})},'@/lib/supabase/client':{createClient:()=>({})},'@/components/action-feedback':{ActionScope:'scope',useActionFeedback:()=>({pending:false,error:'',run:fn=>fn()})}});
+  const match=(id,category,next=null)=>({id,category_id:category,match_number:Number(id.slice(1)),round_number:1,next_match_id:next,loser_next_match_id:null,status:'scheduled',winner_id:null,participant_a_id:null,participant_b_id:null});
+  const props={tournamentId:'t',initialMatches:[match('m1','c','m2'),match('m2','c'),match('m3','r')],initialSchedule:[{id:'s1',match_id:'m1',scheduled_order:1,mat_id:'z'},{id:'s2',match_id:'m2',scheduled_order:2,mat_id:'z'},{id:'s3',match_id:'m3',scheduled_order:3,mat_id:'z'}],categoryNames:{c:'Elimination',r:'Robin'},categoryFormats:{r:'round_robin'},zoneNames:{z:'Mat'},timing:{duration:5,gap:0,rest:5}};
+  let tree=h.render(()=>mod.default(props));tree=h.render(()=>mod.default(props));
+  const labels=nodes(tree,'span').map(n=>n.props.children);
+  assert.ok(labels.includes('Полуфинал'));assert.ok(labels.includes('Финал'));assert.ok(labels.includes('Тур 1'));
+ }finally{h.cleanup()}
+});
+test('registration success does not issue a ticket or expose a private status link',async()=>{
+ const h=hooks();try{
+  const calls=[],action={pending:false,error:'',run:fn=>fn()};
+  const mod=load('app/tournaments/[id]/register/registration-form.tsx',{react:h.react,...locale,'@/components/pending-link':{__esModule:true,default:'a'},'@/components/action-feedback':{ActionScope:'scope',useActionFeedback:()=>action},'@/lib/supabase/client':{createClient:()=>({rpc:async(name,args)=>{calls.push(name);return{data:[{application_number:'TEST-TICKET',status_token:'test-private-token'}],error:null}}})}});
+  const render=()=>h.render(()=>mod.default({tournamentId:'t'}));let tree=render();
+  for(const [index,value]of [[0,'First'],[1,'Last'],[2,'12'],[3,'40']]){nodes(tree,'input')[index].props.onChange({target:{value}});tree=render()}
+  await nodes(tree,'form')[0].props.onSubmit({preventDefault(){}});tree=render();
+  assert.deepEqual(calls,['submit_tournament_registration']);assert.deepEqual(nodes(tree,'a').map(n=>n.props.href),['/tournaments/t']);
+  const rendered=JSON.stringify(tree);assert.ok(rendered.includes('Заявка отправлена'));assert.ok(!rendered.includes('TEST-TICKET'));assert.ok(!rendered.includes('test-private-token'));assert.ok(!rendered.includes('/registration/status'));
+  const removed=load('app/registration/status/page.tsx',{'next/navigation':{notFound(){throw Error('NOT_FOUND')}}});assert.throws(()=>removed.default(),/NOT_FOUND/);
+ }finally{h.cleanup()}
+});
