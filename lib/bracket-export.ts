@@ -7,7 +7,7 @@ export async function exportBrackets(title:string,groups:ExportCategory[],people
  const names=new Map(people.map(p=>[p.id,p]));const images:{bytes:Uint8Array;width:number;height:number}[]=[];
  for(const {category,matches,results=[]} of groups){
   const layout=bracketLayout(matches);const roundRobin=category.format==="round_robin";
-  const width=Math.max(1200,layout.width+60),height=Math.max(848,layout.height+230,roundRobin?matches.length*95+160:0);
+  const width=Math.max(1200,layout.width+60),height=Math.max(848,layout.height+230,roundRobin?matches.length*95+240:0);
   const canvas=document.createElement("canvas");canvas.width=width*1.5;canvas.height=height*1.5;
   const ctx=canvas.getContext("2d");if(!ctx)throw new Error("Canvas unavailable");ctx.scale(1.5,1.5);ctx.fillStyle="#fff";ctx.fillRect(0,0,width,height);
   ctx.fillStyle="#111";ctx.font="bold 24px sans-serif";ctx.fillText(title,30,38,width-60);ctx.font="18px sans-serif";ctx.fillText(category.name,30,68,width-60);

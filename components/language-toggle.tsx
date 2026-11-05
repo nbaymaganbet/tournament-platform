@@ -167,8 +167,8 @@ export default function LanguageToggle() {
             <div style={{padding:14,border:"1px solid #292d34",borderRadius:12,background:"#111317"}}>
               <div style={{color:"#8e949f",marginBottom:9}}>{lang === "ru" ? "Язык" : "Тіл"}</div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-                <button type="button" style={{border:"1px solid #292d34",borderRadius:9,padding:"11px 15px",fontWeight:800,background:lang === "ru" ? "#e10600" : "#17191e",color:"#fff"}} onClick={() => changeLang("ru")}>РУС</button>
-                <button type="button" style={{border:"1px solid #292d34",borderRadius:9,padding:"11px 15px",fontWeight:800,background:lang === "kk" ? "#e10600" : "#17191e",color:"#fff"}} onClick={() => changeLang("kk")}>ҚАЗ</button>
+                <button type="button" style={{border:"1px solid #292d34",borderRadius:9,padding:"10px 12px",minHeight:44,fontSize:14,lineHeight:1.5,fontWeight:750,background:lang === "ru" ? "#e10600" : "#17191e",color:"#fff"}} onClick={() => changeLang("ru")}>РУС</button>
+                <button type="button" style={{border:"1px solid #292d34",borderRadius:9,padding:"10px 12px",minHeight:44,fontSize:14,lineHeight:1.5,fontWeight:750,background:lang === "kk" ? "#e10600" : "#17191e",color:"#fff"}} onClick={() => changeLang("kk")}>ҚАЗ</button>
               </div>
             </div>
             {signedIn ? <>
