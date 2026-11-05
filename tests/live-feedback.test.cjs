@@ -153,12 +153,12 @@ test('running uses each complete category bracket for stages and preserves round
 test('registration success does not issue a ticket or expose a private status link',async()=>{
  const h=hooks();try{
   const calls=[],action={pending:false,error:'',run:fn=>fn()};
-  const mod=load('app/tournaments/[id]/register/registration-form.tsx',{react:h.react,...locale,'@/components/pending-link':{__esModule:true,default:'a'},'@/components/action-feedback':{ActionScope:'scope',useActionFeedback:()=>action},'@/lib/supabase/client':{createClient:()=>({rpc:async(name,args)=>{calls.push(name);return{data:[{application_number:'TEST-TICKET',status_token:'test-private-token'}],error:null}}})}});
+  const mod=load('app/tournaments/[id]/register/registration-form.tsx',{react:h.react,...locale,'@/components/pending-link':{__esModule:true,default:'a'},'@/components/action-feedback':{ActionScope:'scope',useActionFeedback:()=>action},'@/lib/supabase/client':{createClient:()=>({rpc:async(name,args)=>{calls.push(name);return{data:[{registration_id:'test-registration',application_number:'TEST-APPLICATION'}],error:null}}})}});
   const render=()=>h.render(()=>mod.default({tournamentId:'t'}));let tree=render();
   for(const [index,value]of [[0,'First'],[1,'Last'],[2,'12'],[3,'40']]){nodes(tree,'input')[index].props.onChange({target:{value}});tree=render()}
   await nodes(tree,'form')[0].props.onSubmit({preventDefault(){}});tree=render();
   assert.deepEqual(calls,['submit_tournament_registration']);assert.deepEqual(nodes(tree,'a').map(n=>n.props.href),['/tournaments/t']);
-  const rendered=JSON.stringify(tree);assert.ok(rendered.includes('Заявка отправлена'));assert.ok(!rendered.includes('TEST-TICKET'));assert.ok(!rendered.includes('test-private-token'));assert.ok(!rendered.includes('/registration/status'));
-  const removed=load('app/registration/status/page.tsx',{'next/navigation':{notFound(){throw Error('NOT_FOUND')}}});assert.throws(()=>removed.default(),/NOT_FOUND/);
+  const rendered=JSON.stringify(tree);assert.ok(rendered.includes('Заявка отправлена'));assert.ok(!rendered.includes('TEST-APPLICATION'));assert.ok(!rendered.includes('/registration/status'));
+  assert.equal(fs.existsSync(path.join(root,'app/registration/status/page.tsx')),false);
  }finally{h.cleanup()}
 });
