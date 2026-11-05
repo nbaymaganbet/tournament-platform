@@ -173,10 +173,10 @@ export default function LanguageToggle() {
             </div>
             {signedIn ? <>
               <Link href="/organizer" onClick={() => setOpen(false)} style={{display:"block",border:"1px solid #292d34",borderRadius:10,padding:"12px 15px",color:"#f5f5f5",background:"#111317",textDecoration:"none"}}><div style={{fontWeight:850}}>{organizerName || (lang === "ru" ? "Организатор" : "Ұйымдастырушы")}</div><div style={{marginTop:4,color:"#8e949f",fontSize:12,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{email}</div></Link>
-              <button type="button" onClick={handleAuthAction} style={{textAlign:"center",border:"1px solid #292d34",borderRadius:10,padding:"12px 15px",fontWeight:850,color:"#f5f5f5",background:"#111317"}}>{lang === "ru" ? "Выйти" : "Шығу"}</button>
-            </> : <button type="button" onClick={handleAuthAction} style={{textAlign:"center",border:"1px solid #292d34",borderRadius:10,padding:"12px 15px",fontWeight:850,color:"#f5f5f5",background:"#111317"}}>{lang === "ru" ? "Войти" : "Кіру"}</button>}
-            <details style={{border:"1px solid #292d34",borderRadius:10,padding:"12px 15px",background:"#111317",color:"#f5f5f5"}}>
-              <summary style={{cursor:"pointer",fontWeight:850}}>{lang === "ru" ? "Установить на телефон" : "Телефонға орнату"}</summary>
+              <button type="button" onClick={handleAuthAction} className="sidebar-action">{lang === "ru" ? "Выйти" : "Шығу"}</button>
+            </> : <button type="button" onClick={handleAuthAction} className="sidebar-action">{lang === "ru" ? "Войти" : "Кіру"}</button>}
+            <details className="sidebar-action sidebar-install">
+              <summary>{lang === "ru" ? "Установить на телефон" : "Телефонға орнату"}</summary>
               <div style={{fontSize:13,lineHeight:1.6,color:"#b5bac4",marginTop:12}}>
                 <p style={{margin:"0 0 12px"}}><strong style={{color:"#f5f5f5"}}>iPhone</strong><br />{lang === "ru" ? "Откройте сайт в Safari → «Поделиться» → «На экран Домой» → «Добавить». Если есть «Открывать как веб-приложение» — включите." : "Сайтты Safari-де ашыңыз → «Бөлісу» → «Басты экранға қосу» → «Қосу». «Веб-қолданба ретінде ашу» болса, қосыңыз."}</p>
                 <p style={{margin:"0 0 12px"}}><strong style={{color:"#f5f5f5"}}>Android</strong><br />{lang === "ru" ? "Откройте сайт в Chrome → ⋮ → «Добавить на главный экран» или «Установить приложение» → «Установить»." : "Сайтты Chrome-да ашыңыз → ⋮ → «Басты экранға қосу» немесе «Қолданбаны орнату» → «Орнату»."}</p>
@@ -185,7 +185,7 @@ export default function LanguageToggle() {
             </details>
           </div>
         </>}
-            <button type="button" onClick={openHelp} style={{textAlign:"left",border:"1px solid #292d34",borderRadius:10,padding:"12px 15px",fontWeight:850,color:"#f5f5f5",background:"#111317",display:"flex",alignItems:"center",gap:10}}><span style={{width:28,height:28,borderRadius:"50%",border:"1px solid #383d46",display:"grid",placeItems:"center"}}>?</span>{lang === "ru" ? "Справка" : "Анықтама"}</button>
+            <button type="button" onClick={openHelp} className="sidebar-action sidebar-help"><span className="sidebar-help-icon" aria-hidden="true">?</span>{lang === "ru" ? "Справка" : "Анықтама"}</button>
       </aside>
     </>}
   </>;

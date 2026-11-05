@@ -1,5 +1,6 @@
 import {bracketLayout,type BracketPerson,type BracketResult,type EventCategory,type EventMatch} from "./event-brackets";
 import {pendingAthlete} from "./bracket-display";
+import {bracketStage} from "./bracket-stage";
 export type ExportCategory={category:EventCategory;matches:EventMatch[];results?:BracketResult[]};
 // One landscape PDF page per category; the same geometry as the on-screen bracket.
 export async function exportBrackets(title:string,groups:ExportCategory[],people:BracketPerson[],kk:boolean):Promise<Blob>{
@@ -11,13 +12,14 @@ export async function exportBrackets(title:string,groups:ExportCategory[],people
   const ctx=canvas.getContext("2d");if(!ctx)throw new Error("Canvas unavailable");ctx.scale(1.5,1.5);ctx.fillStyle="#fff";ctx.fillRect(0,0,width,height);
   ctx.fillStyle="#111";ctx.font="bold 24px sans-serif";ctx.fillText(title,30,38,width-60);ctx.font="18px sans-serif";ctx.fillText(category.name,30,68,width-60);
   const person=(m:EventMatch,side:"a"|"b")=>{const id=side==="a"?m.participant_a_id:m.participant_b_id;return {id,p:id?names.get(id):undefined,name:(id?names.get(id)?.name:null)??pendingAthlete(m,side,matches,kk)}};
-  if(roundRobin){matches.forEach((m,i)=>{ctx.fillStyle="#111";ctx.font="bold 16px sans-serif";ctx.fillText(`#${m.match_number} · ${kk?"Кезең":"Раунд"} ${m.round_number}`,30,110+i*95);(["a","b"] as const).forEach((side,j)=>{const p=person(m,side);ctx.fillStyle=p.id===m.winner_id?"#167041":"#111";ctx.font="15px sans-serif";ctx.fillText(`${p.name} · ${[p.p?.club,p.p?.city].filter(Boolean).join(" · ")}`,30,134+i*95+j*24,width-60);});});}
+  if(roundRobin){matches.forEach((m,i)=>{ctx.fillStyle="#111";ctx.font="bold 16px sans-serif";ctx.fillText(`#${m.match_number} · ${bracketStage(m,matches,kk,true)}`,30,110+i*95);(["a","b"] as const).forEach((side,j)=>{const p=person(m,side);ctx.fillStyle=p.id===m.winner_id?"#167041":"#111";ctx.font="15px sans-serif";ctx.fillText(`${p.name} · ${[p.p?.club,p.p?.city].filter(Boolean).join(" · ")}`,30,134+i*95+j*24,width-60);});});}
   else{
    ctx.translate(22,95);ctx.strokeStyle="#777";ctx.lineWidth=1;
    for(const {from,to,loser} of layout.links){ctx.setLineDash(loser?[4,4]:[]);ctx.beginPath();ctx.moveTo(from.x+266,from.y+48);ctx.lineTo(from.x+282,from.y+48);ctx.lineTo(from.x+282,to.y+48);ctx.lineTo(to.x+8,to.y+48);ctx.stroke();}ctx.setLineDash([]);
-   for(const {match:m,x,y} of layout.boxes){ctx.strokeStyle="#aaa";ctx.strokeRect(x+8,y+8,258,98);ctx.fillStyle="#555";ctx.font="11px sans-serif";ctx.fillText(`#${m.match_number} · ${kk?"Кезең":"Раунд"} ${m.round_number}${m.status==="completed"?(kk?" · Аяқталды":" · Завершён"):""}`,x+16,y+25,240);(["a","b"] as const).forEach((side,i)=>{const p=person(m,side);ctx.fillStyle=p.id&&p.id===m.winner_id?"#167041":"#111";ctx.font="bold 12px sans-serif";ctx.fillText(p.name,x+16,y+45+i*30,240);ctx.font="10px sans-serif";ctx.fillStyle="#555";ctx.fillText([p.p?.club,p.p?.city].filter(Boolean).join(" · "),x+16,y+58+i*30,240);});}
+   for(const {match:m,x,y} of layout.boxes){ctx.strokeStyle="#aaa";ctx.strokeRect(x+8,y+8,258,98);ctx.fillStyle="#555";ctx.font="11px sans-serif";ctx.fillText(`#${m.match_number} · ${bracketStage(m,matches,kk)}${m.status==="completed"?(kk?" · Аяқталды":" · Завершён"):""}`,x+16,y+25,240);(["a","b"] as const).forEach((side,i)=>{const p=person(m,side);ctx.fillStyle=p.id&&p.id===m.winner_id?"#167041":"#111";ctx.font="bold 12px sans-serif";ctx.fillText(p.name,x+16,y+45+i*30,240);ctx.font="10px sans-serif";ctx.fillStyle="#555";ctx.fillText([p.p?.club,p.p?.city].filter(Boolean).join(" · "),x+16,y+58+i*30,240);});}
    ctx.translate(-22,-95);
   }
+  if(results.length){ctx.fillStyle="#111";ctx.font="bold 18px sans-serif";ctx.fillText(kk?"Нәтижелер":"Результаты",30,height-120,width-60);}
   ctx.fillStyle="#111";ctx.font="16px sans-serif";
   results.slice().sort((a,b)=>a.place-b.place).forEach((m,i)=>ctx.fillText(`${m.place}. ${names.get(m.participant_id)?.name??""}`,30,height-92+i*22,width-60));
   const url=canvas.toDataURL("image/jpeg",.92).split(",")[1];images.push({bytes:Uint8Array.from(atob(url),c=>c.charCodeAt(0)),width:canvas.width,height:canvas.height});canvas.width=0;canvas.height=0;

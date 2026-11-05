@@ -96,3 +96,30 @@ test('before start, only walkover can be recorded; points result requires both s
  let count=rpc.length;nodes(dialog,'button').find(n=>n.props.children==='Подтвердить победу').props.onClick();await new Promise(setImmediate);assert.equal(rpc.length,count);
  nodes(dialog,'input')[0].props.onChange({target:{value:'4'}});nodes(dialog,'input')[1].props.onChange({target:{value:'2'}});tree=render();dialog=nodes(tree,'dialog')[0];nodes(dialog,'button').find(n=>n.props.children==='Подтвердить победу').props.onClick();await new Promise(setImmediate);assert.equal(rpc.at(-1).args.p_method,'points');assert.equal(rpc.at(-1).args.p_score_a,4);assert.equal(rpc.at(-1).args.p_score_b,2);assert.equal(rpc.at(-1).args.p_winner_id,'a');h.cleanup();
 });
+
+test('hiding optional schedule settings preserves current and edited values without writes',async()=>{
+ const h=hooks(),rpc=[];const action={pending:false,error:'',run:fn=>fn()};
+ const mod=load('app/organizer/tournaments/[id]/schedule/schedule-client.tsx',{react:h.react,...locale,'@/components/action-feedback':{ActionScope:()=>null,useActionFeedback:()=>action},'@/lib/supabase/client':{createClient:()=>({rpc:async(name,args)=>{rpc.push({name,args});return {error:null}}})}});
+ const props={tournamentId:'t',startTime:'11:00',scheduledCount:32,timing:{duration:7,gap:2,rest:8}};
+ const render=()=>h.render(()=>mod.default(props));let tree=render();
+ assert.equal(nodes(tree,'input').filter(n=>n.props.type==='number').length,0);assert.equal(rpc.length,0);
+ nodes(tree,'input').find(n=>n.props.type==='checkbox').props.onChange({target:{checked:true}});tree=render();
+ assert.deepEqual(nodes(tree,'input').filter(n=>n.props.type==='number').map(n=>n.props.value),[7,2,8]);
+ nodes(tree,'input').find(n=>n.props.type==='number').props.onChange({target:{value:'9'}});
+ tree=render();nodes(tree,'input').find(n=>n.props.type==='checkbox').props.onChange({target:{checked:false}});
+ tree=render();assert.equal(rpc.length,0);nodes(tree,'input').find(n=>n.props.type==='checkbox').props.onChange({target:{checked:true}});
+ tree=render();assert.deepEqual(nodes(tree,'input').filter(n=>n.props.type==='number').map(n=>n.props.value),[9,2,8]);
+ nodes(tree,'button').find(n=>n.props.children==='Сохранить параметры').props.onClick();await new Promise(setImmediate);
+ assert.deepEqual(rpc,[{name:'save_bout_timing',args:{p_tournament_id:'t',p_duration:9,p_interval:2,p_rest:8}}]);h.cleanup();
+});
+test('moving zone controls retains manual assignments and only writes after an explicit selection',async()=>{
+ const restore=environment(),h=hooks(),rpc=[];try{
+  const action={pending:false,error:'',run:fn=>fn()};
+  const mod=load('app/organizer/tournaments/[id]/schedule/category-zones.tsx',{react:h.react,...locale,'@/components/action-feedback':{ActionScope:()=>null,useActionFeedback:()=>action},'@/lib/supabase/client':{createClient:()=>({rpc:async(name,args)=>{rpc.push({name,args});return {error:null}}})}});
+  const props={tournamentId:'t',initialCategories:[{id:'c',name:'Category',count:2,preferred_mat_id:'z'}],mats:[{id:'z',name:'Mat',is_active:false}]};
+  const render=()=>h.render(()=>mod.default(props));let tree=render();assert.equal(rpc.length,0);
+  assert.equal(nodes(tree,'select')[0].props.value,'z');assert.equal(nodes(tree,'option').length,2);
+  nodes(tree,'select')[0].props.onChange({target:{value:''}});await new Promise(setImmediate);tree=render();
+  assert.equal(nodes(tree,'select')[0].props.value,'');assert.deepEqual(rpc,[{name:'set_category_schedule_zone',args:{p_category_id:'c',p_mat_id:null}}]);
+ }finally{h.cleanup();restore()}
+});

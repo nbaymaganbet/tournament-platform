@@ -4,6 +4,7 @@ import Link from "@/components/pending-link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import ScheduleClient from "./schedule-client";
+import CategoryZones from "./category-zones";
 import MatsClient from "../mats/mats-client";
 import { hasTournamentPermission, permissionDeniedPage } from "@/lib/tournament-permissions";
 
@@ -37,14 +38,13 @@ export default async function SchedulePage({params}:{params:Promise<{id:string}>
     <div className="section-header"><div><h1>{L("Зоны и расписание")}</h1><p className="muted">{L("Создайте зоны, назначьте их категориям и задайте начало соревнований.")}</p></div></div>
 
     <details className="form-card" style={{marginBottom:16}}>
-      <summary style={{cursor:"pointer",fontWeight:800,fontSize:22}}>{L("Зоны турнира")}</summary>
+      <summary className="schedule-summary">{L("Зоны турнира")}</summary>
       <p className="muted">{L("Добавляйте, переименовывайте, включайте или выключайте зоны, на которых проходят поединки.")}</p>
       <MatsClient tournamentId={id} initialMats={mats??[]}/>
+      <CategoryZones tournamentId={id} initialCategories={(categories??[]).filter(c=>matchCounts.has(c.id)).map(c=>({id:c.id,name:c.name,count:matchCounts.get(c.id)??0,preferred_mat_id:c.preferred_mat_id}))} mats={(mats??[]).map(m=>({id:m.id,name:m.name,is_active:m.is_active}))}/>
     </details>
 
-    <ScheduleClient tournamentId={id} startTime={t.schedule_start_time??"10:00"} scheduledCount={scheduledCount??0} timing={{duration:t.bout_minutes,gap:t.bout_interval_minutes,rest:t.athlete_rest_minutes}}
-      initialCategories={(categories??[]).filter(c=>matchCounts.has(c.id)).map(c=>({id:c.id,name:c.name,count:matchCounts.get(c.id)??0,preferred_mat_id:c.preferred_mat_id}))}
-      mats={(mats??[]).map(m=>({id:m.id,name:m.name,is_active:m.is_active}))}/>
+    <ScheduleClient tournamentId={id} startTime={t.schedule_start_time??"10:00"} scheduledCount={scheduledCount??0} timing={{duration:t.bout_minutes??5,gap:t.bout_interval_minutes??0,rest:t.athlete_rest_minutes??5}}/>
   </main>
 }
 
