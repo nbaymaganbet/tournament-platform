@@ -13,7 +13,7 @@ begin
  for i in 1..8 loop
   insert into public.participants(organizer_id,first_name,last_name,age,weight,club,city,experience,coach) values(org,'QA'||i,gen_random_uuid()::text,12,50,'Club'||((i-1)/2),case when i<=4 then 'Astana' else 'Almaty' end,case when i%2=1 then '1 год' else '5 лет' end,'Coach'||((i-1)/2)) returning id into pid;
   bids:=array_append(bids,pid);
-  insert into public.registrations(tournament_id,participant_id,status,payment_status,status_token_hash) values(tid,pid,'confirmed','paid',gen_random_uuid()::text);
+  insert into public.registrations(tournament_id,participant_id,status,payment_status) values(tid,pid,'confirmed','paid');
   insert into public.category_participants(category_id,participant_id,weigh_in_status,weigh_in_weight) values(cid,pid,case when i=8 then 'pending' else 'in_weight' end,50);
  end loop;
  blocked:=false;
@@ -24,7 +24,6 @@ begin
  assert (select count(*) from public.matches where category_id=cid)=7,'8 athletes need 7 bouts without bronze';
  event:=public.get_public_event_data(tid);
  assert jsonb_array_length(event->'matches')=0,'Unpublished matches must be hidden';
- assert not exists(select 1 from public.get_public_category_bracket(tid,cid)),'Old bracket RPC must respect publication';
  perform public.publish_category_bracket(cid);
  event:=public.get_public_event_data(tid);
  assert jsonb_array_length(event->'matches')=7,'Published bracket must be visible';
@@ -68,6 +67,6 @@ begin
  perform set_config('request.jwt.claim.sub','',true);perform set_config('request.jwt.claims','{}',true);
  blocked:=false;begin perform public.publish_category_bracket(cid);exception when others then blocked:=sqlerrm like '%Not authorized%';end;
  assert blocked,'Anonymous callers cannot publish';
- assert not has_function_privilege('anon','public.get_registration_status(text)','execute'),'Old ticket API disabled';
+ assert to_regprocedure('public.get_registration_status(text)') is null,'Removed ticket API must not exist';
 end $$;
 rollback;

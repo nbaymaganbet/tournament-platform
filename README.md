@@ -32,4 +32,4 @@ Build the MVP end-to-end first. Do not add social, marketplace, coach ratings, c
 - `supabase/migrations/` is chronological schema history, not a list of active APIs. Replay the full history; the latest migration determines the current schema. Do not delete applied migrations to remove an obsolete feature.
 - Database functions named `legacy_*` are still called by active bracket generation and result recording. Keep them until their callers are replaced.
 
-- `supabase/maintenance/remove_unused_runtime.sql` contains the reviewed cleanup operation. It preserves application rows and is not run during the web build. `tests/runtime-cleanup-database.sql` verifies registration after that operation in a rollback-only transaction.
+- `supabase/migrations/20261105164540_remove_unused_runtime_and_ticket_keys.sql` records the applied database cleanup. Its guards preserve application rows and roll back its regression fixtures. `tests/runtime-cleanup-database.sql` verifies the current registration contract in a rollback-only transaction.
