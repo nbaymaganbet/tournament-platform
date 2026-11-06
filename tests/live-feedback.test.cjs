@@ -162,3 +162,35 @@ test('registration success does not issue a ticket or expose a private status li
   assert.equal(fs.existsSync(path.join(root,'app/registration/status/page.tsx')),false);
  }finally{h.cleanup()}
 });
+
+test('confirmation cancellation appears only for confirmed rows, matches menu styling and supports reconfirmation',async()=>{
+ const restore=environment(),h=hooks(),rpc=[];try{
+  global.window.confirm=()=>true;global.window.alert=message=>{throw Error(message)};
+  const client={rpc:async(name,args)=>{rpc.push({name,args});return {data:{registration_id:'r'},error:null}}};
+  const mod=load('app/organizer/tournaments/[id]/participants/participants-client.tsx',{react:h.react,...locale,'@/lib/supabase/client':{createClient:()=>client},'@/components/action-feedback':{ActionScope:'scope',useActionFeedback:()=>({pending:false,error:'',run:fn=>fn()})}});
+  const row={id:'r',participant_id:'p',application_number:'A-1',status:'confirmed',payment_status:'paid',first_name:'First',last_name:'Last',age:12,weight:50,experience:null,phone:null,city:null,club:null,coach:null};
+  const props={tournamentId:'t',initialRows:[row]},render=()=>h.render(()=>mod.default(props));let tree=render();
+  nodes(tree,'button').find(n=>n.props['aria-label']==='Действия').props.onClick();tree=render();
+  const edit=nodes(tree,'button').find(n=>n.props.children==='Изменить'),cancel=nodes(tree,'button').find(n=>n.props.children==='Отменить подтверждение');
+  assert.equal(cancel.props.className,edit.props.className);assert.deepEqual(cancel.props.style,edit.props.style);
+  cancel.props.onClick();await new Promise(setImmediate);tree=render();
+  assert.deepEqual(rpc,[{name:'cancel_tournament_registration',args:{p_registration_id:'r'}}]);
+  assert.ok(nodes(tree,'button').some(n=>n.props.children==='Подтвердить заявку'));
+  nodes(tree,'button').find(n=>n.props['aria-label']==='Действия').props.onClick();tree=render();
+  assert.ok(!nodes(tree,'button').some(n=>n.props.children==='Отменить подтверждение'));
+  nodes(tree,'button').find(n=>n.props.children==='Подтвердить заявку').props.onClick();await new Promise(setImmediate);tree=render();
+  assert.equal(rpc.at(-1).name,'confirm_tournament_registration');assert.ok(nodes(tree,'button').some(n=>n.props.children==='Заявка подтверждена'));
+ }finally{h.cleanup();restore()}
+});
+test('declined and bracket-blocked cancellation keep the participant confirmed',async()=>{
+ const restore=environment(),h=hooks(),rpc=[],alerts=[];let consent=false;try{
+  global.window.confirm=()=>consent;global.window.alert=message=>alerts.push(message);
+  const mod=load('app/organizer/tournaments/[id]/participants/participants-client.tsx',{react:h.react,...locale,'@/lib/supabase/client':{createClient:()=>({rpc:async(name,args)=>{rpc.push({name,args});return{data:null,error:{message:'Participant is already in a bracket; confirmation cannot be cancelled'}}}})},'@/components/action-feedback':{ActionScope:'scope',useActionFeedback:()=>({pending:false,error:'',run:fn=>fn()})}});
+  const props={tournamentId:'t',initialRows:[{id:'r',participant_id:'p',application_number:'A-1',status:'confirmed',payment_status:'paid',first_name:'First',last_name:'Last',age:12,weight:50}]};
+  const render=()=>h.render(()=>mod.default(props));let tree=render();
+  const open=()=>{nodes(tree,'button').find(n=>n.props['aria-label']==='Действия').props.onClick();tree=render()};
+  open();nodes(tree,'button').find(n=>n.props.children==='Отменить подтверждение').props.onClick();await new Promise(setImmediate);tree=render();assert.equal(rpc.length,0);
+  consent=true;open();nodes(tree,'button').find(n=>n.props.children==='Отменить подтверждение').props.onClick();await new Promise(setImmediate);tree=render();
+  assert.equal(rpc.length,1);assert.match(alerts[0],/уже включён в сетку/);assert.ok(nodes(tree,'button').some(n=>n.props.children==='Заявка подтверждена'));
+ }finally{h.cleanup();restore()}
+});
