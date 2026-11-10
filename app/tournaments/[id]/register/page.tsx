@@ -25,7 +25,7 @@ export default async function RegisterPage({ params }: { params: Promise<{ id: s
       <div className="form-card">
         <div className="eyebrow">{L("Регистрация участника")}</div>
         <h1>{L("Заявка на участие")}</h1>
-        <p className="muted">{L("Заполните данные. После отправки вы получите номер заявки.")}</p>
+        <p className="muted">{L("После подтверждения заявки организатором вы появитесь в списке участников.")}</p>
         <RegistrationForm tournamentId={id} />
       </div>
     </main>
