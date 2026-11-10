@@ -1,0 +1,71 @@
+.gallery {
+  min-width: 0;
+  background: #090a0c;
+}
+
+.frame {
+  display: grid;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  height: min(66svh, 640px);
+  padding: 8px;
+  overflow: hidden;
+}
+
+.swipe {
+  touch-action: pan-y pinch-zoom;
+}
+
+.imageLink {
+  display: grid;
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+}
+
+.frame .image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 0;
+  user-select: none;
+}
+
+.fallback {
+  aspect-ratio: auto;
+  padding: 16px;
+  font-size: clamp(16px, 5vw, 32px);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 0 8px 8px;
+}
+
+.controls button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 26px;
+  line-height: 1;
+}
+
+.controls span {
+  min-width: 44px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.original {
+  display: block;
+  padding: 4px 8px 8px;
+}
