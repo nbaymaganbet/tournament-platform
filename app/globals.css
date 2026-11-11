@@ -92,3 +92,5 @@ details.sidebar-install{padding:0}
 .schedule-category span{display:grid;gap:2px;min-width:0}.schedule-category small{color:var(--muted)}
 .schedule-category select{min-width:0;min-height:44px;font-size:14px}
 @media(max-width:600px){.schedule-category{grid-template-columns:1fr}.schedule-category select{width:100%}}
+
+.filter-disclosure{min-width:0}.filter-disclosure>summary{cursor:pointer;font-weight:700;padding:8px 0;overflow-wrap:anywhere}.filter-disclosure>.form-field{margin-bottom:8px}

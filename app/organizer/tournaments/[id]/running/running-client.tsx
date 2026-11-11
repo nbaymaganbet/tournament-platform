@@ -83,11 +83,14 @@ export default function RunningClient({tournamentId,initialMatches,initialSchedu
        <option value="">{locale==="kk"?"Барлық аймақтар":"Все зоны"}</option>
        {Object.entries(zoneNames).map(([id,title])=><option key={id} value={id}>{title}</option>)}
      </select></label>
-     <label><span>{locale==="kk"?"Санат":"Категория"}</span><select className="field" value={categoryFilter} onChange={e=>setCategoryFilter(e.target.value)}>
+   </div>
+   <details className="filter-disclosure">
+     <summary>{locale==="kk"?"Сүзгілер":"Фильтры"}{categoryFilter&&categoryNames[categoryFilter]&&<span className="muted"> · {categoryNames[categoryFilter]}</span>}</summary>
+     <label className="form-field"><span>{locale==="kk"?"Санат":"Категория"}</span><select className="field" value={categoryFilter} onChange={e=>setCategoryFilter(e.target.value)}>
        <option value="">{locale==="kk"?"Барлық санаттар":"Все категории"}</option>
        {Object.entries(categoryNames).filter(([id])=>!divisionFilter||categoryDivisions[id]===divisionFilter).map(([id,title])=><option key={id} value={id}>{title}</option>)}
      </select></label>
-   </div>
+   </details>
    <p className="muted">{locale==="kk"?"Қалған жекпе-жектер":"Осталось боёв"}: {matches.filter(m=>!["completed","cancelled"].includes(m.status)&&(!divisionFilter||categoryDivisions[m.category_id]===divisionFilter)&&(!categoryFilter||m.category_id===categoryFilter)&&(!zoneFilter||schedule.some(s=>s.match_id===m.id&&s.mat_id===zoneFilter))).length}</p>
    {message&&<p className="muted" role="alert">{message}</p>}
    {ordered.length===0?<div className="empty-state">{L("Расписание пока не сформировано. Сначала откройте «Зоны и расписание».")}</div>:
