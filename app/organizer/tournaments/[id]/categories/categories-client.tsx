@@ -69,7 +69,6 @@ export default function CategoriesClient({ tournamentId, division, divisions, de
     setWeights(rows => rows.map((row, i) => i === index ? { ...row, ...patch } : row));
   }
 
-  const [target,setTarget]=useState(division);
   async function copyCategories(target:Division) { return action.run(async()=>{
     setBusy("copy");setError("");
     const {error}=await supabase.rpc("copy_division_categories",{p_tournament_id:tournamentId,p_from:division,p_to:target});
@@ -92,12 +91,6 @@ export default function CategoriesClient({ tournamentId, division, divisions, de
       return;
     }
 
-    const targets = division ? (target === "both" ? divisions : divisions.filter(item => item === target)) : [""];
-    if (!targets.length) {
-      setError(locale === "kk" ? "Жарыс бөлімін таңдаңыз." : "Выберите раздел.");
-      setBusy(null);
-      return;
-    }
     const nextSort = categories.reduce((max, category) => Math.max(max, category.sort_order), -1) + 1;
     const rowsToInsert = validRows.map((row, index) => {
       const weight = Number(row.weight);
@@ -108,6 +101,7 @@ export default function CategoriesClient({ tournamentId, division, divisions, de
       return {
         ...newTiming,
         tournament_id: tournamentId,
+        division,
         name,
         age_min: Number(ageGroup.min),
         age_max: Number(ageGroup.max),
@@ -118,11 +112,11 @@ export default function CategoriesClient({ tournamentId, division, divisions, de
       };
     });
 
-    const { data, error: insertError } = await supabase.from("categories").insert(targets.flatMap(division=>rowsToInsert.map(row=>({...row,division})))).select("division,id,name,age_min,age_max,weight_min,weight_limit,weight_allowance,sort_order,bracket_format,round_seconds,round_count,round_rest_seconds").order("sort_order");
+    const { data, error: insertError } = await supabase.from("categories").insert(rowsToInsert).select("division,id,name,age_min,age_max,weight_min,weight_limit,weight_allowance,sort_order,bracket_format,round_seconds,round_count,round_rest_seconds").order("sort_order");
     if (insertError || !data) {
       setError(insertError?.message ?? t.errorGeneric);
     } else {
-      setCategories(c => [...c, ...data.filter(category=>category.division===division).map(category => ({ ...category, participantCount: 0 }))]);
+      setCategories(c => [...c, ...data.map(category => ({ ...category, participantCount: 0 }))]);
       setAgeGroup({ min: "", max: "" });
       setWeights([{ type: "up_to", weight: "", allowance: "" }]);
       setShowForm(false);
@@ -162,7 +156,7 @@ export default function CategoriesClient({ tournamentId, division, divisions, de
 
   return <ActionScope pending={action.pending} error={action.error} paused={showForm}>{<section className="categories-workspace">
     {!showForm && division && divisions.filter(item=>item!==division).map(item=><button key={item} type="button" className="secondary" disabled={busy!==null||!categories.length} onClick={()=>void copyCategories(item)}>{locale==="kk"?`Санаттарды ${divisionNames[item]} бөліміне көшіру`:`Скопировать категории в ${divisionNames[item]}`}</button>)}
-    {!showForm ? <button type="button" className="primary" onClick={() => { setError(""); setTarget(division); setShowForm(true); }} disabled={busy !== null}>+ {labels.add}</button> :
+    {!showForm ? <button type="button" className="primary" onClick={() => { setError(""); setShowForm(true); }} disabled={busy !== null}>+ {labels.add}</button> :
       <form className="form-card compact-form" onSubmit={createCategory} style={{ marginTop: 12 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
           <h2 style={{ margin: 0 }}>{labels.add}</h2>
@@ -199,13 +193,6 @@ export default function CategoriesClient({ tournamentId, division, divisions, de
           </div>
         </div>
 
-        {division && <label className="form-field">
-          {locale === "kk" ? "Қай бөлімге қосу керек" : "Куда добавить"}
-          <select className="field" value={target} onChange={event => setTarget(event.target.value)} disabled={busy !== null}>
-            {divisions.map(item => <option key={item} value={item}>{divisionNames[item]}</option>)}
-            {divisions.length > 1 && <option value="both">Gi + No-Gi</option>}
-          </select>
-        </label>}
         <TimingFields value={newTiming} onChange={setNewTiming} kk={locale==="kk"} disabled={busy!==null}/>
         {error && <p className="error">{error}</p>}
         <button className="primary" disabled={busy !== null} style={{ marginTop: 14 }}>{busy === "category" ? t.creating : t.createCategory}</button>
