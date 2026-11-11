@@ -1,3 +1,4 @@
+import { availableDivisions } from "@/lib/tournament-divisions";
 import { uiText } from "@/lib/ui-text";
 import { getLocale } from "@/lib/i18n-server";
 import Link from "@/components/pending-link";
@@ -15,14 +16,14 @@ export default async function ParticipantsPage({ params }: { params: Promise<{ i
   if (!user) return null;
   if (!(await hasTournamentPermission(supabase, id, "participants"))) return permissionDeniedPage();
   const { data: organizer } = await supabase.from("organizers").select("id").eq("user_id", user.id).maybeSingle();
-  const { data: tournament } = await supabase.from("tournaments").select("id,name,organizer_id").eq("id", id).single();
+  const { data: tournament } = await supabase.from("tournaments").select("id,name,organizer_id,divisions").eq("id", id).single();
   if (!tournament) notFound();
   const { data: member } = await supabase.from("tournament_members").select("user_id").eq("tournament_id", id).eq("user_id", user.id).maybeSingle();
   if (organizer?.id !== tournament.organizer_id && !member) notFound();
   if (!tournament) notFound();
-  const { data: registrations, error } = await supabase.from("registrations").select("id,participant_id,application_number,status,payment_status,participants(first_name,last_name,age,weight,actual_weight,experience,phone,city,club,coach)").eq("tournament_id", id).order("created_at", { ascending: false });
+  const { data: registrations, error } = await supabase.from("registrations").select("id,participant_id,division,application_number,status,payment_status,participants(first_name,last_name,age,weight,actual_weight,experience,phone,city,club,coach)").eq("tournament_id", id).order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
-  const rows = (registrations ?? []).flatMap((r) => { const p = Array.isArray(r.participants) ? r.participants[0] : r.participants; return p ? [{ id:r.id, participant_id:r.participant_id, application_number:r.application_number, status:r.status, payment_status:r.payment_status, ...p }] : []; });
-  return <main className="container dashboard-page"><div className="page-topline"><Link className="back-link" href={`/organizer/tournaments/${id}`}>← {tournament.name}</Link></div><header className="section-header"><div><div className="eyebrow">{L("Управление")}</div><h1>{L("Участники")}</h1><p className="muted">{L("Заявки, оплата, подтверждение и официальный вес на взвешивании.")}</p></div><strong>{rows.length}</strong></header><ParticipantsClient tournamentId={id} initialRows={rows} /></main>;
+  const rows = (registrations ?? []).flatMap((r) => { const p = Array.isArray(r.participants) ? r.participants[0] : r.participants; return p ? [{ id:r.id, division:r.division, participant_id:r.participant_id, application_number:r.application_number, status:r.status, payment_status:r.payment_status, ...p }] : []; });
+  return <main className="container dashboard-page"><div className="page-topline"><Link className="back-link" href={`/organizer/tournaments/${id}`}>← {tournament.name}</Link></div><header className="section-header"><div><div className="eyebrow">{L("Управление")}</div><h1>{L("Участники")}</h1><p className="muted">{L("Заявки, оплата, подтверждение и официальный вес на взвешивании.")}</p></div><strong>{rows.length}</strong></header><ParticipantsClient tournamentId={id} initialRows={rows} divisions={availableDivisions(tournament.divisions)} /></main>;
 }
 

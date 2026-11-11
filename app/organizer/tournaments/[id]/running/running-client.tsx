@@ -1,5 +1,6 @@
 "use client";
 import MatchScoreboard from "@/components/match-scoreboard";
+import {divisionNames,type Division} from "@/lib/tournament-divisions";
 import {victoryMethods,victoryLabel,type Scoreboard} from "@/lib/scoreboard";
 import {useRef} from "react";
 import {projectSchedule,nextMatchIds} from "@/lib/event-brackets";
@@ -14,9 +15,9 @@ import {useRouter} from "next/navigation";
 import {createClient} from "@/lib/supabase/client";
 
 type Person={first_name:string;last_name:string;club:string|null};
-type Match={duration_seconds?:number;round_seconds?:number;round_count?:number;round_rest_seconds?:number;scoreboard?:Scoreboard|null;id:string;match_number:number;round_number:number;status:string;category_id:string;participant_a_id:string|null;participant_b_id:string|null;winner_id:string|null;next_match_id:string|null;loser_next_match_id:string|null;started_at:string|null;completed_at:string|null;participantA?:Person|null;participantB?:Person|null};
+type Match={division_start_at?:string|null;duration_seconds?:number;round_seconds?:number;round_count?:number;round_rest_seconds?:number;scoreboard?:Scoreboard|null;id:string;match_number:number;round_number:number;status:string;category_id:string;participant_a_id:string|null;participant_b_id:string|null;winner_id:string|null;next_match_id:string|null;loser_next_match_id:string|null;started_at:string|null;completed_at:string|null;participantA?:Person|null;participantB?:Person|null};
 type Slot={id:string;match_id:string;scheduled_order:number;approximate_time:string|null;mat_id:string|null};
-export default function RunningClient({tournamentId,initialMatches,initialSchedule,categoryNames,zoneNames,timing,categoryFormats={}}:{tournamentId:string;initialMatches:Match[];initialSchedule:Slot[];categoryNames:Record<string,string>;zoneNames:Record<string,string>;categoryFormats?:Record<string,string>;timing:{duration:number;gap:number;rest:number}}){
+export default function RunningClient({tournamentId,initialMatches,initialSchedule,categoryNames,zoneNames,timing,categoryFormats={},divisions=[],categoryDivisions={},allowedMethods=null}:{tournamentId:string;initialMatches:Match[];initialSchedule:Slot[];categoryNames:Record<string,string>;zoneNames:Record<string,string>;categoryFormats?:Record<string,string>;divisions?:Division[];categoryDivisions?:Record<string,string>;allowedMethods?:string[]|null;timing:{duration:number;gap:number;rest:number}}){
  const locale = useLocale();const L = (text: string) => uiText(locale, text);
 
  const name=(p?:Person|null)=>p?`${p.last_name} ${p.first_name}`:L("Ожидается участник");
@@ -26,6 +27,8 @@ export default function RunningClient({tournamentId,initialMatches,initialSchedu
  const resultDialog=useRef<HTMLDialogElement>(null);
  const[busy,setBusy]=useState<string|null>(null),[message,setMessage]=useState("");
  const[zoneFilter,setZoneFilter]=useState(""),[categoryFilter,setCategoryFilter]=useState("");
+ const [divisionFilter,setDivisionFilter]=useState("");
+ const availableMethods=victoryMethods.filter(([method])=>!allowedMethods||allowedMethods.includes(method));
  const s=useMemo(()=>createClient(),[]),router=useRouter();
  useEffect(()=>{setMatches(initialMatches)},[initialMatches]);
  useEffect(()=>{setSchedule(initialSchedule)},[initialSchedule]);
@@ -38,13 +41,13 @@ export default function RunningClient({tournamentId,initialMatches,initialSchedu
  const scheduled=[...schedule].sort((a,b)=>a.scheduled_order-b.scheduled_order);
  const ordered=[...scheduled].sort((a,b)=>{
    const aDone=byId.get(a.match_id)?.status==="completed",bDone=byId.get(b.match_id)?.status==="completed";
-   return Number(aDone)-Number(bDone)||a.scheduled_order-b.scheduled_order;
+   return Number(aDone)-Number(bDone)||(Date.parse(byId.get(a.match_id)?.division_start_at??"")-Date.parse(byId.get(b.match_id)?.division_start_at??"")||0)||a.scheduled_order-b.scheduled_order;
  });
  const visible=ordered.filter(slot=>{
    const match=byId.get(slot.match_id);
-   return !!match&&(!zoneFilter||slot.mat_id===zoneFilter)&&(!categoryFilter||match.category_id===categoryFilter);
+   return !!match&&(!divisionFilter||categoryDivisions[match.category_id]===divisionFilter)&&(!zoneFilter||slot.mat_id===zoneFilter)&&(!categoryFilter||match.category_id===categoryFilter);
  });
- const time=(v:string|null)=>v?new Date(v).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit",timeZone:"Asia/Almaty"}):"—";
+ const time=(v:string|null)=>v?new Date(v).toLocaleString("ru-RU",{...(divisions.length?{day:"2-digit",month:"2-digit"} as const:{}),hour:"2-digit",minute:"2-digit",timeZone:"Asia/Almaty"}):"—";
  async function start(m:Match){return action.run(async()=>{setBusy(m.id);setMessage("");const {error}=await s.rpc("start_match",{p_match_id:m.id});if(error)setMessage(error.message);else router.refresh();setBusy(null);});}
  const action = useActionFeedback(() => { setBusy(null); });
  async function win(m:Match,id:string){return action.run(async()=>{
@@ -52,7 +55,7 @@ export default function RunningClient({tournamentId,initialMatches,initialSchedu
    const{data,error}=await s.from("match_scoreboards").select("*").eq("match_id",m.id).maybeSingle();
    if(error){setMessage(error.message);setBusy(null);return;}
    const initial=data??boards[m.id]??m.scoreboard;
-   setResult({match:m,winner:id});setMethod(m.status==="running"?"points":"walkover");setScoreA(initial?String(initial.score_a):"");setScoreB(initial?String(initial.score_b):"");resultDialog.current?.showModal();setBusy(null);
+   setResult({match:m,winner:id});setMethod(m.status==="running"?availableMethods[0]?.[0]??"":"walkover");setScoreA(initial?String(initial.score_a):"");setScoreB(initial?String(initial.score_b):"");resultDialog.current?.showModal();setBusy(null);
  });}
  async function confirmResult(){return action.run(async()=>{
    if(!result)return;
@@ -72,16 +75,20 @@ export default function RunningClient({tournamentId,initialMatches,initialSchedu
    if(error)setMessage(error.message);else router.refresh();setBusy(null) }); }
  return <ActionScope pending={action.pending} error={action.error} paused={result!==null}>{<section className="running-list">
    <div className="running-filters">
+     {divisions.length>0&&<label>{locale==="kk"?"Бөлім":"Раздел"}<select className="field" value={divisionFilter} onChange={event=>{setDivisionFilter(event.target.value);setCategoryFilter("");}}>
+       <option value="">{locale==="kk"?"Барлық бөлімдер":"Все разделы"}</option>
+       {divisions.map(division=><option key={division} value={division}>{divisionNames[division]}</option>)}
+     </select></label>}
      <label><span>{locale==="kk"?"Аймақ / кілем":"Зона / ковер"}</span><select className="field" value={zoneFilter} onChange={e=>setZoneFilter(e.target.value)}>
        <option value="">{locale==="kk"?"Барлық аймақтар":"Все зоны"}</option>
        {Object.entries(zoneNames).map(([id,title])=><option key={id} value={id}>{title}</option>)}
      </select></label>
      <label><span>{locale==="kk"?"Санат":"Категория"}</span><select className="field" value={categoryFilter} onChange={e=>setCategoryFilter(e.target.value)}>
        <option value="">{locale==="kk"?"Барлық санаттар":"Все категории"}</option>
-       {Object.entries(categoryNames).map(([id,title])=><option key={id} value={id}>{title}</option>)}
+       {Object.entries(categoryNames).filter(([id])=>!divisionFilter||categoryDivisions[id]===divisionFilter).map(([id,title])=><option key={id} value={id}>{title}</option>)}
      </select></label>
    </div>
-   <p className="muted">{locale==="kk"?"Қалған жекпе-жектер":"Осталось боёв"}: {matches.filter(m=>!["completed","cancelled"].includes(m.status)&&(!categoryFilter||m.category_id===categoryFilter)&&(!zoneFilter||schedule.some(s=>s.match_id===m.id&&s.mat_id===zoneFilter))).length}</p>
+   <p className="muted">{locale==="kk"?"Қалған жекпе-жектер":"Осталось боёв"}: {matches.filter(m=>!["completed","cancelled"].includes(m.status)&&(!divisionFilter||categoryDivisions[m.category_id]===divisionFilter)&&(!categoryFilter||m.category_id===categoryFilter)&&(!zoneFilter||schedule.some(s=>s.match_id===m.id&&s.mat_id===zoneFilter))).length}</p>
    {message&&<p className="muted" role="alert">{message}</p>}
    {ordered.length===0?<div className="empty-state">{L("Расписание пока не сформировано. Сначала откройте «Зоны и расписание».")}</div>:
    visible.length===0?<div className="empty-state">{locale==="kk"?"Таңдалған сүзгілер бойынша жекпе-жектер жоқ.":"По выбранным фильтрам поединков нет."}</div>:
@@ -93,7 +100,7 @@ export default function RunningClient({tournamentId,initialMatches,initialSchedu
        {!done&&m.status!=="running"&&<button type="button" className="primary" disabled={!!busy||!m.participant_a_id||!m.participant_b_id||matches.some(x=>x.status==="running"&&schedule.some(s=>s.match_id===x.id&&s.mat_id===r.mat_id))} onClick={()=>void start(m)}>{locale==="kk"?"Бастау":"Начать"}</button>}
        <div className="running-people">{([{"id":m.participant_a_id,"person":m.participantA},{"id":m.participant_b_id,"person":m.participantB}]).map((f,j)=><div className="running-person" key={j}>
          <span className="running-name"><strong>{f.person?name(f.person):pendingAthlete(m,j===0?"a":"b",matches,locale==="kk")}</strong>{f.person?.club&&<small>{f.person.club}</small>}</span>
-         <button type="button" aria-label={m.status!=="running"&&!done?`${locale==="kk"?"Қарсылас келмеді, жеңімпаз":"Неявка соперника, победитель"}: ${name(f.person)}`:undefined} className={done&&m.winner_id?(m.winner_id===f.id?"result-win":"result-loss"):"result-pick"} disabled={done||!!busy||!f.id||!m.participant_a_id||!m.participant_b_id||!["running","ready","scheduled"].includes(m.status)} onClick={()=>f.id&&void win(m,f.id)}>{done&&m.winner_id?(m.winner_id===f.id?L("Победил"):L("Проиграл")):m.status==="running"?L("Победа"):(locale==="kk"?"Келмеу":"Неявка")}</button>
+         <button type="button" aria-label={m.status!=="running"&&!done?`${locale==="kk"?"Қарсылас келмеді, жеңімпаз":"Неявка соперника, победитель"}: ${name(f.person)}`:undefined} className={done&&m.winner_id?(m.winner_id===f.id?"result-win":"result-loss"):"result-pick"} disabled={done||!!busy||(m.status!=="running"&&!availableMethods.some(row=>row[0]==="walkover"))||!f.id||!m.participant_a_id||!m.participant_b_id||!["running","ready","scheduled"].includes(m.status)} onClick={()=>f.id&&void win(m,f.id)}>{done&&m.winner_id?(m.winner_id===f.id?L("Победил"):L("Проиграл")):m.status==="running"?L("Победа"):(locale==="kk"?"Келмеу":"Неявка")}</button>
        </div>)}</div>
        {done&&(m.scoreboard?.victory_method?m.scoreboard:boards[m.id])?.victory_method&&<p className="muted">{victoryLabel((m.scoreboard?.victory_method?m.scoreboard:boards[m.id])?.victory_method,locale==="kk")}{(m.scoreboard?.victory_method?m.scoreboard:boards[m.id])?.victory_method==="points"?` · ${(m.scoreboard?.victory_method?m.scoreboard:boards[m.id])?.score_a}:${(m.scoreboard?.victory_method?m.scoreboard:boards[m.id])?.score_b}`:""}</p>}
        {!done&&m.status==="running"&&<details><summary>{locale==="kk"?"Табло":"Табло"}</summary><MatchScoreboard matchId={m.id} tournamentId={tournamentId} matId={r.mat_id} names={[name(m.participantA),name(m.participantB)]} kk={locale==="kk"} seconds={m.round_seconds??timing.duration*60} rounds={m.round_count??1} rest={m.round_rest_seconds??0} onBoard={b=>setBoards(v=>({...v,[m.id]:b}))}/></details>}
@@ -101,9 +108,9 @@ export default function RunningClient({tournamentId,initialMatches,initialSchedu
      </article>})}
    <dialog ref={resultDialog} className="result-dialog" onCancel={e=>{if(busy)e.preventDefault();else setResult(null)}}>
     {result&&<><h2>{locale==="kk"?"Жеңісті растау":"Подтвердить победу"}</h2><p><strong>{name(result.winner===result.match.participant_a_id?result.match.participantA:result.match.participantB)}</strong></p>
-    <label>{locale==="kk"?"Жеңіс тәсілі":"Способ победы"}<select className="field" value={method} disabled={!!busy} onChange={e=>setMethod(e.target.value)}>{victoryMethods.filter(row=>result.match.status==="running"||row[0]==="walkover").map(row=><option key={row[0]} value={row[0]}>{row[locale==="kk"?2:1]}</option>)}</select></label>
+    <label>{locale==="kk"?"Жеңіс тәсілі":"Способ победы"}<select className="field" value={method} disabled={!!busy} onChange={e=>setMethod(e.target.value)}>{availableMethods.filter(row=>result.match.status==="running"||row[0]==="walkover").map(row=><option key={row[0]} value={row[0]}>{row[locale==="kk"?2:1]}</option>)}</select></label>
     {method==="points"&&<div className="form-grid"><label>{name(result.match.participantA)}<input className="field" type="number" min={0} max={999} step={1} value={scoreA} disabled={!!busy} onChange={e=>setScoreA(e.target.value)}/></label><label>{name(result.match.participantB)}<input className="field" type="number" min={0} max={999} step={1} value={scoreB} disabled={!!busy} onChange={e=>setScoreB(e.target.value)}/></label></div>}
-    {message&&<p className="error" role="alert">{message}</p>}<div className="button-row"><button type="button" className="primary" disabled={!!busy} onClick={()=>void confirmResult()}>{locale==="kk"?"Жеңісті растау":"Подтвердить победу"}</button><button type="button" className="secondary" disabled={!!busy} onClick={()=>{resultDialog.current?.close();setResult(null)}}>{locale==="kk"?"Бас тарту":"Отмена"}</button></div></>}
+    {message&&<p className="error" role="alert">{message}</p>}<div className="button-row"><button type="button" className="primary" disabled={!!busy||!availableMethods.some(row=>row[0]===method)} onClick={()=>void confirmResult()}>{locale==="kk"?"Жеңісті растау":"Подтвердить победу"}</button><button type="button" className="secondary" disabled={!!busy} onClick={()=>{resultDialog.current?.close();setResult(null)}}>{locale==="kk"?"Бас тарту":"Отмена"}</button></div></>}
    </dialog>
    <style jsx>{`
      .running-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.running-filters label{display:grid;gap:6px;min-width:0}.running-filters select{width:100%;min-width:0}

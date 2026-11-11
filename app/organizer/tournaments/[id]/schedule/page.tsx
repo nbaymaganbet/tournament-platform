@@ -1,3 +1,4 @@
+import { availableDivisions, categoryLabel } from "@/lib/tournament-divisions";
 import { uiText } from "@/lib/ui-text";
 import { getLocale } from "@/lib/i18n-server";
 import Link from "@/components/pending-link";
@@ -17,7 +18,7 @@ export default async function SchedulePage({params}:{params:Promise<{id:string}>
   if(!user)return null;
   if(!(await hasTournamentPermission(s,id,"schedule")))return permissionDeniedPage();
 
-  const {data:t}=await s.from("tournaments").select("id,name,organizer_id,schedule_start_time,bout_minutes,bout_interval_minutes,athlete_rest_minutes").eq("id",id).single();
+  const {data:t}=await s.from("tournaments").select("id,name,organizer_id,date,divisions,gi_start_at,no_gi_start_at,schedule_start_time,bout_minutes,bout_interval_minutes,athlete_rest_minutes").eq("id",id).single();
   if(!t)notFound();
 
   const [{data:o},{data:member}]=await Promise.all([
@@ -28,7 +29,7 @@ export default async function SchedulePage({params}:{params:Promise<{id:string}>
 
   const {count:scheduledCount}=await s.from("match_schedule").select("id,matches!inner(tournament_id)",{count:"exact",head:true}).eq("matches.tournament_id",id);
   const {data:mats}=await s.from("mats").select("id,name,sort_order,is_active").eq("tournament_id",id).order("sort_order");
-  const {data:categories}=await s.from("categories").select("id,name,age_min,age_max,weight_limit,sort_order,preferred_mat_id").eq("tournament_id",id).order("sort_order");
+  const {data:categories}=await s.from("categories").select("id,name,division,age_min,age_max,weight_limit,sort_order,preferred_mat_id").eq("tournament_id",id).order("sort_order");
   const {data:matches}=await s.from("matches").select("category_id").eq("tournament_id",id);
   const matchCounts=new Map<string,number>();
   for(const m of matches??[])matchCounts.set(m.category_id,(matchCounts.get(m.category_id)??0)+1);
@@ -41,10 +42,14 @@ export default async function SchedulePage({params}:{params:Promise<{id:string}>
       <summary className="schedule-summary">{L("Зоны турнира")}</summary>
       <p className="muted">{L("Добавляйте, переименовывайте, включайте или выключайте зоны, на которых проходят поединки.")}</p>
       <MatsClient tournamentId={id} initialMats={mats??[]}/>
-      <CategoryZones tournamentId={id} initialCategories={(categories??[]).filter(c=>matchCounts.has(c.id)).map(c=>({id:c.id,name:c.name,count:matchCounts.get(c.id)??0,preferred_mat_id:c.preferred_mat_id}))} mats={(mats??[]).map(m=>({id:m.id,name:m.name,is_active:m.is_active}))}/>
+      <CategoryZones tournamentId={id} initialCategories={(categories??[]).filter(c=>matchCounts.has(c.id)).map(c=>({id:c.id,name:categoryLabel(c.name,c.division),count:matchCounts.get(c.id)??0,preferred_mat_id:c.preferred_mat_id}))} mats={(mats??[]).map(m=>({id:m.id,name:m.name,is_active:m.is_active}))}/>
     </details>
 
-    <ScheduleClient tournamentId={id} startTime={t.schedule_start_time??"10:00"} scheduledCount={scheduledCount??0} timing={{duration:t.bout_minutes??5,gap:t.bout_interval_minutes??0,rest:t.athlete_rest_minutes??5}}/>
+    <ScheduleClient divisionStarts={availableDivisions(t.divisions).map(division=>{
+      const start=division==="gi"?t.gi_start_at:t.no_gi_start_at;
+      const parts=start?Object.fromEntries(new Intl.DateTimeFormat("en-GB",{timeZone:"Asia/Almaty",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(new Date(start)).map(part=>[part.type,part.value])):null;
+      return {division,date:parts?`${parts.year}-${parts.month}-${parts.day}`:t.date??"",time:parts?`${parts.hour}:${parts.minute}`:(t.schedule_start_time??"10:00").slice(0,5),saved:Boolean(start)};
+    })} tournamentId={id} startTime={t.schedule_start_time??"10:00"} scheduledCount={scheduledCount??0} timing={{duration:t.bout_minutes??5,gap:t.bout_interval_minutes??0,rest:t.athlete_rest_minutes??5}}/>
   </main>
 }
 

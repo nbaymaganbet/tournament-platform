@@ -1,5 +1,6 @@
 "use client";
 import { ActionScope, useActionFeedback } from "@/components/action-feedback";
+import { divisionNames, type Division } from "@/lib/tournament-divisions";
 import { uiText } from "@/lib/ui-text";
 
 import { useLocale } from "@/components/locale-provider";
@@ -7,11 +8,14 @@ import {useEffect,useMemo,useState} from "react";
 import {createClient} from "@/lib/supabase/client";
 import {translations} from "@/lib/i18n";
 
-export default function ScheduleClient({tournamentId,startTime,scheduledCount,timing}:{tournamentId:string;startTime:string;scheduledCount:number;timing:{duration:number;gap:number;rest:number}}){
+type DivisionStart = {division:Division;date:string;time:string;saved:boolean};
+
+export default function ScheduleClient({tournamentId,startTime,scheduledCount,timing,divisionStarts=[]}:{tournamentId:string;startTime:string;scheduledCount:number;divisionStarts?:DivisionStart[];timing:{duration:number;gap:number;rest:number}}){
  const L = (text: string) => uiText(locale, text);
 
  const locale = useLocale();
  const t=translations[locale];
+ const [starts,setStarts]=useState(divisionStarts);
  const[bout,setBout]=useState(timing);
  const[customTiming,setCustomTiming]=useState(false);
  const[timeDirty,setTimeDirty]=useState(false);
@@ -23,8 +27,18 @@ export default function ScheduleClient({tournamentId,startTime,scheduledCount,ti
  const startTimeInput=`${hour.padStart(2,"0")}:${minute.padStart(2,"0")}`;
  const action = useActionFeedback(() => { setSaving(null); });
  async function saveStart(){ return action.run(async () => { if(!validTime){setMessage(L("Укажите время от 00:00 до 23:59."));return}setSaving("time");setMessage("");const{error}=await s.rpc("save_tournament_schedule_start_time",{p_tournament_id:tournamentId,p_start_time:startTimeInput});if(!error)setTimeDirty(false);setMessage(error?error.message:locale==="kk"?"Басталу уақыты сақталды.":"Время начала сохранено.");setSaving(null) }); }
+ async function saveDivision(start:DivisionStart) { return action.run(async()=>{
+   if(!start.date||!start.time){setMessage(locale==="kk"?"Күн мен уақытты көрсетіңіз.":"Укажите дату и время.");return;}
+   setSaving(start.division);setMessage("");
+   const {error}=await s.rpc("save_division_start",{p_tournament_id:tournamentId,p_division:start.division,p_date:start.date,p_time:start.time});
+   if(!error)setStarts(current=>current.map(item=>item.division===start.division?{...item,saved:true}:item));
+   setMessage(error?error.message:locale==="kk"?"Сақталды":"Сохранено");setSaving(null);
+ }); }
+ function editDivision(division:Division,key:"date"|"time",value:string){
+   setStarts(current=>current.map(item=>item.division===division?{...item,[key]:value,saved:false}:item));
+ }
  async function saveTiming(){return action.run(async()=>{setSaving("timing");setMessage("");const {error}=await s.rpc("save_bout_timing",{p_tournament_id:tournamentId,p_duration:bout.duration,p_interval:bout.gap,p_rest:bout.rest});setMessage(error?error.message:locale==="kk"?"Сақталды":"Сохранено");setSaving(null);});}
- async function generate(){ return action.run(async () => { if(!validTime){setMessage(L("Укажите время от 00:00 до 23:59."));return}setSaving("generate");setMessage("");const saved=await s.rpc("save_tournament_schedule_start_time",{p_tournament_id:tournamentId,p_start_time:startTimeInput});if(saved.error){setMessage(saved.error.message);setSaving(null);return}const result=await s.rpc("generate_tournament_schedule",{p_tournament_id:tournamentId});if(result.error){setMessage(result.error.message);setSaving(null);return}setTimeDirty(false);window.dispatchEvent(new Event("tp-action-finished")) }); }
+ async function generate(){ return action.run(async () => { if(!validTime){setMessage(L("Укажите время от 00:00 до 23:59."));return}if(starts.some(start=>!start.saved)){setMessage(locale==="kk"?"Әр бөлімнің басталу күні мен уақытын сақтаңыз.":"Сохраните дату и время старта каждого раздела.");return}setSaving("generate");setMessage("");if(!starts.length||timeDirty){const saved=await s.rpc("save_tournament_schedule_start_time",{p_tournament_id:tournamentId,p_start_time:startTimeInput});if(saved.error){setMessage(saved.error.message);setSaving(null);return}}const result=await s.rpc("generate_tournament_schedule",{p_tournament_id:tournamentId});if(result.error){setMessage(result.error.message);setSaving(null);return}setTimeDirty(false);window.dispatchEvent(new Event("tp-action-finished")) }); }
  return <ActionScope pending={action.pending} error={action.error} paused={timeDirty}>{<details className="schedule-controls form-card">
    <summary className="schedule-summary">{locale==="kk"?"Жарыс кестесі":"Расписание турнира"}{scheduledCount>0?` · ${scheduledCount}`:""}</summary>
 
@@ -35,6 +49,14 @@ export default function ScheduleClient({tournamentId,startTime,scheduledCount,ti
      <input className="field" type="text" inputMode="numeric" pattern="[0-9]*" maxLength={2} aria-label={locale==="kk"?"Минут":"Минуты"} placeholder={L("ММ")} value={minute} onChange={e=>{setTimeDirty(true);setMinute(e.target.value.replace(/\D/g,""))}}/>
    </div>
    <button className="primary schedule-save" type="button" disabled={!!saving} onClick={()=>void saveStart()}>{saving==="time"?L("Сохраняем…"):locale==="kk"?"Уақытты сақтау":"Сохранить время"}</button>
+   {starts.map(start=><fieldset key={start.division}>
+     <legend>{divisionNames[start.division]}</legend>
+     <div className="form-grid">
+       <label>{locale==="kk"?"Басталу күні":"Дата старта"}<input className="field" type="date" disabled={!!saving} value={start.date} onChange={event=>editDivision(start.division,"date",event.target.value)}/></label>
+       <label>{locale==="kk"?"Басталу уақыты":"Время старта"}<input className="field" type="time" disabled={!!saving} value={start.time} onChange={event=>editDivision(start.division,"time",event.target.value)}/></label>
+     </div>
+     <button className="secondary" type="button" disabled={!!saving} onClick={()=>void saveDivision(start)}>{locale==="kk"?"Сақтау":"Сохранить"}</button>
+   </fieldset>)}
    <label className="checkbox-row"><input type="checkbox" checked={customTiming} onChange={event=>setCustomTiming(event.target.checked)} aria-controls="schedule-timing-settings" aria-expanded={customTiming}/>{locale==="kk"?"Жалпы уақыт баптауларын өзгерту":"Изменить общие настройки времени"}</label>
    {customTiming&&<div id="schedule-timing-settings"><p className="muted">{locale==="kk"?"Ағымдағы мәндер көрсетілген. Әдепкіде: кездесу — 5 мин, аралық — 0 мин, спортшының демалысы — 5 мин. Оларды өзгертуге болады. Жалпы ұзақтық жеке уақыты жоқ санаттарға, ал аралық пен демалыс бүкіл турнирге қолданылады.":"Показаны текущие значения. По умолчанию: встреча — 5 мин, интервал — 0 мин, отдых спортсмена — 5 мин. Их можно изменить. Общая длительность применяется к категориям без своего времени, интервал и отдых — ко всему турниру."}</p>
    <div className="bracket-filters">{(["duration","gap","rest"] as const).map(key=><label key={key}>{key==="duration"?(locale==="kk"?"Жекпе-жек, мин":"Длительность встречи, мин"):key==="gap"?(locale==="kk"?"Аралық, мин":"Интервал, мин"):(locale==="kk"?"Спортшының демалысы, мин":"Отдых спортсмена, мин")}<input type="number" min={key==="duration"?1:0} max={key==="gap"?60:120} value={bout[key]} onChange={e=>setBout(v=>({...v,[key]:Number(e.target.value)}))}/></label>)}</div><button type="button" className="secondary" disabled={!!saving} onClick={()=>void saveTiming()}>{locale==="kk"?"Параметрлерді сақтау":"Сохранить параметры"}</button>

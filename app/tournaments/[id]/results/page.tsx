@@ -28,7 +28,7 @@ export default async function PublicResults({ params }: { params: Promise<{ id: 
     <div className="page-topline"><Link className="back-link" href={`/tournaments/${id}`}>← {tournament.name}</Link></div>
     <header className="section-header"><div><div className="eyebrow">{tournament.name}</div><h1>{kk ? "Нәтижелер" : "Результаты"}</h1></div></header>
     {groups.size === 0 ? <div className="empty-state">{kk ? "Нәтижелер әлі жарияланбаған." : "Результаты пока не опубликованы."}</div> :
-      <ResultsFilter tournamentId={id} tournamentName={tournament.name} groups={[...groups].map(([id,g])=>({id,name:g.name,athletes:g.rows}))} locale={locale} share/>}
+      <ResultsFilter tournamentId={id} tournamentName={tournament.name} groups={[...groups].map(([id,g])=>({id,name:g.name,division:g.name.startsWith("Gi · ")?"gi":g.name.startsWith("No-Gi · ")?"no_gi":undefined,athletes:g.rows}))} locale={locale} share/>}
 
   </main>;
 }

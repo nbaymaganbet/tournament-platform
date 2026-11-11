@@ -7,6 +7,7 @@ import { useLocale } from "@/components/locale-provider";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { uploadPoster } from "@/lib/poster-upload";
+import TournamentSportFields, { type SportSettings } from "@/components/tournament-sport-fields";
 import PosterFiles from "@/components/poster-files";
 import { createClient } from "@/lib/supabase/client";
 
@@ -19,6 +20,8 @@ export default function NewTournamentPage() {
 
   const router = useRouter();
   const [name, setName] = useState("");
+  const [details, setDetails] = useState({ date: "", city: "", venue: "", description: "", regulations: "" });
+  const [sportSettings, setSportSettings] = useState<SportSettings>({ sport: "", divisions: [], victoryMethods: null });
   const [bracketFormat, setBracketFormat] = useState<"single_elimination" | "round_robin">("single_elimination");
   const [bronzeBout, setBronzeBout] = useState(true);
   const [posters, setPosters] = useState<File[]>([]);
@@ -27,6 +30,7 @@ export default function NewTournamentPage() {
 
   const action = useActionFeedback(() => { setSaving(false); });
  async function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); return action.run(async () => {
+    const publish = (event.nativeEvent as SubmitEvent).submitter?.getAttribute("value") === "publish";
     setSaving(true);
     setError("");
 
@@ -38,6 +42,11 @@ export default function NewTournamentPage() {
     }
     if (!name.trim()) {
       setError(L("Введите название соревнования."));
+      setSaving(false);
+      return;
+    }
+    if ((publish && !sportSettings.sport) || sportSettings.victoryMethods?.length === 0) {
+      setError(locale === "ru" ? "Выберите вид спорта и хотя бы один способ победы." : "Спорт түрін және кемінде бір жеңіс тәсілін таңдаңыз.");
       setSaving(false);
       return;
     }
@@ -65,7 +74,10 @@ export default function NewTournamentPage() {
     const slug = `${slugify(name) || "tournament"}-${Date.now().toString().slice(-6)}`;
     const { data: tournament, error: tournamentError } = await supabase
       .from("tournaments")
-      .insert({ organizer_id: organizer.id, name: name.trim(), slug, status: "draft", is_public: false, bracket_format: bracketFormat, bronze_bout: bracketFormat === "single_elimination" && bronzeBout })
+      .insert({ organizer_id: organizer.id, name: name.trim(), slug, date: details.date || null, city: details.city.trim() || null,
+        venue: details.venue.trim() || null, description: details.description.trim() || null,
+        regulations_text: details.regulations.trim() || null, sport: sportSettings.sport || null,
+        divisions: sportSettings.divisions, victory_methods: sportSettings.victoryMethods, status: "draft", is_public: false, bracket_format: bracketFormat, bronze_bout: bracketFormat === "single_elimination" && bronzeBout })
       .select("id")
       .single();
 
@@ -102,6 +114,14 @@ export default function NewTournamentPage() {
       return;
     }
 
+    if (publish) {
+      const { error: publishError } = await supabase.from("tournaments")
+        .update({ status: "registration_open", is_public: true }).eq("id", tournament.id);
+      if (publishError) {
+        router.push(`/organizer/tournaments/${tournament.id}/settings`);
+        return;
+      }
+    }
     router.push(`/organizer/tournaments/${tournament.id}`);
    }); }
 
@@ -111,10 +131,25 @@ export default function NewTournamentPage() {
       <section className="form-card">
         <div className="eyebrow">{L("НОВОЕ СОРЕВНОВАНИЕ")}</div>
         <h1>{L("Создать соревнование")}</h1>
-        <p className="muted">{L("На первом шаге достаточно названия и афиш. Дату, город, вид спорта, положение и остальные настройки добавите внутри турнира.")}</p>
         <form className="tournament-form" onSubmit={submit}>
           <label>{L("\n            Название соревнования\n            ")}<input className="field" value={name} onChange={(e) => setName(e.target.value)} required />
           </label>
+
+          {([
+            ["date", "Дата", "Күні"],
+            ["city", "Город", "Қала"],
+            ["venue", "Адрес", "Мекенжай"],
+          ] as const).map(([key, ruLabel, kkLabel]) => <label key={key}>{locale === "ru" ? ruLabel : kkLabel}
+            <input className="field" type={key === "date" ? "date" : "text"} value={details[key]}
+              onChange={(event) => setDetails((current) => ({ ...current, [key]: event.target.value }))} />
+          </label>)}
+          <label>{locale === "ru" ? "Описание" : "Сипаттама"}
+            <textarea className="field" value={details.description} onChange={(event) => setDetails((current) => ({ ...current, description: event.target.value }))} />
+          </label>
+          <label>{locale === "ru" ? "Текст положения" : "Ереже мәтіні"}
+            <textarea className="field" value={details.regulations} onChange={(event) => setDetails((current) => ({ ...current, regulations: event.target.value }))} />
+          </label>
+          <TournamentSportFields value={sportSettings} onChange={setSportSettings} />
 
           <label>{L("Формат сеток по умолчанию\n            ")}<select className="field" value={bracketFormat} onChange={e => setBracketFormat(e.target.value as "single_elimination" | "round_robin")}>
               <option value="single_elimination">{L("Олимпийская")}</option>
@@ -134,7 +169,10 @@ export default function NewTournamentPage() {
           )}
 
           {error && <p className="error" role="alert">{error}</p>}
-          <button className="primary" disabled={saving}>{saving ? L("Создаём…") : L("Создать соревнование")}</button>
+          <div className="button-row">
+            <button className="secondary" type="submit" value="draft" disabled={saving}>{locale === "ru" ? "Сохранить черновик" : "Жобаны сақтау"}</button>
+            <button className="primary" type="submit" value="publish" disabled={saving}>{locale === "ru" ? "Опубликовать и открыть регистрацию" : "Жариялап, тіркеуді ашу"}</button>
+          </div>
         </form>
       </section>
     </main>

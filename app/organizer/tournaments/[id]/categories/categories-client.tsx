@@ -1,4 +1,6 @@
 "use client";
+import { divisionNames, type Division } from "@/lib/tournament-divisions";
+import DivisionCategoryFields from "@/components/division-category-fields";
 import CategoryTiming, {TimingFields,emptyTiming,type CategoryTimingValue} from "@/components/category-timing";
 import { ActionScope, useActionFeedback } from "@/components/action-feedback";
 import { uiText } from "@/lib/ui-text";
@@ -13,7 +15,7 @@ type Person = { id: string; first_name: string; last_name: string; age: number; 
 type Category = CategoryTimingValue & { id: string; name: string; age_min: number | null; age_max: number | null; weight_min: number | null; weight_limit: number | null; weight_allowance: number | null; sort_order: number; bracket_format: string | null; participantCount: number };
 type WeightRow = { type: "up_to" | "from"; weight: string; allowance: string };
 
-export default function CategoriesClient({ tournamentId, defaultFormat, configurable, initialCategories, participants, initialAssignments }: { tournamentId: string; defaultFormat: string; configurable: boolean; initialCategories: Category[]; participants: Person[]; initialAssignments: Record<string, string> }) {
+export default function CategoriesClient({ tournamentId, division, divisions, defaultFormat, configurable, initialCategories, participants, initialAssignments }: { tournamentId: string; division: string; divisions: Division[]; defaultFormat: string; configurable: boolean; initialCategories: Category[]; participants: Person[]; initialAssignments: Record<string, string> }) {
  const L = (text: string) => uiText(locale, text);
 
   const locale = useLocale();
@@ -67,6 +69,14 @@ export default function CategoriesClient({ tournamentId, defaultFormat, configur
     setWeights(rows => rows.map((row, i) => i === index ? { ...row, ...patch } : row));
   }
 
+  const [targets,setTargets]=useState<Division[]>(divisions.filter(item=>item===division));
+  async function copyCategories(target:Division) { return action.run(async()=>{
+    setBusy("copy");setError("");
+    const {error}=await supabase.rpc("copy_division_categories",{p_tournament_id:tournamentId,p_from:division,p_to:target});
+    if(error)setError(error.message);
+    setBusy(null);
+  }); }
+
   async function createCategory(e: React.FormEvent) { e.preventDefault(); return action.run(async () => {
     setBusy("category");
     setError("");
@@ -82,6 +92,7 @@ export default function CategoriesClient({ tournamentId, defaultFormat, configur
       return;
     }
 
+    if(division && !targets.length){setError(locale==="kk"?"Жарыс бөлімін таңдаңыз.":"Выберите раздел.");setBusy(null);return;}
     const nextSort = categories.reduce((max, category) => Math.max(max, category.sort_order), -1) + 1;
     const rowsToInsert = validRows.map((row, index) => {
       const weight = Number(row.weight);
@@ -102,11 +113,11 @@ export default function CategoriesClient({ tournamentId, defaultFormat, configur
       };
     });
 
-    const { data, error: insertError } = await supabase.from("categories").insert(rowsToInsert).select("id,name,age_min,age_max,weight_min,weight_limit,weight_allowance,sort_order,bracket_format,round_seconds,round_count,round_rest_seconds").order("sort_order");
+    const { data, error: insertError } = await supabase.from("categories").insert((division?targets:[""]).flatMap(division=>rowsToInsert.map(row=>({...row,division})))).select("division,id,name,age_min,age_max,weight_min,weight_limit,weight_allowance,sort_order,bracket_format,round_seconds,round_count,round_rest_seconds").order("sort_order");
     if (insertError || !data) {
       setError(insertError?.message ?? t.errorGeneric);
     } else {
-      setCategories(c => [...c, ...data.map(category => ({ ...category, participantCount: 0 }))]);
+      setCategories(c => [...c, ...data.filter(category=>category.division===division).map(category => ({ ...category, participantCount: 0 }))]);
       setAgeGroup({ min: "", max: "" });
       setWeights([{ type: "up_to", weight: "", allowance: "" }]);
       setShowForm(false);
@@ -168,6 +179,7 @@ export default function CategoriesClient({ tournamentId, defaultFormat, configur
   const categoryParticipants = useMemo(() => selectedCategory ? participants.filter(p => assigned[p.id] === selectedCategory) : [], [participants, assigned, selectedCategory]);
 
   return <ActionScope pending={action.pending} error={action.error} paused={showForm}>{<section className="categories-workspace">
+    {!showForm && division && divisions.filter(item=>item!==division).map(item=><button key={item} type="button" className="secondary" disabled={busy!==null||!categories.length} onClick={()=>void copyCategories(item)}>{locale==="kk"?`Санаттарды ${divisionNames[item]} бөліміне көшіру`:`Скопировать категории в ${divisionNames[item]}`}</button>)}
     {!showForm ? <button type="button" className="primary" onClick={() => { setError(""); setShowForm(true); }} disabled={busy !== null}>+ {labels.add}</button> :
       <form className="form-card compact-form" onSubmit={createCategory} style={{ marginTop: 12 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
@@ -205,6 +217,7 @@ export default function CategoriesClient({ tournamentId, defaultFormat, configur
           </div>
         </div>
 
+        {division&&<fieldset><legend>{locale==="kk"?"Қай бөлімге қосу керек":"Куда добавить"}</legend>{divisions.map(item=><label className="checkbox-row" key={item}><input type="checkbox" checked={targets.includes(item)} onChange={event=>setTargets(current=>event.target.checked?[...current,item]:current.filter(value=>value!==item))}/>{divisionNames[item]}</label>)}</fieldset>}
         <TimingFields value={newTiming} onChange={setNewTiming} kk={locale==="kk"} disabled={busy!==null}/>
         {error && <p className="error">{error}</p>}
         <button className="primary" disabled={busy !== null} style={{ marginTop: 14 }}>{busy === "category" ? t.creating : t.createCategory}</button>
@@ -235,6 +248,7 @@ export default function CategoriesClient({ tournamentId, defaultFormat, configur
                 </div>
               </div>
               {open && <div className="form-card" style={{ marginTop: 16 }}>
+                {division&&<DivisionCategoryFields key={c.id} category={c} kk={locale==="kk"} onSaved={value=>setCategories(rows=>rows.map(row=>row.id===c.id?{...row,...value}:row))}/>}
                 <CategoryTiming key={c.id} category={c} kk={locale==="kk"} onSaved={value=>setCategories(rows=>rows.map(row=>row.id===c.id?{...row,...value}:row))}/>
                 {configurable && <label style={{display:"block",marginBottom:16}}>{locale === "kk" ? "Тор форматы" : "Формат сетки"}
                   <select className="field" value={c.bracket_format ?? defaultFormat} disabled={busy !== null} onChange={e => void setFormat(c,e.target.value)}>

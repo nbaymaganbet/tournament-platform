@@ -1,21 +1,25 @@
 "use client";
 
+import { availableDivisions, divisionNames } from "@/lib/tournament-divisions";
 import { useState } from "react";
 import ResultCategory, { type ResultAthlete } from "@/components/result-category";
 import type { Locale } from "@/lib/i18n";
 
-type ReadyCategory = { id: string; name: string; athletes: ResultAthlete[] };
+type ReadyCategory = { id: string; name: string; division?: string; athletes: ResultAthlete[] };
 
 export default function ResultsFilter({ tournamentId, tournamentName, groups, locale, share }: {
   tournamentId: string; tournamentName: string; groups: ReadyCategory[]; locale: Locale; share: boolean;
 }) {
   const [selected, setSelected] = useState("");
-  const ready = groups.filter(group => group.athletes.length > 0);
+  const [division,setDivision]=useState("");
+  const divisions=availableDivisions(groups.map(group=>group.division??""));
+  const ready = groups.filter(group => group.athletes.length > 0 && (!division || group.division === division));
   const value = ready.some(group => group.id === selected) ? selected : "";
   const visible = value ? ready.filter(group => group.id === value) : ready;
   const kk = locale === "kk";
 
   return <>
+    {divisions.length>0&&<label>{kk?"Бөлім":"Раздел"}<select className="field" value={division} onChange={event=>{setDivision(event.target.value);setSelected("");}}><option value="">{kk?"Барлығы":"Все"}</option>{divisions.map(item=><option key={item} value={item}>{divisionNames[item]}</option>)}</select></label>}
     <label style={{ display: "grid", gap: 6, marginBottom: 18 }}>
       <span>{kk ? "Санат" : "Категория"}</span>
       <select className="field" value={value} onChange={event => setSelected(event.target.value)}>

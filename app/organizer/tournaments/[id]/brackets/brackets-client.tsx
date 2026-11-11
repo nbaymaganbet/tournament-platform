@@ -1,4 +1,5 @@
 "use client";
+import { availableDivisions, divisionNames } from "@/lib/tournament-divisions";
 import LoadingIndicator from "@/components/loading-indicator";
 import { useLiveReload } from "@/lib/use-live-refresh";
 import { ActionScope, useActionFeedback } from "@/components/action-feedback";
@@ -13,18 +14,22 @@ import {projectSchedule,nextMatchIds,categoryDone,type BracketPerson,type Bracke
 import { swappableAthletes } from "@/lib/bracket-swap";
 import {isByeSeed,matchRole,pendingAthlete} from "@/lib/bracket-display";
 
-type Category={round_seconds?:number|null;round_count?:number|null;round_rest_seconds?:number|null;id:string;name:string;bracket_format:string|null;age_min?:number|null;age_max?:number|null;weight_limit?:number|null};
+type Category={round_seconds?:number|null;round_count?:number|null;round_rest_seconds?:number|null;id:string;name:string;division?:string;division_start_at?:string|null;bracket_format:string|null;age_min?:number|null;age_max?:number|null;weight_limit?:number|null};
 type Person={id:string;first_name:string;last_name:string;club:string|null;city:string|null;coach:string|null};
 type Match=EventMatch&{completed_at:string|null};
 type ReadyCategory=Category&{count:number};
 
 export default function BracketsClient({categories,tournamentId,defaultFormat,newFormats,isOwner,isPublic,tournamentName,timing}:{categories:Category[];tournamentId:string;defaultFormat:string;newFormats:boolean;isOwner:boolean;isPublic:boolean;tournamentName:string;timing:{duration:number;gap:number;rest:number}}){
  const [results,setResults]=useState<BracketResult[]>([]);
+ const [division,setDivision]=useState("");
+ const divisions=availableDivisions(categories.map(category=>category.division??""));
+ const choices=categories.filter(category=>!division||category.division===division);
  const [filter,setFilter]=useState(emptyBracketFilter);
  const [now,setNow]=useState(()=>Date.now());
  const [published,setPublished]=useState<Set<string>>(new Set());
  const [unweighed,setUnweighed]=useState<{category_id:string;participant_id:string;name:string}[]>([]);
  const [warning,setWarning]=useState<string[]|null>(null);
+ const divisionByCategory=new Map(categories.map(c=>[c.id,c.division??""]));
  const [rosterPeople,setRosterPeople]=useState<BracketPerson[]>([]);
  useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),15000);return()=>clearInterval(timer)},[]);
  const [loading,setLoading]=useState(true);
@@ -53,20 +58,20 @@ export default function BracketsClient({categories,tournamentId,defaultFormat,ne
   if(categories.length){
    const{data:cp}=await s.from("category_participants").select("category_id,participant_id,is_active,weigh_in_status").in("category_id",categories.map(c=>c.id));
    const pids=[...new Set((cp??[]).filter(x=>x.is_active).map(x=>x.participant_id))];
-   const{data:rg}=pids.length?await s.from("registrations").select("participant_id,status,payment_status").eq("tournament_id",tournamentId).in("participant_id",pids):{data:[] as {participant_id:string;status:string;payment_status:string}[]};
-   const paid=new Set((rg??[]).filter(x=>x.status==="confirmed"&&x.payment_status==="paid").map(x=>x.participant_id));
+   const{data:rg}=pids.length?await s.from("registrations").select("participant_id,division,status,payment_status").eq("tournament_id",tournamentId).in("participant_id",pids):{data:[] as {participant_id:string;division:string;status:string;payment_status:string}[]};
+   const paid=new Set((rg??[]).filter(x=>x.status==="confirmed"&&x.payment_status==="paid").map(x=>`${x.participant_id}:${x.division}`));
    const {data:allPeople}=pids.length?await s.from("participants").select("id,first_name,last_name,club,city,coach").in("id",pids):{data:[]};
    const allNames=new Map((allPeople??[]).map(p=>[p.id,p]));
-   const confirmed=new Set((rg??[]).filter(r=>r.status==="confirmed").map(r=>r.participant_id));
-   setUnweighed((cp??[]).filter(x=>x.is_active&&x.weigh_in_status!=="in_weight"&&confirmed.has(x.participant_id)).map(x=>({...x,name:personName(allNames.get(x.participant_id))})));
+   const confirmed=new Set((rg??[]).filter(r=>r.status==="confirmed").map(r=>`${r.participant_id}:${r.division}`));
+   setUnweighed((cp??[]).filter(x=>x.is_active&&x.weigh_in_status!=="in_weight"&&confirmed.has(`${x.participant_id}:${divisionByCategory.get(x.category_id)}`)).map(x=>({...x,name:personName(allNames.get(x.participant_id))})));
    setRosterPeople((cp??[]).filter(x=>x.is_active).flatMap(x=>{const p=allNames.get(x.participant_id);return p?[{id:p.id,name:personName(p),club:p.club,city:p.city,coach:p.coach,category_id:x.category_id}]:[]}));
    const counts=new Map<string,number>();
-   for(const x of cp??[])if(x.is_active&&x.weigh_in_status==="in_weight"&&paid.has(x.participant_id))counts.set(x.category_id,(counts.get(x.category_id)??0)+1);
+   for(const x of cp??[])if(x.is_active&&x.weigh_in_status==="in_weight"&&paid.has(`${x.participant_id}:${divisionByCategory.get(x.category_id)}`))counts.set(x.category_id,(counts.get(x.category_id)??0)+1);
    const changes:Record<string,{added:number;removed:number;names:string[]}>={};
    for(const c of categories){
     const group=(m??[]).filter(x=>x.category_id===c.id);
     if(!group.length)continue;
-    const eligible=new Set((cp??[]).filter(x=>x.category_id===c.id&&x.is_active&&x.weigh_in_status==="in_weight"&&paid.has(x.participant_id)).map(x=>x.participant_id));
+    const eligible=new Set((cp??[]).filter(x=>x.category_id===c.id&&x.is_active&&x.weigh_in_status==="in_weight"&&paid.has(`${x.participant_id}:${divisionByCategory.get(x.category_id)}`)).map(x=>x.participant_id));
     const seeded=new Set(group.flatMap(x=>[x.participant_a_id,x.participant_b_id]).filter((id):id is string=>id!==null));
     const added=[...eligible].filter(id=>!seeded.has(id)).length;
     const removed=[...seeded].filter(id=>!eligible.has(id)).length;
@@ -79,9 +84,10 @@ export default function BracketsClient({categories,tournamentId,defaultFormat,ne
  }catch{setMessage(kk?"Торларды жүктеу мүмкін болмады.":"Не удалось загрузить сетки.")}finally{setLoading(false)}}
  useEffect(()=>{void load()},[]);
  useLiveReload(()=>{if(!busy)return load()});
+ const readyInDivision=readyCats.filter(c=>!division||c.division===division);
  const action = useActionFeedback(() => { setBusy(false); });
  async function formBrackets(without=false,categoryIds?:string[]){ return action.run(async () => {
-  const target=categoryIds??readyCats.map(c=>c.id);
+  const target=categoryIds??readyInDivision.map(c=>c.id);
   if(!without&&unweighed.some(p=>target.includes(p.category_id))){setWarning(target);return;}
   setBusy(true);setMessage("");
   for(const categoryId of target){const{error}=await s.rpc("generate_checked_bracket",{p_category_id:categoryId,p_without_unweighed:without});if(error){setMessage(error.message);setBusy(false);await load();return}}
@@ -119,16 +125,17 @@ export default function BracketsClient({categories,tournamentId,defaultFormat,ne
   setBusy(false);
   }); }
  async function publish(categoryId:string){return action.run(async()=>{setBusy(true);const {error}=await s.rpc("publish_category_bracket",{p_category_id:categoryId});if(error)setMessage(error.message);else await load();setBusy(false);});}
- const projected=projectSchedule(matches.map(m=>{const c=categories.find(c=>c.id===m.category_id);return {...m,duration_seconds:c?.round_seconds!=null?c.round_seconds*(c.round_count??1)+(c.round_rest_seconds??0)*((c.round_count??1)-1):timing.duration*60}}),timing.duration,timing.gap,timing.rest,now);
+ const projected=projectSchedule(matches.map(m=>{const c=categories.find(c=>c.id===m.category_id);return {...m,division_start_at:c?.division_start_at,duration_seconds:c?.round_seconds!=null?c.round_seconds*(c.round_count??1)+(c.round_rest_seconds??0)*((c.round_count??1)-1):timing.duration*60}}),timing.duration,timing.gap,timing.rest,now);
  const next=nextMatchIds(projected);
- const visibleCats=filterCategories(categories,rosterPeople,filter);
+ const visibleCats=filterCategories(choices,rosterPeople,filter);
  const formedCategories=visibleCats.filter(c=>matches.some(m=>m.category_id===c.id));
  const exportGroups=formedCategories.map(c=>({category:{...c,format:formats[c.id]??c.bracket_format??defaultFormat},matches:projected.filter(m=>m.category_id===c.id),results:results.filter(r=>r.category_id===c.id)}));
 
  return <ActionScope pending={action.pending} error={action.error} paused={false}>{loading?<LoadingIndicator />:<section className="brackets-workspace">
-  <div className="form-card"><div className="eyebrow">{L.title}</div><h2>{L.form}</h2><p className="muted">{L.ready}</p>{readyCats.length?<div style={{display:"grid",gap:8,marginBottom:12}}>{readyCats.map(c=><div key={c.id} style={{display:"flex",justifyContent:"space-between",gap:12}}><strong>{c.name}</strong><span className="muted">{c.count}{newFormats?` · ${(c.bracket_format??defaultFormat)==="round_robin"?(kk?"Айналмалы":"Круговая"):(kk?"Олимпиадалық":"Олимпийская")}`:""}</span></div>)}</div>:<p className="muted">{L.noneReady}</p>}<button type="button" className="primary" disabled={busy||!readyCats.length} onClick={()=>void formBrackets()}>{busy?L.forming:L.form}</button></div>
+  {divisions.length>0&&<label>{kk?"Бөлім":"Раздел"}<select className="field" value={division} onChange={event=>{setDivision(event.target.value);setFilter(emptyBracketFilter);setWarning(null);}}><option value="">{kk?"Барлығы":"Все"}</option>{divisions.map(item=><option key={item} value={item}>{divisionNames[item]}</option>)}</select></label>}
+  <div className="form-card"><div className="eyebrow">{L.title}</div><h2>{L.form}</h2><p className="muted">{L.ready}</p>{readyInDivision.length?<div style={{display:"grid",gap:8,marginBottom:12}}>{readyInDivision.map(c=><div key={c.id} style={{display:"flex",justifyContent:"space-between",gap:12}}><strong>{c.name}</strong><span className="muted">{c.count}{newFormats?` · ${(c.bracket_format??defaultFormat)==="round_robin"?(kk?"Айналмалы":"Круговая"):(kk?"Олимпиадалық":"Олимпийская")}`:""}</span></div>)}</div>:<p className="muted">{L.noneReady}</p>}<button type="button" className="primary" disabled={busy||!readyInDivision.length} onClick={()=>void formBrackets()}>{busy?L.forming:L.form}</button></div>
   {unweighed.length>0&&!warning&&<details className="form-card"><summary>{kk?"Салмағы расталмаған":"Вес не подтверждён"} · {unweighed.length}</summary><ul>{unweighed.map(p=><li key={`${p.category_id}-${p.participant_id}`}>{categories.find(c=>c.id===p.category_id)?.name}: {p.name}</li>)}</ul><a className="button-link" href={`/organizer/tournaments/${tournamentId}/weigh-in`}>{kk?"Салмақ өлшеуге өту":"Перейти к взвешиванию"}</a></details>}
-  <BracketFilters categories={categories} people={rosterPeople} value={filter} onChange={setFilter} kk={kk}/>
+  <BracketFilters categories={choices} people={rosterPeople} value={filter} onChange={setFilter} kk={kk}/>
   {warning&&<div className="form-card" role="alert"><h3>{kk?"Салмағы расталмаған қатысушылар":"Участники с неподтверждённым весом"}</h3><ul>{unweighed.filter(p=>warning.includes(p.category_id)).map(p=><li key={`${p.category_id}-${p.participant_id}`}>{categories.find(c=>c.id===p.category_id)?.name}: {p.name}</li>)}</ul><div className="button-row"><a className="button-link" href={`/organizer/tournaments/${tournamentId}/weigh-in`}>{kk?"Салмақ өлшеуге өту":"Перейти к взвешиванию"}</a><button type="button" className="secondary" disabled={busy} onClick={()=>{const ids=warning;setWarning(null);void formBrackets(true,ids)}}>{kk?"Оларсыз қалыптастыру":"Сформировать без этих участников"}</button><button type="button" onClick={()=>setWarning(null)}>{kk?"Бас тарту":"Отмена"}</button></div></div>}
   {message&&<p className="error" role="status">{message}</p>}
   <div className="category-list">{formedCategories.map(category=>{

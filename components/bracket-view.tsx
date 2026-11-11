@@ -9,7 +9,7 @@ export default function BracketView({matches,people,kk,roundRobin=false,nextIds,
  const names=new Map(people.map(p=>[p.id,p]));
  const next=nextIds??nextMatchIds(matches);
  const person=(m:EventMatch,side:"a"|"b")=>{const id=side==="a"?m.participant_a_id:m.participant_b_id;const p=id?names.get(id):null;return {id,p,name:p?.name??pendingAthlete(m,side,matches,kk)}};
- const status=(m:EventMatch)=>m.status==="completed"?(kk?"Аяқталды":"Завершён"):m.status==="running"?(kk?"Өтіп жатыр":"Идёт"):next.has(m.id)?(kk?"Келесі":"Следующий"):m.approximate_time?`≈ ${new Date(m.approximate_time).toLocaleTimeString(kk?"kk-KZ":"ru-RU",{hour:"2-digit",minute:"2-digit",timeZone:"Asia/Almaty"})}`:(kk?"Уақыт тағайындалмаған":"Время не назначено");
+ const status=(m:EventMatch)=>m.status==="completed"?(kk?"Аяқталды":"Завершён"):m.status==="running"?(kk?"Өтіп жатыр":"Идёт"):next.has(m.id)?(kk?"Келесі":"Следующий"):m.approximate_time?`≈ ${new Date(m.approximate_time).toLocaleString(kk?"kk-KZ":"ru-RU",{...(m.division_start_at?{day:"2-digit",month:"2-digit"} as const:{}),hour:"2-digit",minute:"2-digit",timeZone:"Asia/Almaty"})}`:(kk?"Уақыт тағайындалмаған":"Время не назначено");
  const stage=(m:EventMatch)=>bracketStage(m,matches,kk,roundRobin);
  const layout=bracketLayout(matches);
  const columns=new Map(layout.boxes.map(box=>[box.match.id,box.x]));
