@@ -15,7 +15,7 @@ type Person = { id: string; first_name: string; last_name: string; age: number; 
 type Category = CategoryTimingValue & { id: string; name: string; age_min: number | null; age_max: number | null; weight_min: number | null; weight_limit: number | null; weight_allowance: number | null; sort_order: number; bracket_format: string | null; participantCount: number };
 type WeightRow = { type: "up_to" | "from"; weight: string; allowance: string };
 
-export default function CategoriesClient({ tournamentId, division, divisions, defaultFormat, configurable, initialCategories, participants, initialAssignments }: { tournamentId: string; division: string; divisions: Division[]; defaultFormat: string; configurable: boolean; initialCategories: Category[]; participants: Person[]; initialAssignments: Record<string, string> }) {
+export default function CategoriesClient({ tournamentId, division, divisions, defaultFormat, configurable, initialCategories, participants, initialAssignments }: { tournamentId: string; division: string; divisions: Division[]; defaultFormat: string; configurable: boolean; initialCategories: Category[]; participants: Person[]; initialAssignments: Record<string, string[]> }) {
  const L = (text: string) => uiText(locale, text);
 
   const locale = useLocale();
@@ -135,48 +135,25 @@ export default function CategoriesClient({ tournamentId, division, divisions, de
     const { error } = await supabase.rpc("delete_tournament_category", { p_category_id: id });
     if (!error) {
       setCategories(c => c.filter(x => x.id !== id));
-      setAssigned(rows => Object.fromEntries(Object.entries(rows).filter(([, categoryId]) => categoryId !== id)));
+      setAssigned(rows => Object.fromEntries(Object.entries(rows).map(([person, categoryIds]) => [person, categoryIds.filter(categoryId => categoryId !== id)])));
       if (selectedCategory === id) setSelectedCategory("");
     } else setError(error.message);
     setBusy(null);
    }); }
 
-  async function assign(participantId: string, targetCategory: string) { return action.run(async () => {
-    if (!targetCategory) return;
-    setBusy(`assign:${participantId}`);
-    setError("");
-    const existing = assigned[participantId];
-    if (existing === targetCategory) { setBusy(null); return; }
-    if (existing) {
-      const { error } = await supabase.from("category_participants").update({ is_active: false }).eq("category_id", existing).eq("participant_id", participantId);
-      if (error) { setError(error.message); setBusy(null); return; }
-    }
-    const { data: existingRow } = await supabase.from("category_participants").select("category_id").eq("category_id", targetCategory).eq("participant_id", participantId).maybeSingle();
-    let error;
-    if (existingRow) {
-      ({ error } = await supabase.from("category_participants").update({ is_active: true, weigh_in_status: "pending", weigh_in_weight: null }).eq("category_id", targetCategory).eq("participant_id", participantId));
-    } else {
-      ({ error } = await supabase.from("category_participants").insert({ category_id: targetCategory, participant_id: participantId, is_active: true, weigh_in_status: "pending" }));
-    }
-    if (error) { setError(error.message); setBusy(null); return; }
-    setAssigned(x => ({ ...x, [participantId]: targetCategory }));
-    setCategories(x => x.map(c => c.id === targetCategory ? { ...c, participantCount: c.participantCount + 1 } : existing === c.id ? { ...c, participantCount: Math.max(0, c.participantCount - 1) } : c));
-    setBusy(null);
-   }); }
-
   async function unassign(participantId: string) { return action.run(async () => {
-    const categoryId = assigned[participantId];
+    const categoryId = selectedCategory;
     if (!categoryId) return;
     setBusy(`unassign:${participantId}`);
     setError("");
     const { error } = await supabase.from("category_participants").update({ is_active: false }).eq("category_id", categoryId).eq("participant_id", participantId);
     if (error) { setError(error.message); setBusy(null); return; }
-    setAssigned(x => { const next = { ...x }; delete next[participantId]; return next; });
+    setAssigned(x => ({ ...x, [participantId]: (x[participantId] ?? []).filter(id => id !== categoryId) }));
     setCategories(x => x.map(c => c.id === categoryId ? { ...c, participantCount: Math.max(0, c.participantCount - 1) } : c));
     setBusy(null);
    }); }
 
-  const categoryParticipants = useMemo(() => selectedCategory ? participants.filter(p => assigned[p.id] === selectedCategory) : [], [participants, assigned, selectedCategory]);
+  const categoryParticipants = useMemo(() => selectedCategory ? participants.filter(p => assigned[p.id]?.includes(selectedCategory)) : [], [participants, assigned, selectedCategory]);
 
   return <ActionScope pending={action.pending} error={action.error} paused={showForm}>{<section className="categories-workspace">
     {!showForm && division && divisions.filter(item=>item!==division).map(item=><button key={item} type="button" className="secondary" disabled={busy!==null||!categories.length} onClick={()=>void copyCategories(item)}>{locale==="kk"?`Санаттарды ${divisionNames[item]} бөліміне көшіру`:`Скопировать категории в ${divisionNames[item]}`}</button>)}

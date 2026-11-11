@@ -71,9 +71,35 @@ test('live refresh is read-only and the original realtime migration only enables
 
 test('weigh-in preserves an unsaved actual weight during an external refresh',()=>{
  const h=hooks();const mod=load('app/organizer/tournaments/[id]/weigh-in/weigh-in-client.tsx',{react:h.react,...locale,'@/lib/supabase/client':{createClient:()=>({})},'@/lib/i18n':{translations:{ru:{}}},'@/app/tournaments/[id]/register/registration-form':{__esModule:true,default:'registration'},'@/components/action-feedback':{ActionScope:'scope',useActionFeedback:()=>({pending:false,error:'',run:fn=>fn()})}});
- const category={id:'c',name:'Category',participantCount:1};const person={id:'p',first_name:'Athlete',last_name:'One',age:10,weight:35};let props={tournamentId:'t',initialCategories:[category],participants:[person],initialAssignments:{p:'c'},initialWeighIns:{p:{categoryId:'c',weight:null,status:'pending'}}};
+ const category={id:'c',name:'Category',participantCount:1};const person={id:'p',first_name:'Athlete',last_name:'One',age:10,weight:35};let props={tournamentId:'t',initialCategories:[category],participants:[person],initialWeighIns:{'c:p':{categoryId:'c',weight:null,status:'pending'}}};
  const render=()=>{h.render(()=>mod.default(props));return h.render(()=>mod.default(props))};let tree=render();const input=nodes(tree,'input').find(n=>n.props.type==='number');input.props.onChange({target:{value:'37'}});tree=render();assert.equal(tree.props.paused,true);
- props={...props,initialCategories:[{...category,participantCount:2}],participants:[person,{...person,id:'other'}],initialWeighIns:{p:{categoryId:'c',weight:36,status:'pending'}}};tree=render();assert.equal(nodes(tree,'input').find(n=>n.props.type==='number').props.value,37);h.cleanup();
+ props={...props,initialCategories:[{...category,participantCount:2}],participants:[person,{...person,id:'other'}],initialWeighIns:{'c:p':{categoryId:'c',weight:36,status:'pending'}}};tree=render();assert.equal(nodes(tree,'input').find(n=>n.props.type==='number').props.value,37);h.cleanup();
+});
+
+test('adding a second category keeps the original weigh-in and creates an independent one', async () => {
+ const restore=environment();
+ try {
+  const h=hooks(), calls=[];
+  const client={async rpc(name,args){calls.push({name,args});return {data:true,error:null}}};
+  const mod=load('app/organizer/tournaments/[id]/weigh-in/weigh-in-client.tsx',{react:h.react,...locale,'@/lib/supabase/client':{createClient:()=>client},'@/lib/i18n':{translations:{ru:{add:'Добавить'}}},'@/app/tournaments/[id]/register/registration-form':{__esModule:true,default:'registration'},'@/components/action-feedback':{ActionScope:'scope',useActionFeedback:()=>({pending:false,error:'',run:fn=>fn()})}});
+  const props={tournamentId:'t',division:'gi',initialCategories:[{id:'a',name:'A',participantCount:1},{id:'b',name:'B',participantCount:0}],participants:[{id:'p',first_name:'Athlete',last_name:'One',age:10,weight:35}],initialWeighIns:{'a:p':{categoryId:'a',weight:34,status:'in_weight'}}};
+  const render=()=>{h.render(()=>mod.default(props));return h.render(()=>mod.default(props))};
+  let tree=render();
+  nodes(tree,'button').find(n=>n.props.children==='Добавить ещё в категорию').props.onClick();
+  tree=render();
+  nodes(tree,'select').find(n=>n.props['aria-label']==='Дополнительная категория').props.onChange({target:{value:'b'}});
+  tree=render();
+  await nodes(tree,'button').find(n=>n.props.children==='Добавить').props.onClick();
+  assert.deepEqual(calls,[{name:'add_athlete_to_category',args:{p_from_category_id:'a',p_to_category_id:'b',p_participant_id:'p'}}]);
+  tree=render();
+  assert.equal(nodes(tree,'input').find(n=>n.props.type==='number').props.value,34);
+  nodes(tree,'select')[0].props.onChange({target:{value:'b'}});
+  tree=render();
+  const weight=nodes(tree,'input').find(n=>n.props.type==='number');
+  assert.equal(weight.props.value,'');
+  assert.equal(weight.props.disabled,false);
+  h.cleanup();
+ } finally { restore(); }
 });
 
 test('running filters survive external bouts and reordering preserves hidden slots',async()=>{
