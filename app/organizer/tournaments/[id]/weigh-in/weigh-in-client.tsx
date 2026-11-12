@@ -11,7 +11,7 @@ type Person={id:string;first_name:string;last_name:string;age:number;weight:numb
 type Category={id:string;name:string;age_min:number|null;age_max:number|null;weight_limit:number|null;weight_allowance:number|null;participantCount:number};
 type WeighIn={categoryId:string;weight:number|null;status:"pending"|"in_weight"|"out_of_weight"};
 
-export default function WeighInClient({tournamentId,division,initialCategories,participants:initialParticipants,initialWeighIns}:{tournamentId:string;division:string;initialCategories:Category[];participants:Person[];initialWeighIns:Record<string,WeighIn>}){
+export default function WeighInClient({tournamentId,division,initialCategories,participants:initialParticipants,initialWeighIns,preferPopulatedCategory=false}:{tournamentId:string;division:string;initialCategories:Category[];participants:Person[];initialWeighIns:Record<string,WeighIn>;preferPopulatedCategory?:boolean}){
  const locale = useLocale(); const t=translations[locale];
  const l=locale==="kk"?{declared:"Мәлімделген салмақ",actual:"Нақты салмақ",pending:"Өлшенбеген",inWeight:"Салмақта",outWeight:"Салмақта емес",confirmIn:"Салмақта",confirmOut:"Салмақта емес",move:"Басқа санатқа ауыстыру",remove:"Санаттан шығару",kg:"кг",empty:"Бұл санатта қатысушы жоқ",invalid:"Дұрыс салмақ енгізіңіз.",enterActual:"Алдымен нақты салмақты енгізіңіз."}:{declared:"Заявленный вес",actual:"Фактический вес",pending:"Не взвешен",inWeight:"В весе",outWeight:"Не в весе",confirmIn:"В весе",confirmOut:"Не в весе",move:"Перевести в категорию",remove:"Убрать из категории",kg:"кг",empty:"В этой категории нет участников",invalid:"Введите корректный вес.",enterActual:"Сначала введите фактический вес."};
  const [dirtyWeights,setDirtyWeights]=useState<Record<string,boolean>>({});
@@ -28,7 +28,10 @@ export default function WeighInClient({tournamentId,division,initialCategories,p
   setCategories(rows=>rows.map(c=>c.id===selected?{...c,participantCount:c.participantCount+1}:c));
   setShowRegistration(false);
  }
- const [categories,setCategories]=useState(initialCategories);const [selected,setSelected]=useState(initialCategories[0]?.id??"");const [weighIns,setWeighIns]=useState(initialWeighIns);const [moveTarget,setMoveTarget]=useState<Record<string,string>>({});const [busy,setBusy]=useState<string|null>(null);const [error,setError]=useState("");const supabase=createClient();
+ const [categories,setCategories]=useState(initialCategories);const [selected,setSelected]=useState(()=>{
+  const populated=preferPopulatedCategory?initialCategories.find(c=>initialParticipants.some(p=>initialWeighIns[`${c.id}:${p.id}`])):undefined;
+  return populated?.id??initialCategories[0]?.id??"";
+ });const [weighIns,setWeighIns]=useState(initialWeighIns);const [moveTarget,setMoveTarget]=useState<Record<string,string>>({});const [busy,setBusy]=useState<string|null>(null);const [error,setError]=useState("");const supabase=createClient();
  useEffect(()=>{if(!busy&&!showRegistration&&!Object.keys(dirtyWeights).length){setParticipants(initialParticipants);setCategories(initialCategories);setWeighIns(initialWeighIns)}},[initialParticipants,initialCategories,initialWeighIns]);
  useEffect(()=>{if(!showExisting)return;let cancelled=false;(async()=>{
   const {data:registrations,error}=await createClient().from("registrations").select("participant_id,participants(id,first_name,last_name)").eq("tournament_id",tournamentId).eq("division",division).in("status",["confirmed","pending_confirmation"]);
