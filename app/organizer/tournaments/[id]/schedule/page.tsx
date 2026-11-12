@@ -29,7 +29,7 @@ export default async function SchedulePage({params}:{params:Promise<{id:string}>
 
   const {count:scheduledCount}=await s.from("match_schedule").select("id,matches!inner(tournament_id)",{count:"exact",head:true}).eq("matches.tournament_id",id);
   const {data:mats}=await s.from("mats").select("id,name,sort_order,is_active").eq("tournament_id",id).order("sort_order");
-  const {data:categories}=await s.from("categories").select("id,name,division,age_min,age_max,weight_limit,sort_order,preferred_mat_id").eq("tournament_id",id).order("sort_order");
+  const {data:categories}=await s.from("categories").select("id,name,age_group_name,division,age_min,age_max,weight_limit,sort_order,preferred_mat_id").eq("tournament_id",id).order("sort_order");
   const {data:matches}=await s.from("matches").select("category_id").eq("tournament_id",id);
   const matchCounts=new Map<string,number>();
   for(const m of matches??[])matchCounts.set(m.category_id,(matchCounts.get(m.category_id)??0)+1);
@@ -42,7 +42,7 @@ export default async function SchedulePage({params}:{params:Promise<{id:string}>
       <summary className="schedule-summary">{L("Зоны турнира")}</summary>
       <p className="muted">{L("Добавляйте, переименовывайте, включайте или выключайте зоны, на которых проходят поединки.")}</p>
       <MatsClient tournamentId={id} initialMats={mats??[]}/>
-      <CategoryZones tournamentId={id} initialCategories={(categories??[]).filter(c=>matchCounts.has(c.id)).map(c=>({id:c.id,name:categoryLabel(c.name,c.division),count:matchCounts.get(c.id)??0,preferred_mat_id:c.preferred_mat_id}))} mats={(mats??[]).map(m=>({id:m.id,name:m.name,is_active:m.is_active}))}/>
+      <CategoryZones tournamentId={id} initialCategories={(categories??[]).filter(c=>matchCounts.has(c.id)).map(c=>({id:c.id,name:categoryLabel([c.age_group_name,c.name].filter(Boolean).join(" · "),c.division),count:matchCounts.get(c.id)??0,preferred_mat_id:c.preferred_mat_id}))} mats={(mats??[]).map(m=>({id:m.id,name:m.name,is_active:m.is_active}))}/>
     </details>
 
     <ScheduleClient divisionStarts={availableDivisions(t.divisions).map(division=>{

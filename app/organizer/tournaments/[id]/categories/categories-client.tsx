@@ -12,7 +12,7 @@ import { createClient } from "@/lib/supabase/client";
 import { translations, type Locale } from "@/lib/i18n";
 
 type Person = { id: string; first_name: string; last_name: string; age: number; weight: number; club: string | null; coach: string | null };
-type Category = CategoryTimingValue & { id: string; name: string; age_min: number | null; age_max: number | null; weight_min: number | null; weight_limit: number | null; weight_allowance: number | null; sort_order: number; bracket_format: string | null; participantCount: number };
+type Category = CategoryTimingValue & { id: string; name: string; age_group_name: string | null; manual_assignment_only: boolean; age_min: number | null; age_max: number | null; weight_min: number | null; weight_limit: number | null; weight_allowance: number | null; sort_order: number; bracket_format: string | null; participantCount: number };
 type WeightRow = { type: "up_to" | "from"; weight: string; allowance: string };
 
 export default function CategoriesClient({ tournamentId, division, divisions, defaultFormat, configurable, initialCategories, participants, initialAssignments }: { tournamentId: string; division: string; divisions: Division[]; defaultFormat: string; configurable: boolean; initialCategories: Category[]; participants: Person[]; initialAssignments: Record<string, string[]> }) {
@@ -112,7 +112,7 @@ export default function CategoriesClient({ tournamentId, division, divisions, de
       };
     });
 
-    const { data, error: insertError } = await supabase.from("categories").insert(rowsToInsert).select("division,id,name,age_min,age_max,weight_min,weight_limit,weight_allowance,sort_order,bracket_format,round_seconds,round_count,round_rest_seconds").order("sort_order");
+    const { data, error: insertError } = await supabase.from("categories").insert(rowsToInsert).select("division,id,name,age_group_name,manual_assignment_only,age_min,age_max,weight_min,weight_limit,weight_allowance,sort_order,bracket_format,round_seconds,round_count,round_rest_seconds").order("sort_order");
     if (insertError || !data) {
       setError(insertError?.message ?? t.errorGeneric);
     } else {
@@ -124,25 +124,19 @@ export default function CategoriesClient({ tournamentId, division, divisions, de
     setBusy(null);
    }); }
 
-  async function renameCategory(event: React.FormEvent<HTMLFormElement>, category: Category) {
+  async function saveGroup(event: React.FormEvent<HTMLFormElement>, category: Category) {
     event.preventDefault();
-    const name = String(new FormData(event.currentTarget).get("name") ?? "").trim();
-    if (!name) {
-      setError(locale === "kk" ? "Санат атауын енгізіңіз." : "Введите название категории.");
-      return;
-    }
-    if (name === category.name) { setError(""); return; }
-
+    const fields = new FormData(event.currentTarget);
+    const name = String(fields.get("name") ?? "").trim() || null;
+    const manual = fields.has("manual");
     return action.run(async () => {
-      setBusy(`rename:${category.id}`);
       setError("");
-      const { data, error } = await supabase.from("categories").update({ name })
-        .eq("tournament_id", tournamentId).eq("id", category.id).select("name").single();
-      if (error) {
-        setError(locale === "kk" ? "Санат атауын өзгерту мүмкін болмады." : "Не удалось переименовать категорию.");
-        return;
-      }
-      setCategories(rows => rows.map(row => row.id === category.id ? { ...row, name: data.name } : row));
+      const { error } = await supabase.rpc("save_age_group_settings", {
+        p_category_id: category.id, p_name: name, p_manual: manual,
+      });
+      if (error) { setError(error.message); return; }
+      setCategories(rows => rows.map(row => row.age_min === category.age_min && row.age_max === category.age_max
+        ? { ...row, age_group_name: name, manual_assignment_only: manual } : row));
     });
   }
 
@@ -227,12 +221,20 @@ export default function CategoriesClient({ tournamentId, division, divisions, de
     <div className="category-list" style={{ marginTop: 12 }}>
       {categories.length === 0 ? <div className="empty-state">{t.noCategories}</div> : groupedCategories.map(group => <section key={`${group.ageMin}:${group.ageMax}`} className="form-card" style={{ marginBottom: 12 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-          <h2 style={{ margin: 0 }}>{group.ageMin ?? "—"}–{group.ageMax ?? "—"} {t.years}</h2>
+          <h2 style={{ margin: 0 }}>{group.categories[0].age_group_name ?? `${group.ageMin ?? "—"}–${group.ageMax ?? "—"} ${t.years}`}</h2>
           <button type="button" className="secondary" disabled={busy !== null} onClick={() => setOpenAgeGroups(x => ({ ...x, [`${group.ageMin}:${group.ageMax}`]: !x[`${group.ageMin}:${group.ageMax}`] }))}>
             {openAgeGroups[`${group.ageMin}:${group.ageMax}`] ? labels.close : labels.open}
           </button>
         </div>
         {openAgeGroups[`${group.ageMin}:${group.ageMax}`] && <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
+          <details>
+            <summary>{locale === "kk" ? "Жас тобын баптау" : "Настройки возрастной группы"}</summary>
+            <form className="form-grid" onSubmit={event => void saveGroup(event, group.categories[0])}>
+              <label>{locale === "kk" ? "Топ атауы" : "Название группы"}<input className="field" name="name" defaultValue={group.categories[0].age_group_name ?? ""} /></label>
+              <label className="checkbox-row"><input type="checkbox" name="manual" defaultChecked={group.categories[0].manual_assignment_only} />{locale === "kk" ? "Тек қолмен қосу" : "Только ручное добавление"}</label>
+              <button type="submit" className="secondary" disabled={busy !== null}>{locale === "kk" ? "Сақтау" : "Сохранить"}</button>
+            </form>
+          </details>
           {group.categories.map(c => {
             const open = selectedCategory === c.id;
             return <article className="participant-card" key={c.id}>
@@ -247,13 +249,6 @@ export default function CategoriesClient({ tournamentId, division, divisions, de
                 </div>
               </div>
               {open && <div className="form-card" style={{ marginTop: 16 }}>
-                <details>
-                  <summary>{locale === "kk" ? "Санат атауын өзгерту" : "Переименовать категорию"}</summary>
-                  <form className="form-grid" onSubmit={event => void renameCategory(event, c)}>
-                    <label>{labels.preview}<input key={c.name} className="field" name="name" defaultValue={c.name} required /></label>
-                    <button type="submit" className="secondary" disabled={busy !== null}>{locale === "kk" ? "Сақтау" : "Сохранить"}</button>
-                  </form>
-                </details>
                 {division&&<DivisionCategoryFields key={c.id} category={c} kk={locale==="kk"} onSaved={value=>setCategories(rows=>rows.map(row=>row.id===c.id?{...row,...value}:row))}/>}
                 <CategoryTiming key={c.id} category={c} kk={locale==="kk"} onSaved={value=>setCategories(rows=>rows.map(row=>row.id===c.id?{...row,...value}:row))}/>
                 {configurable && <label style={{display:"block",marginBottom:16}}>{locale === "kk" ? "Тор форматы" : "Формат сетки"}

@@ -33,9 +33,9 @@ export default async function WeighInPage({ params, searchParams }: { params: Pr
   const legacy = Boolean(legacyCount || legacyCategories);
   const selected = division === "legacy" && legacy ? "" : divisions.find(item => item === division) ?? "all";
   const scopes = selected === "all" ? [...divisions, ...(legacy || !divisions.length ? [""] : [])] : [selected];
-  const groups = await Promise.all(scopes.map(async scope => {
+  const [groups, { data: targetCategories, error: targetError }] = await Promise.all([Promise.all(scopes.map(async scope => {
     const [{ data: categories, error }, { data: registrations, error: registrationError }] = await Promise.all([
-      supabase.from("categories").select("id,name,age_min,age_max,weight_limit,weight_allowance,sort_order,category_participants(participant_id,is_active,weigh_in_weight,weigh_in_status)").eq("tournament_id", id).eq("division", scope).order("sort_order"),
+      supabase.from("categories").select("id,name,age_group_name,age_min,age_max,weight_limit,weight_allowance,sort_order,category_participants(participant_id,is_active,weigh_in_weight,weigh_in_status)").eq("tournament_id", id).eq("division", scope).order("sort_order"),
       supabase.from("registrations").select("participant_id,participants(id,first_name,last_name,age,weight,club,coach)").eq("tournament_id", id).eq("division", scope).eq("status", "confirmed").eq("payment_status", "paid"),
     ]);
     if (error || registrationError) throw new Error((error ?? registrationError)?.message);
@@ -50,11 +50,12 @@ export default async function WeighInPage({ params, searchParams }: { params: Pr
       for (const cp of assignments) {
         weighIns[`${category.id}:${cp.participant_id}`] = { categoryId: category.id, weight: cp.weigh_in_weight ?? null, status: cp.weigh_in_status ?? "pending" };
       }
-      return { ...category, participantCount: assignments.length };
+      return { ...category, name: [category.age_group_name, category.name].filter(Boolean).join(" · "), participantCount: assignments.length };
     });
 
     return { scope, categories: categoryList, participants, weighIns };
-  }));
+  })), supabase.from("categories").select("id,name,division,age_group_name").eq("tournament_id", id).order("sort_order")]);
+  if (targetError) throw new Error(targetError.message);
   const legacyLabel = locale === "kk" ? "Бөлімсіз" : "Без раздела";
   const showGroupLabels = selected === "all" && (divisions.length > 0 || legacy);
 
@@ -65,7 +66,7 @@ export default async function WeighInPage({ params, searchParams }: { params: Pr
     {groups.map(group => <section key={`${selected}:${group.scope}`}>
       {showGroupLabels && <h2 className="section-title">{group.scope === "gi" || group.scope === "no_gi" ? divisionNames[group.scope] : legacyLabel}</h2>}
       {group.categories.length > 0
-        ? <WeighInClient division={group.scope} tournamentId={id} initialCategories={group.categories} participants={group.participants} initialWeighIns={group.weighIns} preferPopulatedCategory={selected === "all"} />
+        ? <WeighInClient division={group.scope} tournamentId={id} initialCategories={group.categories} participants={group.participants} initialWeighIns={group.weighIns} preferPopulatedCategory={selected === "all"} targetCategories={targetCategories ?? []} />
         : <div className="empty-state">{locale === "kk" ? "Салмақ санаттары әлі қосылмаған." : "Весовые категории ещё не добавлены."}</div>}
     </section>)}
   </main>;

@@ -76,13 +76,13 @@ test('weigh-in preserves an unsaved actual weight during an external refresh',()
  props={...props,initialCategories:[{...category,participantCount:2}],participants:[person,{...person,id:'other'}],initialWeighIns:{'c:p':{categoryId:'c',weight:36,status:'pending'}}};tree=render();assert.equal(nodes(tree,'input').find(n=>n.props.type==='number').props.value,37);h.cleanup();
 });
 
-test('adding a second category keeps the original weigh-in and creates an independent one', async () => {
+test('adding a second category keeps and reuses the recorded weigh-in', async () => {
  const restore=environment();
  try {
   const h=hooks(), calls=[];
-  const client={async rpc(name,args){calls.push({name,args});return {data:true,error:null}}};
+  const client={async rpc(name,args){calls.push({name,args});return {data:true,error:null}},from(){return {select(){return this},eq(){return this},async maybeSingle(){return {data:{weigh_in_weight:34,weigh_in_status:'in_weight'}}}}}};
   const mod=load('app/organizer/tournaments/[id]/weigh-in/weigh-in-client.tsx',{react:h.react,...locale,'@/lib/supabase/client':{createClient:()=>client},'@/lib/i18n':{translations:{ru:{add:'Добавить'}}},'@/app/tournaments/[id]/register/registration-form':{__esModule:true,default:'registration'},'@/components/action-feedback':{ActionScope:'scope',useActionFeedback:()=>({pending:false,error:'',run:fn=>fn()})}});
-  const props={tournamentId:'t',division:'gi',initialCategories:[{id:'a',name:'A',participantCount:1},{id:'b',name:'B',participantCount:0}],participants:[{id:'p',first_name:'Athlete',last_name:'One',age:10,weight:35}],initialWeighIns:{'a:p':{categoryId:'a',weight:34,status:'in_weight'}}};
+  const props={tournamentId:'t',division:'gi',targetCategories:[{id:'b',name:'B',division:'gi'}],initialCategories:[{id:'a',name:'A',participantCount:1},{id:'b',name:'B',participantCount:0}],participants:[{id:'p',first_name:'Athlete',last_name:'One',age:10,weight:35}],initialWeighIns:{'a:p':{categoryId:'a',weight:34,status:'in_weight'}}};
   const render=()=>{h.render(()=>mod.default(props));return h.render(()=>mod.default(props))};
   let tree=render();
   nodes(tree,'button').find(n=>n.props.children==='Добавить ещё в категорию').props.onClick();
@@ -90,14 +90,15 @@ test('adding a second category keeps the original weigh-in and creates an indepe
   nodes(tree,'select').find(n=>n.props['aria-label']==='Дополнительная категория').props.onChange({target:{value:'b'}});
   tree=render();
   await nodes(tree,'button').find(n=>n.props.children==='Добавить').props.onClick();
+  await new Promise(setImmediate);
   assert.deepEqual(calls,[{name:'add_athlete_to_category',args:{p_from_category_id:'a',p_to_category_id:'b',p_participant_id:'p'}}]);
   tree=render();
   assert.equal(nodes(tree,'input').find(n=>n.props.type==='number').props.value,34);
   nodes(tree,'select')[0].props.onChange({target:{value:'b'}});
   tree=render();
   const weight=nodes(tree,'input').find(n=>n.props.type==='number');
-  assert.equal(weight.props.value,'');
-  assert.equal(weight.props.disabled,false);
+  assert.equal(weight.props.value,34);
+  assert.equal(weight.props.disabled,true);
   h.cleanup();
  } finally { restore(); }
 });

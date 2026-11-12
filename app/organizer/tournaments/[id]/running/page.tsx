@@ -20,11 +20,11 @@ export default async function RunningPage({params}:{params:Promise<{id:string}>}
  const [{data:matches},{data:schedule},{data:categories},{data:mats},{data:brackets}]=await Promise.all([
    s.from("matches").select("id,match_number,round_number,status,participant_a_id,participant_b_id,category_id,winner_id,next_match_id,loser_next_match_id,started_at,completed_at,match_scoreboards(*),participants_a:participants!matches_participant_a_id_fkey(first_name,last_name,club),participants_b:participants!matches_participant_b_id_fkey(first_name,last_name,club)").eq("tournament_id",id),
    s.from("match_schedule").select("id,match_id,scheduled_order,approximate_time,mat_id,matches!inner(tournament_id)").eq("matches.tournament_id",id).order("scheduled_order"),
-   s.from("categories").select("id,name,division,round_seconds,round_count,round_rest_seconds").eq("tournament_id",id),
+   s.from("categories").select("id,name,age_group_name,division,round_seconds,round_count,round_rest_seconds").eq("tournament_id",id),
    s.from("mats").select("id,name").eq("tournament_id",id),
    s.from("brackets").select("category_id,format,categories!inner(tournament_id)").eq("categories.tournament_id",id)
  ]);
- const categoryNames=Object.fromEntries((categories??[]).map(c=>[c.id,categoryLabel(c.name,c.division)]));
+ const categoryNames=Object.fromEntries((categories??[]).map(c=>[c.id,categoryLabel([c.age_group_name,c.name].filter(Boolean).join(" · "),c.division)]));
  const zoneNames=Object.fromEntries((mats??[]).map(m=>[m.id,m.name]));
  return <main className="container dashboard-page">
    <div className="page-topline"><Link className="back-link" href={`/organizer/tournaments/${id}`}>← {t.name}</Link></div>
