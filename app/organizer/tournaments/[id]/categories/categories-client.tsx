@@ -172,10 +172,7 @@ export default function CategoriesClient({ tournamentId, division, divisions, de
         </div>
 
         <div style={{ marginTop: 18 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-            <h3 style={{ margin: 0 }}>{labels.weightCategories}</h3>
-            <button type="button" className="secondary" onClick={() => setWeights(rows => [...rows, { type: "up_to", weight: "", allowance: "" }])} disabled={busy !== null}>+ {labels.addWeight}</button>
-          </div>
+          <h3 style={{ margin: 0 }}>{labels.weightCategories}</h3>
           <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
             {weights.map((row, index) => <div className="form-card" key={index} style={{ padding: 12 }}>
               <div className="form-grid">
@@ -195,7 +192,10 @@ export default function CategoriesClient({ tournamentId, division, divisions, de
 
         <TimingFields value={newTiming} onChange={setNewTiming} kk={locale==="kk"} disabled={busy!==null}/>
         {error && <p className="error">{error}</p>}
-        <button className="primary" disabled={busy !== null} style={{ marginTop: 14 }}>{busy === "category" ? t.creating : t.createCategory}</button>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8, marginTop: 14 }}>
+          <button type="button" className="secondary" onClick={() => setWeights(rows => [...rows, { type: "up_to", weight: "", allowance: "" }])} disabled={busy !== null}>+ {labels.addWeight}</button>
+          <button type="submit" className="primary" disabled={busy !== null}>{busy === "category" ? t.creating : t.createCategory}</button>
+        </div>
       </form>}
 
     {error && !showForm && <p className="error">{error}</p>}
