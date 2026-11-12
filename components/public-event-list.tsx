@@ -25,7 +25,7 @@ export default function PublicEventList({id,title,data,kk,mode,categoryId}:{id:s
    const people=data.participants.filter(p=>p.category_id===c.id),confirmed=people.filter(p=>p.status==="confirmed"),unconfirmed=people.filter(p=>p.status!=="confirmed");
    return <section key={c.id} className="form-card public-participant-category">
     <header><h2>{c.name}</h2><span className="muted">{kk?"Расталғандар":"Подтверждено"}: {confirmed.length}</span></header>
-    {confirmed.map(p=><article key={p.id} className="participant-card"><div className="participant-main"><strong>{p.name}</strong><small>{[p.club,p.city].filter(Boolean).join(" · ")}</small></div><span className="status-pill">{kk?"Расталған":"Подтверждён"}</span></article>)}
+    {confirmed.map(p=><article key={p.id} className="participant-card"><div className="participant-main"><strong>{p.name}</strong><small>{[p.club,p.city].filter(Boolean).join(" · ")}</small></div></article>)}
     {pending[c.id]&&unconfirmed.length>0&&<div><h3 className="public-pending-heading">{kk?"Расталмағандар":"Неподтверждённые"} · {unconfirmed.length}</h3>{unconfirmed.map(p=><article key={p.id} className="participant-card"><div className="participant-main"><strong>{p.name}</strong><small>{[p.club,p.city].filter(Boolean).join(" · ")}</small></div></article>)}</div>}
     {unconfirmed.length>0&&<button type="button" className="secondary" aria-expanded={!!pending[c.id]} onClick={()=>setPending(v=>({...v,[c.id]:!v[c.id]}))}>{pending[c.id]?(kk?"Расталмағандарды жасыру":"Скрыть неподтверждённых"):(kk?"Расталмағандарды көрсету":"Показать неподтверждённых")} · {unconfirmed.length}</button>}
    </section>;
