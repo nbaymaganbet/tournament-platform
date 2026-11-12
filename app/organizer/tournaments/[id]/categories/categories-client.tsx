@@ -124,6 +124,28 @@ export default function CategoriesClient({ tournamentId, division, divisions, de
     setBusy(null);
    }); }
 
+  async function renameCategory(event: React.FormEvent<HTMLFormElement>, category: Category) {
+    event.preventDefault();
+    const name = String(new FormData(event.currentTarget).get("name") ?? "").trim();
+    if (!name) {
+      setError(locale === "kk" ? "Санат атауын енгізіңіз." : "Введите название категории.");
+      return;
+    }
+    if (name === category.name) { setError(""); return; }
+
+    return action.run(async () => {
+      setBusy(`rename:${category.id}`);
+      setError("");
+      const { data, error } = await supabase.from("categories").update({ name })
+        .eq("tournament_id", tournamentId).eq("id", category.id).select("name").single();
+      if (error) {
+        setError(locale === "kk" ? "Санат атауын өзгерту мүмкін болмады." : "Не удалось переименовать категорию.");
+        return;
+      }
+      setCategories(rows => rows.map(row => row.id === category.id ? { ...row, name: data.name } : row));
+    });
+  }
+
   async function remove(id: string) { return action.run(async () => {
     const warning = locale === "kk"
       ? "Санатты жою керек пе? Қатысушылар жарыста қалады, бірақ оларды басқа санаттарға бөлу қажет болады. Осы санаттың торы, жекпе-жектері және нәтижелері (бар болса) жойылады."
@@ -223,6 +245,13 @@ export default function CategoriesClient({ tournamentId, division, divisions, de
                 </div>
               </div>
               {open && <div className="form-card" style={{ marginTop: 16 }}>
+                <details>
+                  <summary>{locale === "kk" ? "Санат атауын өзгерту" : "Переименовать категорию"}</summary>
+                  <form className="form-grid" onSubmit={event => void renameCategory(event, c)}>
+                    <label>{labels.preview}<input key={c.name} className="field" name="name" defaultValue={c.name} required /></label>
+                    <button type="submit" className="secondary" disabled={busy !== null}>{locale === "kk" ? "Сақтау" : "Сохранить"}</button>
+                  </form>
+                </details>
                 {division&&<DivisionCategoryFields key={c.id} category={c} kk={locale==="kk"} onSaved={value=>setCategories(rows=>rows.map(row=>row.id===c.id?{...row,...value}:row))}/>}
                 <CategoryTiming key={c.id} category={c} kk={locale==="kk"} onSaved={value=>setCategories(rows=>rows.map(row=>row.id===c.id?{...row,...value}:row))}/>
                 {configurable && <label style={{display:"block",marginBottom:16}}>{locale === "kk" ? "Тор форматы" : "Формат сетки"}

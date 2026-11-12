@@ -5,8 +5,15 @@ import { createClient } from "@/lib/supabase/client";
 
 type Limits = { age_min: number | null; age_max: number | null; weight_min: number | null; weight_limit: number | null; weight_allowance: number | null };
 
+function defaultCategoryName(limits: Limits, kk: boolean) {
+  const weightLabel = limits.weight_min == null
+    ? `${kk ? "дейін" : "до"} ${limits.weight_limit}`
+    : `${limits.weight_min}+`;
+  return `${limits.age_min}–${limits.age_max} ${kk ? "жас" : "лет"} — ${weightLabel} кг`;
+}
+
 export default function DivisionCategoryFields({ category, kk, onSaved }: {
-  category: Limits & { id: string };
+  category: Limits & { id: string; name: string };
   kk: boolean;
   onSaved: (limits: Limits & { name: string }) => void;
 }) {
@@ -27,7 +34,9 @@ export default function DivisionCategoryFields({ category, kk, onSaved }: {
       weight_min: upTo ? null : Number(weight), weight_limit: upTo ? Number(weight) : null,
       weight_allowance: Number(allowance),
     };
-    const name = `${ageMin}–${ageMax} ${kk ? "жас" : "лет"} — ${upTo ? `${kk ? "дейін" : "до"} ${weight}` : `${weight}+`} кг`;
+    const name = [false, true].some(inKazakh => defaultCategoryName(category, inKazakh) === category.name)
+      ? defaultCategoryName(values, kk)
+      : category.name;
     const { error } = await createClient().rpc("update_division_category_limits", {
       p_category_id: category.id, p_name: name, p_age_min: values.age_min, p_age_max: values.age_max,
       p_weight_min: values.weight_min, p_weight_limit: values.weight_limit, p_allowance: values.weight_allowance,

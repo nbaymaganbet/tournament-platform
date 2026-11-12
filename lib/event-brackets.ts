@@ -1,12 +1,12 @@
 import type { BracketDisplayMatch } from "./bracket-display";
 export type BracketPerson={id:string;name:string;club?:string|null;city?:string|null;coach?:string|null;age?:number|null;weight?:number|null;status?:string;category_id?:string|null};
 export type EventMatch=BracketDisplayMatch & {category_id:string;division_start_at?:string|null;duration_seconds?:number|null;victory_method?:string|null;score_a?:number|null;score_b?:number|null;status:string;winner_id:string|null;participant_a_id:string|null;participant_b_id:string|null;started_at?:string|null;completed_at?:string|null;mat_id?:string|null;mat_name?:string|null;scheduled_order?:number|null;approximate_time?:string|null};
-export type EventCategory={id:string;name:string;division?:string;age_min?:number|null;age_max?:number|null;weight_limit?:number|null;format?:string|null;published?:boolean};
-type CategoryOrderFields=Pick<EventCategory,"name"|"age_min"|"age_max"|"weight_limit">&{weight_min?:number|null};
+export type EventCategory={id:string;name:string;division?:string;age_min?:number|null;age_max?:number|null;weight_min?:number|null;weight_limit?:number|null;format?:string|null;published?:boolean};
+type CategoryOrderFields=Pick<EventCategory,"name"|"age_min"|"age_max"|"weight_min"|"weight_limit">;
 
 function categoryWeightFloor(category:CategoryOrderFields){
- if(category.weight_min!=null)return category.weight_min;
- // The public event payload omits weight_min. Open-ended categories include it in their label.
+ if(category.weight_min!==undefined)return category.weight_min??undefined;
+ // Older payloads can omit weight_min for open-ended categories.
  const weight=category.name.match(/(\d+(?:[.,]\d+)?)\s*\+\s*кг|(?:свыше|от)\s+(\d+(?:[.,]\d+)?)\s*кг/iu);
  return weight?Number((weight[1]??weight[2]).replace(",",".")):undefined;
 }
