@@ -20,7 +20,7 @@ export default function DivisionCategoryFields({ category, kk, onSaved }: {
   const [ageMin, setAgeMin] = useState(String(category.age_min ?? ""));
   const [ageMax, setAgeMax] = useState(String(category.age_max ?? ""));
   const [weight, setWeight] = useState(String(category.weight_limit ?? category.weight_min ?? ""));
-  const [allowance, setAllowance] = useState(String(category.weight_allowance ?? 0));
+  const [allowance, setAllowance] = useState(String(Math.round((category.weight_allowance ?? 0) * 1000)));
   const [upTo, setUpTo] = useState(category.weight_min === null);
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
@@ -32,7 +32,7 @@ export default function DivisionCategoryFields({ category, kk, onSaved }: {
     const values = {
       age_min: Number(ageMin), age_max: Number(ageMax),
       weight_min: upTo ? null : Number(weight), weight_limit: upTo ? Number(weight) : null,
-      weight_allowance: Number(allowance),
+      weight_allowance: Number(allowance) / 1000,
     };
     const name = [false, true].some(inKazakh => defaultCategoryName(category, inKazakh) === category.name)
       ? defaultCategoryName(values, kk)
@@ -61,7 +61,7 @@ export default function DivisionCategoryFields({ category, kk, onSaved }: {
         <option value="up_to">{kk ? "Дейін" : "До"}</option><option value="from">{kk ? "Бастап" : "От"}</option>
       </select></label>
       <label>{kk ? "Салмақ, кг" : "Вес, кг"}<input className="field" type="number" min="0.1" step="0.1" required value={weight} onChange={(event) => setWeight(event.target.value)} /></label>
-      <label>{kk ? "Рұқсат, кг" : "Допуск, кг"}<input className="field" type="number" min="0" step="0.1" value={allowance} onChange={(event) => setAllowance(event.target.value)} /></label>
+      <label>{kk ? "Рұқсат, г" : "Допуск, г"}<input className="field" type="number" min="0" step="1" value={allowance} onChange={(event) => setAllowance(event.target.value)} /></label>
       <button className="secondary" type="submit" disabled={saving}>{kk ? "Сақтау" : "Сохранить"}</button>
       {message && <p role="status" className="muted">{message}</p>}
     </form>

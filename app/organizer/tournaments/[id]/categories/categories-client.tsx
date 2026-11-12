@@ -94,7 +94,7 @@ export default function CategoriesClient({ tournamentId, division, divisions, de
     const nextSort = categories.reduce((max, category) => Math.max(max, category.sort_order), -1) + 1;
     const rowsToInsert = validRows.map((row, index) => {
       const weight = Number(row.weight);
-      const allowance = row.allowance ? Number(row.allowance) : 0;
+      const allowance = Number(row.allowance) / 1000;
       const name = row.type === "up_to"
         ? `${ageGroup.min}–${ageGroup.max} ${locale === "kk" ? "жас" : "лет"} — ${labels.upToPreview} ${weight} кг`
         : `${ageGroup.min}–${ageGroup.max} ${locale === "kk" ? "жас" : "лет"} — ${weight}+ кг`;
@@ -203,8 +203,10 @@ export default function CategoriesClient({ tournamentId, division, divisions, de
                     <option value="from">{labels.from}</option>
                   </select>
                 </label>
-                <label>{labels.weight}, {labels.kg}<input className="field" type="number" min="0" step="0.1" required value={row.weight} onChange={e => updateWeight(index, { weight: e.target.value })} /></label>
-                <label>{labels.allowance}, {labels.kg}<input className="field" type="number" min="0" step="0.1" value={row.allowance} onChange={e => updateWeight(index, { allowance: e.target.value })} placeholder="0" /></label>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+                  <label>{labels.weight}, {labels.kg}<input className="field" type="number" min="0" step="0.1" required value={row.weight} onChange={e => updateWeight(index, { weight: e.target.value })} /></label>
+                  <label>{labels.allowance}, г<input className="field" type="number" min="0" step="1" value={row.allowance} onChange={e => updateWeight(index, { allowance: e.target.value })} placeholder="0" /></label>
+                </div>
               </div>
               <div className="muted" style={{ marginTop: 8 }}>{labels.preview}: <strong>{ageGroup.min && ageGroup.max && row.weight ? `${ageGroup.min}–${ageGroup.max} ${locale === "kk" ? "жас" : "лет"} — ${weightPreview(row)}` : labels.previewEmpty}</strong></div>
               {weights.length > 1 && <button type="button" className="danger-button" style={{ marginTop: 8 }} onClick={() => setWeights(rows => rows.filter((_, i) => i !== index))} disabled={busy !== null}>{labels.removeWeight}</button>}
@@ -237,7 +239,7 @@ export default function CategoriesClient({ tournamentId, division, divisions, de
               <div className="participant-main">
                 <div>
                   <strong>{c.name}</strong>
-                  <span className="muted">{c.weight_min != null ? `${labels.from} ${c.weight_min} ${labels.kg}` : `${labels.upTo} ${c.weight_limit ?? "—"} ${labels.kg}`} · {labels.allowance.toLowerCase()} +{c.weight_allowance ?? 0} {labels.kg} · {c.participantCount} {t.participantsCount}</span>
+                  <span className="muted">{c.weight_min != null ? `${labels.from} ${c.weight_min} ${labels.kg}` : `${labels.upTo} ${c.weight_limit ?? "—"} ${labels.kg}`} · {labels.allowance.toLowerCase()} +{Math.round((c.weight_allowance ?? 0) * 1000)} г · {c.participantCount} {t.participantsCount}</span>
                 </div>
                 <div className="participant-actions">
                   <button type="button" className={open ? "primary" : "secondary"} disabled={busy !== null} onClick={() => setSelectedCategory(open ? "" : c.id)}>{open ? labels.close : labels.open}</button>
