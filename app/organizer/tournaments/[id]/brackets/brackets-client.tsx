@@ -10,11 +10,11 @@ import {createClient} from "@/lib/supabase/client";
 import BracketView from "@/components/bracket-view";
 import BracketShare from "@/components/bracket-share";
 import BracketFilters,{emptyBracketFilter,filterCategories} from "@/components/bracket-filters";
-import {projectSchedule,nextMatchIds,categoryDone,type BracketPerson,type BracketResult,type EventMatch} from "@/lib/event-brackets";
+import {compareBracketCategories,projectSchedule,nextMatchIds,categoryDone,type BracketPerson,type BracketResult,type EventMatch} from "@/lib/event-brackets";
 import { swappableAthletes } from "@/lib/bracket-swap";
 import {isByeSeed,matchRole,pendingAthlete} from "@/lib/bracket-display";
 
-type Category={round_seconds?:number|null;round_count?:number|null;round_rest_seconds?:number|null;id:string;name:string;division?:string;division_start_at?:string|null;bracket_format:string|null;age_min?:number|null;age_max?:number|null;weight_limit?:number|null};
+type Category={round_seconds?:number|null;round_count?:number|null;round_rest_seconds?:number|null;id:string;name:string;division?:string;division_start_at?:string|null;bracket_format:string|null;age_min?:number|null;age_max?:number|null;weight_min?:number|null;weight_limit?:number|null};
 type Person={id:string;first_name:string;last_name:string;club:string|null;city:string|null;coach:string|null};
 type Match=EventMatch&{completed_at:string|null};
 type ReadyCategory=Category&{count:number};
@@ -23,7 +23,7 @@ export default function BracketsClient({categories,tournamentId,defaultFormat,ne
  const [results,setResults]=useState<BracketResult[]>([]);
  const [division,setDivision]=useState("");
  const divisions=availableDivisions(categories.map(category=>category.division??""));
- const choices=categories.filter(category=>!division||category.division===division);
+ const choices=categories.filter(category=>!division||category.division===division).sort(compareBracketCategories);
  const [filter,setFilter]=useState(emptyBracketFilter);
  const [now,setNow]=useState(()=>Date.now());
  const [published,setPublished]=useState<Set<string>>(new Set());
@@ -85,6 +85,7 @@ export default function BracketsClient({categories,tournamentId,defaultFormat,ne
  useEffect(()=>{void load()},[]);
  useLiveReload(()=>{if(!busy)return load()});
  const readyInDivision=readyCats.filter(c=>!division||c.division===division);
+ const orderedReadyCats=[...readyInDivision].sort(compareBracketCategories);
  const action = useActionFeedback(() => { setBusy(false); });
  async function formBrackets(without=false,categoryIds?:string[]){ return action.run(async () => {
   const target=categoryIds??readyInDivision.map(c=>c.id);
@@ -133,7 +134,7 @@ export default function BracketsClient({categories,tournamentId,defaultFormat,ne
 
  return <ActionScope pending={action.pending} error={action.error} paused={false}>{loading?<LoadingIndicator />:<section className="brackets-workspace">
   {divisions.length>0&&<label>{kk?"Бөлім":"Раздел"}<select className="field" value={division} onChange={event=>{setDivision(event.target.value);setFilter(emptyBracketFilter);setWarning(null);}}><option value="">{kk?"Барлығы":"Все"}</option>{divisions.map(item=><option key={item} value={item}>{divisionNames[item]}</option>)}</select></label>}
-  <div className="form-card"><div className="eyebrow">{L.title}</div><h2>{L.form}</h2><p className="muted">{L.ready}</p>{readyInDivision.length?<div style={{display:"grid",gap:8,marginBottom:12}}>{readyInDivision.map(c=><div key={c.id} style={{display:"flex",justifyContent:"space-between",gap:12}}><strong>{c.name}</strong><span className="muted">{c.count}{newFormats?` · ${(c.bracket_format??defaultFormat)==="round_robin"?(kk?"Айналмалы":"Круговая"):(kk?"Олимпиадалық":"Олимпийская")}`:""}</span></div>)}</div>:<p className="muted">{L.noneReady}</p>}<button type="button" className="primary" disabled={busy||!readyInDivision.length} onClick={()=>void formBrackets()}>{busy?L.forming:L.form}</button></div>
+  <div className="form-card"><div className="eyebrow">{L.title}</div><h2>{L.form}</h2><p className="muted">{L.ready}</p>{readyInDivision.length?<div style={{display:"grid",gap:8,marginBottom:12}}>{orderedReadyCats.map(c=><div key={c.id} style={{display:"flex",justifyContent:"space-between",gap:12}}><strong>{c.name}</strong><span className="muted">{c.count}{newFormats?` · ${(c.bracket_format??defaultFormat)==="round_robin"?(kk?"Айналмалы":"Круговая"):(kk?"Олимпиадалық":"Олимпийская")}`:""}</span></div>)}</div>:<p className="muted">{L.noneReady}</p>}<button type="button" className="primary" disabled={busy||!readyInDivision.length} onClick={()=>void formBrackets()}>{busy?L.forming:L.form}</button></div>
   {unweighed.length>0&&!warning&&<details className="form-card"><summary>{kk?"Салмағы расталмаған":"Вес не подтверждён"} · {unweighed.length}</summary><ul>{unweighed.map(p=><li key={`${p.category_id}-${p.participant_id}`}>{categories.find(c=>c.id===p.category_id)?.name}: {p.name}</li>)}</ul><a className="button-link" href={`/organizer/tournaments/${tournamentId}/weigh-in`}>{kk?"Салмақ өлшеуге өту":"Перейти к взвешиванию"}</a></details>}
   {matches.length>0&&<BracketFilters categories={choices} people={rosterPeople} value={filter} onChange={setFilter} kk={kk} collapseAll/>}
   {warning&&<div className="form-card" role="alert"><h3>{kk?"Салмағы расталмаған қатысушылар":"Участники с неподтверждённым весом"}</h3><ul>{unweighed.filter(p=>warning.includes(p.category_id)).map(p=><li key={`${p.category_id}-${p.participant_id}`}>{categories.find(c=>c.id===p.category_id)?.name}: {p.name}</li>)}</ul><div className="button-row"><a className="button-link" href={`/organizer/tournaments/${tournamentId}/weigh-in`}>{kk?"Салмақ өлшеуге өту":"Перейти к взвешиванию"}</a><button type="button" className="secondary" disabled={busy} onClick={()=>{const ids=warning;setWarning(null);void formBrackets(true,ids)}}>{kk?"Оларсыз қалыптастыру":"Сформировать без этих участников"}</button><button type="button" onClick={()=>setWarning(null)}>{kk?"Бас тарту":"Отмена"}</button></div></div>}

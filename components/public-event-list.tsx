@@ -5,13 +5,15 @@ import Link from "@/components/pending-link";
 import BracketFilters,{emptyBracketFilter,filterCategories,matchesAthleteFilter} from "./bracket-filters";
 import BracketView from "./bracket-view";
 import BracketShare from "./bracket-share";
-import {categoryDone,projectSchedule,nextMatchIds,type EventData} from "@/lib/event-brackets";
+import {categoryDone,compareBracketCategories,projectSchedule,nextMatchIds,type EventData} from "@/lib/event-brackets";
 export default function PublicEventList({id,title,data,kk,mode,categoryId}:{id:string;title:string;data:EventData;kk:boolean;mode:"participants"|"brackets";categoryId?:string}){
  const [filter,setFilter]=useState(emptyBracketFilter),[pending,setPending]=useState<Record<string,boolean>>({}),[now,setNow]=useState(()=>Date.now());
  useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),15000);return()=>clearInterval(timer)},[]);
  const [division,setDivision]=useState("");
  const divisions=availableDivisions(data.categories.map(category=>category.division??""));
- const categoryChoices=data.categories.filter(category=>!division||category.division===division).map(category=>({...category,name:categoryLabel(category.name,category.division)}));
+ const divisionCategories=data.categories.filter(category=>!division||category.division===division);
+ if(mode==="brackets")divisionCategories.sort(compareBracketCategories);
+ const categoryChoices=divisionCategories.map(category=>({...category,name:categoryLabel(category.name,category.division)}));
  const matches=projectSchedule(data.matches,data.bout_minutes,data.bout_interval_minutes,data.athlete_rest_minutes,now);
  const next=nextMatchIds(matches);
  const categories=filterCategories(categoryChoices,data.participants,filter).filter(c=>!categoryId||c.id===categoryId);
