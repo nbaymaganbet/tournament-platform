@@ -1,42 +1,67 @@
 "use client";
-import {useEffect,useMemo,useState} from "react";
-import {ActionScope,useActionFeedback} from "@/components/action-feedback";
-import {useLocale} from "@/components/locale-provider";
-import {createClient} from "@/lib/supabase/client";
-type Category={id:string;name:string;count:number;preferred_mat_id:string|null};
-type Mat={id:string;name:string;is_active:boolean};
-export default function CategoryZones({tournamentId,initialCategories,mats}:{tournamentId:string;initialCategories:Category[];mats:Mat[]}){
- const kk=useLocale()==="kk";
- const[categories,setCategories]=useState(initialCategories),[zones,setZones]=useState(mats);
- const[saving,setSaving]=useState(false),[message,setMessage]=useState("");
- const s=useMemo(()=>createClient(),[]);
- const action=useActionFeedback(()=>setSaving(false));
- useEffect(()=>setCategories(initialCategories),[initialCategories]);
- useEffect(()=>setZones(mats),[mats]);
- useEffect(()=>{
-  const refresh=async()=>{const{data}=await s.from("mats").select("id,name,is_active").eq("tournament_id",tournamentId).order("sort_order");if(data)setZones(data)};
-  window.addEventListener("tournament-zones-changed",refresh);
-  return()=>window.removeEventListener("tournament-zones-changed",refresh);
- },[s,tournamentId]);
- async function setCategoryZone(c:Category,matId:string){
-  return action.run(async()=>{
-   setSaving(true);setMessage("");
-   const{error}=await s.rpc("set_category_schedule_zone",{p_category_id:c.id,p_mat_id:matId||null});
-   if(error)setMessage(error.message);
-   else setCategories(current=>current.map(row=>row.id===c.id?{...row,preferred_mat_id:matId||null}:row));
-   setSaving(false);
-  });
- }
- return <ActionScope pending={action.pending} error={action.error}><details className="category-zone-picker">
-  <summary>{kk?"Санаттарға аймақ тағайындау":"Назначить зоны категориям"}</summary>
-  <p className="muted">{kk?"Әдепкіде бөлу автоматты. Қажет болса, әр санатқа аймақ таңдаңыз.":"По умолчанию распределение автоматическое. При необходимости выберите зону для каждой категории."}</p>
-  <div className="schedule-category-list">{categories.map(c=><label className="schedule-category" key={c.id}>
-   <span><strong>{c.name}</strong><small>{c.count} {kk?"кездесу":"встреч"}</small></span>
-   <select aria-label={`${c.name}: ${kk?"аймақ":"зона"}`} disabled={saving} value={c.preferred_mat_id??""} onChange={event=>void setCategoryZone(c,event.target.value)}>
-    <option value="">{kk?"Автоматты түрде":"Автоматически"}</option>
-    {zones.filter(z=>z.is_active||z.id===c.preferred_mat_id).map(z=><option key={z.id} value={z.id}>{z.name}{z.is_active?"":kk?" (өшірілген)":" (выключена)"}</option>)}
-   </select>
-  </label>)}</div>
-  {message&&<p className="muted" role="status">{message}</p>}
- </details></ActionScope>;
+
+import { useState } from "react";
+import { useActionFeedback } from "@/components/action-feedback";
+import { useLocale } from "@/components/locale-provider";
+import { createClient } from "@/lib/supabase/client";
+
+export type ZoneCategory = { id: string; name: string; preferred_mat_id: string | null };
+type Zone = { id: string; name: string; is_active: boolean };
+
+export default function CategoryZones({ mat, mats, categories, onSaved }: {
+  mat: Zone;
+  mats: Zone[];
+  categories: ZoneCategory[];
+  onSaved: (changes: { id: string; assigned: boolean }[]) => void;
+}) {
+  const kk = useLocale() === "kk";
+  const [draft, setDraft] = useState<{ checked: string[]; original: ZoneCategory[] } | null>(null);
+  const [message, setMessage] = useState("");
+  const action = useActionFeedback();
+  const assigned = categories.filter(category => category.preferred_mat_id === mat.id);
+
+  async function save() {
+    if (!draft) return;
+    const changes = draft.original.flatMap(category => {
+      const checked = draft.checked.includes(category.id);
+      return checked === (category.preferred_mat_id === mat.id) ? [] : [{
+        id: category.id, assigned: checked, previous_mat_id: category.preferred_mat_id,
+      }];
+    });
+    const moving = changes.filter(change => change.assigned && change.previous_mat_id);
+    if (moving.length) {
+      const names = moving.map(change => categories.find(category => category.id === change.id)?.name).join("\n");
+      if (!window.confirm(kk ? `Осы санаттарды «${mat.name}» аймағына ауыстыру керек пе?\n${names}` : `Перенести эти категории на ковёр «${mat.name}»?\n${names}`)) return;
+    }
+    if (!changes.length) { setDraft(null); return; }
+    await action.run(async () => {
+      setMessage("");
+      const { error } = await createClient().rpc("save_mat_categories", { p_mat_id: mat.id, p_changes: changes });
+      if (error) { setMessage(error.message); return; }
+      onSaved(changes);
+      setDraft(null);
+    });
+  }
+
+  return <div style={{ marginTop: 10 }} data-live-paused={draft ? "true" : undefined}>
+    {assigned.length > 0 && <ul>{assigned.map(category => <li key={category.id}>{category.name}</li>)}</ul>}
+    {mat.is_active && categories.length > 0 && <button className="secondary" type="button" disabled={action.pending}
+      aria-expanded={draft !== null} onClick={() => { setMessage(""); setDraft(draft ? null : { checked: assigned.map(category => category.id), original: categories }); }}>
+      {draft ? (kk ? "Бас тарту" : "Отмена") : (kk ? "Санаттарды тағайындау" : "Назначить категории")}
+    </button>}
+    {draft && <fieldset className="tp-action-scope" disabled={action.pending}>
+      {categories.map(category => {
+        const other = mats.find(zone => zone.id !== mat.id && zone.id === category.preferred_mat_id);
+        return <label className="checkbox-row" key={category.id}>
+          <input type="checkbox" checked={draft.checked.includes(category.id)} onChange={event => {
+            const checked = event.target.checked;
+            setDraft(current => current && { ...current, checked: checked ? [...current.checked, category.id] : current.checked.filter(id => id !== category.id) });
+          }} />
+          <span>{category.name}{other && <small className="muted"> · {other.name}</small>}</span>
+        </label>;
+      })}
+      <button className="primary" type="button" onClick={() => void save()}>{kk ? "Сақтау" : "Сохранить"}</button>
+    </fieldset>}
+    {(message || action.error) && <p className="error" role="alert">{message || action.error}</p>}
+  </div>;
 }

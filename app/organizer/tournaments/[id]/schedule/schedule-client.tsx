@@ -44,6 +44,14 @@ export default function ScheduleClient({tournamentId,startTime,scheduledCount,ti
  }
  async function saveTiming(){return action.run(async()=>{setSaving("timing");setMessage("");const {error}=await s.rpc("save_bout_timing",{p_tournament_id:tournamentId,p_duration:bout.duration,p_interval:bout.gap,p_rest:bout.rest});setMessage(error?error.message:locale==="kk"?"Сақталды":"Сохранено");setSaving(null);});}
  async function generate(){ return action.run(async () => { if(!validTime){setMessage(L("Укажите время от 00:00 до 23:59."));return}if(starts.some(start=>!start.saved)){setMessage(locale==="kk"?"Әр бөлімнің басталу күні мен уақытын сақтаңыз.":"Сохраните дату и время старта каждого раздела.");return}setSaving("generate");setMessage("");if(!starts.length||timeDirty){const saved=await s.rpc("save_tournament_schedule_start_time",{p_tournament_id:tournamentId,p_start_time:startTimeInput});if(saved.error){setMessage(saved.error.message);setSaving(null);return}}const result=await s.rpc("generate_tournament_schedule",{p_tournament_id:tournamentId});if(result.error){setMessage(result.error.message);setSaving(null);return}setTimeDirty(false);window.dispatchEvent(new Event("tp-action-finished")) }); }
+ async function orderByStage(){
+  if(!window.confirm(locale==="kk"?"Күтіп тұрған кездесулерді тор кезеңдері бойынша реттеу керек пе? Қолмен қойылған кезек өзгереді.":"Упорядочить предстоящие бои по этапам? Ручной порядок этих боёв будет заменён."))return;
+  return action.run(async()=>{
+   setSaving("stage");setMessage("");
+   const {error}=await s.rpc("order_tournament_schedule_by_stage",{p_tournament_id:tournamentId});
+   setMessage(error?error.message:locale==="kk"?"Кезек жаңартылды":"Очередь обновлена");
+  });
+ }
  return <ActionScope pending={action.pending} error={action.error} paused={timeDirty}>{<section className="schedule-controls form-card"><details>
    <summary className="schedule-summary">{locale==="kk"?"Жарыс кестесі":"Расписание турнира"}{scheduledCount>0?` · ${scheduledCount}`:""}</summary>
 
@@ -72,6 +80,7 @@ export default function ScheduleClient({tournamentId,startTime,scheduledCount,ti
 
    </details>
    <button className="primary schedule-generate" type="button" disabled={!!saving} onClick={()=>void generate()}>{saving==="generate"?t.generating:scheduledCount>0?(locale==="kk"?"Кестені жаңарту":"Обновить расписание"):t.generateSchedule}</button>
+   {scheduledCount>0&&<button className="secondary schedule-generate" type="button" disabled={!!saving} onClick={()=>void orderByStage()}>{locale==="kk"?"Кезеңдер бойынша реттеу":"Упорядочить по этапам"}</button>}
    {scheduledCount>0&&<p className="muted">{locale==="kk"?"Кезекте болашақ жекпе-жектерді қоса барлық кезеңдер бар. Кезек «Өткізу» бөлімінде.":"В очередь включены все раунды, включая будущие бои. Очередь находится во вкладке «Проведение»."}</p>}
    {message&&<p className="muted" role="status">{message}</p>}
    <style jsx>{`

@@ -139,15 +139,24 @@ test('hiding optional schedule settings preserves current and edited values with
  nodes(tree,'button').find(n=>n.props.children==='Сохранить параметры').props.onClick();await new Promise(setImmediate);
  assert.deepEqual(rpc,[{name:'save_bout_timing',args:{p_tournament_id:'t',p_duration:9,p_interval:2,p_rest:8}}]);h.cleanup();
 });
-test('moving zone controls retains manual assignments and only writes after an explicit selection',async()=>{
+test('mat category picker saves a batch after confirming a move from another mat',async()=>{
  const restore=environment(),h=hooks(),rpc=[];try{
   const action={pending:false,error:'',run:fn=>fn()};
-  const mod=load('app/organizer/tournaments/[id]/schedule/category-zones.tsx',{react:h.react,...locale,'@/components/action-feedback':{ActionScope:()=>null,useActionFeedback:()=>action},'@/lib/supabase/client':{createClient:()=>({rpc:async(name,args)=>{rpc.push({name,args});return {error:null}}})}});
-  const props={tournamentId:'t',initialCategories:[{id:'c',name:'Category',count:2,preferred_mat_id:'z'}],mats:[{id:'z',name:'Mat',is_active:false}]};
-  const render=()=>h.render(()=>mod.default(props));let tree=render();assert.equal(rpc.length,0);
-  assert.equal(nodes(tree,'select')[0].props.value,'z');assert.equal(nodes(tree,'option').length,2);
-  nodes(tree,'select')[0].props.onChange({target:{value:''}});await new Promise(setImmediate);tree=render();
-  assert.equal(nodes(tree,'select')[0].props.value,'');assert.deepEqual(rpc,[{name:'set_category_schedule_zone',args:{p_category_id:'c',p_mat_id:null}}]);
+  const mod=load('app/organizer/tournaments/[id]/schedule/category-zones.tsx',{react:h.react,...locale,'@/components/action-feedback':{useActionFeedback:()=>action},'@/lib/supabase/client':{createClient:()=>({rpc:async(name,args)=>{rpc.push({name,args});return {error:null}}})}});
+  const mat={id:'z',name:'A',is_active:true}, mats=[mat,{id:'other',name:'B',is_active:true}];
+  const categories=[{id:'c',name:'Category 1',preferred_mat_id:'z'},{id:'d',name:'Category 2',preferred_mat_id:'other'}];
+  const props={mat,mats,categories,onSaved(){}};
+  const render=()=>h.render(()=>mod.default(props));let tree=render();
+  nodes(tree,'button').find(n=>n.props.children==='Назначить категории').props.onClick();tree=render();
+  assert.deepEqual(nodes(tree,'input').map(n=>n.props.checked),[true,false]);
+  nodes(tree,'input')[0].props.onChange({target:{checked:false}});
+  nodes(tree,'input')[1].props.onChange({target:{checked:true}});tree=render();
+  const save=()=>nodes(tree,'button').find(n=>n.props.children==='Сохранить').props.onClick();
+  window.confirm=()=>false;save();assert.equal(rpc.length,0);
+  window.confirm=()=>true;save();await new Promise(setImmediate);
+  assert.deepEqual(rpc,[{name:'save_mat_categories',args:{p_mat_id:'z',p_changes:[
+   {id:'c',assigned:false,previous_mat_id:'z'},{id:'d',assigned:true,previous_mat_id:'other'},
+  ]}}]);
  }finally{h.cleanup();restore()}
 });
 
