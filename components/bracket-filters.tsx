@@ -2,7 +2,12 @@
 import type {EventCategory,BracketPerson} from "@/lib/event-brackets";
 export type BracketFilter={category:string;search:string;club:string;city:string};
 export const emptyBracketFilter:BracketFilter={category:"",search:"",club:"",city:""};
-export function filterCategories<T extends EventCategory>(categories:T[],people:BracketPerson[],filter:BracketFilter){return categories.filter(c=>(!filter.category||c.id===filter.category)&&(!filter.search&&!filter.club&&!filter.city||people.some(p=>p.category_id===c.id&&(!filter.search||p.name.toLocaleLowerCase().includes(filter.search.toLocaleLowerCase()))&&(!filter.club||p.club===filter.club)&&(!filter.city||p.city===filter.city))));}
+export function matchesAthleteFilter(person:BracketPerson,filter:BracketFilter){
+ return (!filter.search||person.name.toLocaleLowerCase().includes(filter.search.toLocaleLowerCase()))
+  &&(!filter.club||person.club===filter.club)
+  &&(!filter.city||person.city===filter.city);
+}
+export function filterCategories<T extends EventCategory>(categories:T[],people:BracketPerson[],filter:BracketFilter){return categories.filter(c=>(!filter.category||c.id===filter.category)&&(!filter.search&&!filter.club&&!filter.city||people.some(p=>p.category_id===c.id&&matchesAthleteFilter(p,filter))));}
 export default function BracketFilters({categories,people,value,onChange,kk,collapseAll=false}:{categories:EventCategory[];people:BracketPerson[];value:BracketFilter;onChange:(value:BracketFilter)=>void;kk:boolean;collapseAll?:boolean}){
  const options=(key:"club"|"city")=>[...new Set(people.map(p=>p[key]).filter((v):v is string=>!!v))].sort();
  const basic=<>
