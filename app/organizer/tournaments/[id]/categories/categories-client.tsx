@@ -231,9 +231,12 @@ export default function CategoriesClient({ tournamentId, division, divisions, de
             <summary>{locale === "kk" ? "Жас тобын баптау" : "Настройки возрастной группы"}</summary>
             <form className="form-grid" onSubmit={event => void saveGroup(event, group.categories[0])}>
               <label>{locale === "kk" ? "Топ атауы" : "Название группы"}<input className="field" name="name" defaultValue={group.categories[0].age_group_name ?? ""} /></label>
-              <label className="checkbox-row"><input type="checkbox" name="manual" defaultChecked={group.categories[0].manual_assignment_only} />{locale === "kk" ? "Тек қолмен қосу" : "Только ручное добавление"}</label>
+              <label className="checkbox-row" style={{display:"flex",whiteSpace:"nowrap",fontSize:"0.875rem"}}><input type="checkbox" style={{width:"auto",flexShrink:0,margin:0}} name="manual" defaultChecked={group.categories[0].manual_assignment_only} />{locale === "kk" ? "Тек қолмен қосу" : "Только ручное добавление"}</label>
               <button type="submit" className="secondary" disabled={busy !== null}>{locale === "kk" ? "Сақтау" : "Сохранить"}</button>
             </form>
+            <CategoryTiming key={group.categories[0].id} category={group.categories[0]} kk={locale==="kk"}
+              mixed={group.categories.some(row=>row.round_seconds!==group.categories[0].round_seconds||row.round_count!==group.categories[0].round_count||row.round_rest_seconds!==group.categories[0].round_rest_seconds)}
+              onSaved={value=>setCategories(rows=>rows.map(row=>row.age_min===group.ageMin&&row.age_max===group.ageMax?{...row,...value}:row))}/>
           </details>
           {group.categories.map(c => {
             const open = selectedCategory === c.id;
@@ -250,7 +253,6 @@ export default function CategoriesClient({ tournamentId, division, divisions, de
               </div>
               {open && <div className="form-card" style={{ marginTop: 16 }}>
                 {division&&<DivisionCategoryFields key={c.id} category={c} kk={locale==="kk"} onSaved={value=>setCategories(rows=>rows.map(row=>row.id===c.id?{...row,...value}:row))}/>}
-                <CategoryTiming key={c.id} category={c} kk={locale==="kk"} onSaved={value=>setCategories(rows=>rows.map(row=>row.id===c.id?{...row,...value}:row))}/>
                 {configurable && <label style={{display:"block",marginBottom:16}}>{locale === "kk" ? "Тор форматы" : "Формат сетки"}
                   <select className="field" value={c.bracket_format ?? defaultFormat} disabled={busy !== null} onChange={e => void setFormat(c,e.target.value)}>
                     <option value="single_elimination">{locale === "kk" ? "Олимпиадалық" : "Олимпийская"}</option>
