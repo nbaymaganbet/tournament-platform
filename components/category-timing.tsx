@@ -3,7 +3,7 @@ import {useState,type FormEvent} from "react";
 import {createClient} from "@/lib/supabase/client";
 export type CategoryTimingValue={round_seconds:number|null;round_count:number|null;round_rest_seconds:number|null};
 export const emptyTiming:CategoryTimingValue={round_seconds:null,round_count:null,round_rest_seconds:null};
-function DurationFields({label,value,min,max,kk,disabled,onChange}:{
+export function DurationFields({label,value,min,max,kk,disabled,onChange}:{
  label:string;value:number;min:number;max:number;kk:boolean;disabled:boolean;onChange:(value:number)=>void;
 }){
  const minutes=Math.floor(value/60);
