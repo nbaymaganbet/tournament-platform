@@ -22,6 +22,7 @@ export default function PublicEventList({id,title,data,kk,mode,categoryId}:{id:s
  const hasFilters=hasCategoryFilter||!!(filter.search||filter.club||filter.city);
  const matchingCategoryIds=new Set(categories.map(category=>category.id));
  const registeredCount=showParticipantCount?new Set(data.participants.map(person=>person.id)).size:0;
+ const confirmedCount=showParticipantCount?new Set(data.participants.filter(person=>person.status==="confirmed").map(person=>person.id)).size:0;
  const matchingCount=showParticipantCount&&hasFilters?new Set(data.participants
   .filter(person=>(!hasCategoryFilter||matchingCategoryIds.has(person.category_id??""))&&matchesAthleteFilter(person,filter))
   .map(person=>person.id)).size:registeredCount;
@@ -31,9 +32,12 @@ export default function PublicEventList({id,title,data,kk,mode,categoryId}:{id:s
  return <>
   {!categoryId&&divisions.length>0&&<label>{kk?"Бөлім":"Раздел"}<select className="field" value={division} onChange={event=>{setDivision(event.target.value);setFilter(emptyBracketFilter);}}><option value="">{kk?"Барлығы":"Все"}</option>{divisions.map(item=><option key={item} value={item}>{divisionNames[item]}</option>)}</select></label>}
   {!categoryId&&<BracketFilters categories={categoryChoices} people={data.participants} kk={kk} value={filter} onChange={setFilter}/>}
-  {showParticipantCount&&<p className="muted" role="status">{hasFilters
-   ?kk?`Табылды: ${matchingCount} / ${registeredCount}`:`Найдено: ${matchingCount} из ${registeredCount}`
-   :`${kk?"Тіркелгендер":"Зарегистрировано"}: ${registeredCount}`}</p>}
+  {showParticipantCount&&<>
+   <p className="muted" role={hasFilters?undefined:"status"} style={{fontSize:"0.875rem",whiteSpace:"nowrap"}}>
+    {kk?"Тіркелгендер":"Зарегистрировано"}: {registeredCount} · {kk?"Расталғандар":"Подтверждено"}: {confirmedCount}
+   </p>
+   {hasFilters&&<p className="muted" role="status">{kk?`Табылды: ${matchingCount} / ${registeredCount}`:`Найдено: ${matchingCount} из ${registeredCount}`}</p>}
+  </>}
   {mode==="participants"?categories.map(c=>{
    const people=data.participants.filter(p=>p.category_id===c.id),confirmed=people.filter(p=>p.status==="confirmed"),unconfirmed=people.filter(p=>p.status!=="confirmed");
    return <section key={c.id} className="form-card public-participant-category">
