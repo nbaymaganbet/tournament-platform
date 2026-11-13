@@ -240,18 +240,18 @@ export default function CategoriesClient({ tournamentId, division, divisions, de
           </details>
           {group.categories.map(c => {
             const open = selectedCategory === c.id;
-            return <article className="participant-card" key={c.id}>
-              <div className="participant-main">
-                <div>
+            return <article className="participant-card" key={c.id} style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", alignItems: "start", gap: 8 }}>
+                <div className="participant-main">
                   <strong>{c.name}</strong>
                   <span className="muted">{c.weight_min != null ? `${labels.from} ${c.weight_min} ${labels.kg}` : `${labels.upTo} ${c.weight_limit ?? "—"} ${labels.kg}`} · {labels.allowance.toLowerCase()} +{Math.round((c.weight_allowance ?? 0) * 1000)} г · {c.participantCount} {t.participantsCount}</span>
                 </div>
-                <div className="participant-actions">
-                  <button type="button" className={open ? "primary" : "secondary"} disabled={busy !== null} onClick={() => setSelectedCategory(open ? "" : c.id)}>{open ? labels.close : labels.open}</button>
-                  <button type="button" className="danger-button" disabled={busy !== null} onClick={() => void remove(c.id)}>{t.delete}</button>
+                <div className="participant-actions" style={{ flexWrap: "nowrap", gap: 6 }}>
+                  <button type="button" className={open ? "primary" : "secondary"} style={{ paddingInline: 8 }} disabled={busy !== null} onClick={() => setSelectedCategory(open ? "" : c.id)}>{open ? labels.close : labels.open}</button>
+                  <button type="button" className="danger-button" style={{ paddingInline: 8 }} disabled={busy !== null} onClick={() => void remove(c.id)}>{t.delete}</button>
                 </div>
               </div>
-              {open && <div className="form-card" style={{ marginTop: 16 }}>
+              {open && <div className="form-card">
                 {division&&<DivisionCategoryFields key={c.id} category={c} kk={locale==="kk"} onSaved={value=>setCategories(rows=>rows.map(row=>row.id===c.id?{...row,...value}:row))}/>}
                 {configurable && <label style={{display:"block",marginBottom:16}}>{locale === "kk" ? "Тор форматы" : "Формат сетки"}
                   <select className="field" value={c.bracket_format ?? defaultFormat} disabled={busy !== null} onChange={e => void setFormat(c,e.target.value)}>
@@ -261,7 +261,15 @@ export default function CategoriesClient({ tournamentId, division, divisions, de
                   <span className="muted">{locale === "kk" ? "Турнирдің әдепкі форматы. Жекпе-жек басталғанша өзгертуге болады." : "По умолчанию действует формат турнира. Можно изменить до начала боёв."}</span>
                 </label>}
                 <h2>{labels.details}</h2><p className="muted">{labels.info}</p>
-                {categoryParticipants.length === 0 ? <div className="empty-state">{t.noFreeParticipants}</div> : <div className="participants-list">{categoryParticipants.map(p => <article className="participant-card" key={p.id}><div className="participant-main"><div><strong>{p.last_name} {p.first_name}</strong><span className="muted">{labels.declared}: {p.weight} {labels.kg} · {p.age} {t.years} · {p.club || t.clubNotSet}{p.coach ? ` · ${p.coach}` : ""}</span></div><button type="button" className="danger-button" disabled={busy !== null} onClick={() => void unassign(p.id)}>{t.remove}</button></div></article>)}</div>}
+                {categoryParticipants.length === 0 ? <div className="empty-state">{t.noFreeParticipants}</div> : <div className="participants-list">
+                  {categoryParticipants.map(p => <article className="participant-card" key={p.id} style={{ alignItems: "center" }}>
+                    <div className="participant-main">
+                      <strong>{p.last_name} {p.first_name}</strong>
+                      <span className="muted">{labels.declared}: {p.weight} {labels.kg} · {p.age} {t.years} · {p.club || t.clubNotSet}{p.coach ? ` · ${p.coach}` : ""}</span>
+                    </div>
+                    <button type="button" className="danger-button" style={{ flexShrink: 0 }} disabled={busy !== null} onClick={() => void unassign(p.id)}>{t.remove}</button>
+                  </article>)}
+                </div>}
               </div>}
             </article>;
           })}
