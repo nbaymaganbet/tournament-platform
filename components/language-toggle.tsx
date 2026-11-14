@@ -30,7 +30,7 @@ export default function LanguageToggle() {
     ["Категории", `${tournamentBase}/categories`],
     ["Взвешивание", `${tournamentBase}/weigh-in`],
     ["Сетки", `${tournamentBase}/brackets`],
-    ["Зоны и расписание", `${tournamentBase}/schedule`],
+    ["Зоны, расписание и табло", `${tournamentBase}/schedule`],
     ["Проведение", `${tournamentBase}/running`],
     ["Результаты", `${tournamentBase}/results`],
     ["Настройки", `${tournamentBase}/settings`],
@@ -147,7 +147,7 @@ export default function LanguageToggle() {
           </div>
           <nav aria-label={uiText(lang, "Разделы турнира")} style={{display:"grid",gap:4,paddingTop:14}}>
             {tournamentLinks.map(([label, href]) => {
-              const keyMap:Record<string,string>={"Обзор":"overview","Участники":"participants","Категории":"categories","Взвешивание":"weigh_in","Сетки":"brackets","Зоны и расписание":"schedule","Проведение":"running","Результаты":"results","Настройки":"settings","Команда":"team"};
+              const keyMap:Record<string,string>={"Обзор":"overview","Участники":"participants","Категории":"categories","Взвешивание":"weigh_in","Сетки":"brackets","Зоны, расписание и табло":"schedule","Проведение":"running","Результаты":"results","Настройки":"settings","Команда":"team"};
               const permissionKey=keyMap[label];
               const allowed=permissions===null || permissions[permissionKey] !== false;
               const active = href === tournamentBase ? pathname === tournamentBase : pathname.startsWith(href);

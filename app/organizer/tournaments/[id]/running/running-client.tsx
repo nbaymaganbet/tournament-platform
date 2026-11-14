@@ -93,7 +93,7 @@ export default function RunningClient({tournamentId,initialMatches,initialSchedu
    </details>
    <p className="muted">{locale==="kk"?"Қалған жекпе-жектер":"Осталось боёв"}: {matches.filter(m=>!["completed","cancelled"].includes(m.status)&&(!divisionFilter||categoryDivisions[m.category_id]===divisionFilter)&&(!categoryFilter||m.category_id===categoryFilter)&&(!zoneFilter||schedule.some(s=>s.match_id===m.id&&s.mat_id===zoneFilter))).length}</p>
    {message&&<p className="muted" role="alert">{message}</p>}
-   {ordered.length===0?<div className="empty-state">{L("Расписание пока не сформировано. Сначала откройте «Зоны и расписание».")}</div>:
+   {ordered.length===0?<div className="empty-state">{L("Расписание пока не сформировано. Сначала откройте «Зоны, расписание и табло».")}</div>:
    visible.length===0?<div className="empty-state">{locale==="kk"?"Таңдалған сүзгілер бойынша жекпе-жектер жоқ.":"По выбранным фильтрам поединков нет."}</div>:
    visible.map((r,i)=>{const m=byId.get(r.match_id);if(!m)return null;const done=m.status==="completed";
      const previous=i>0?byId.get(visible[i-1].match_id):null,next=i<visible.length-1?byId.get(visible[i+1].match_id):null;

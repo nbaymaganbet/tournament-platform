@@ -32,7 +32,7 @@ export default async function SchedulePage({params}:{params:Promise<{id:string}>
 
   return <main className="container dashboard-page">
     <div className="page-topline"><Link className="back-link" href={"/organizer/tournaments/"+id}>← {t.name}</Link></div>
-    <div className="section-header"><div><h1>{L("Зоны и расписание")}</h1><p className="muted">{L("Создайте зоны, назначьте их категориям и задайте начало соревнований.")}</p></div></div>
+    <div className="section-header"><div><h1>{L("Зоны, расписание и табло")}</h1><p className="muted">{L("Создайте зоны, назначьте их категориям и задайте начало соревнований.")}</p></div></div>
 
     <details className="form-card" style={{marginBottom:16}}>
       <summary className="schedule-summary">{L("Зоны турнира")}</summary>
