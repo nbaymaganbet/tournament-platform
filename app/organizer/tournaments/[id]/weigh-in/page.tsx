@@ -53,7 +53,7 @@ export default async function WeighInPage({ params, searchParams }: { params: Pr
       for (const cp of assignments) {
         weighIns[`${category.id}:${cp.participant_id}`] = { categoryId: category.id, weight: cp.weigh_in_weight ?? null, status: cp.weigh_in_status ?? "pending" };
       }
-      return { ...category, name: [category.age_group_name, category.name].filter(Boolean).join(" · "), participantCount: assignments.length };
+      return { ...category, name: [category.age_group_name, category.name].filter(Boolean).join(" · ") };
     });
 
     return { scope, categories: categoryList, participants, weighIns };
