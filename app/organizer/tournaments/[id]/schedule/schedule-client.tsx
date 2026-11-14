@@ -19,6 +19,7 @@ export default function ScheduleClient({tournamentId,startTime,scheduledCount,ti
  const [savedStarts,setSavedStarts]=useState(divisionStarts.filter(start=>start.saved));
  const[bout,setBout]=useState(timing);
  const[customTiming,setCustomTiming]=useState(false);
+ const[youngerFirst,setYoungerFirst]=useState(false);
  const[timeDirty,setTimeDirty]=useState(false);
  const[hour,setHour]=useState((startTime||"10:00").slice(0,2)),[minute,setMinute]=useState((startTime||"10:00").slice(3,5));
  const[saving,setSaving]=useState<string|null>(null),[message,setMessage]=useState("");
@@ -43,7 +44,7 @@ export default function ScheduleClient({tournamentId,startTime,scheduledCount,ti
    setStarts(current=>current.map(item=>item.division===division?{...item,[key]:value,saved:false}:item));
  }
  async function saveTiming(){return action.run(async()=>{setSaving("timing");setMessage("");const {error}=await s.rpc("save_bout_timing",{p_tournament_id:tournamentId,p_duration:bout.duration,p_interval:bout.gap,p_rest:bout.rest});setMessage(error?error.message:locale==="kk"?"Сақталды":"Сохранено");setSaving(null);});}
- async function generate(){ return action.run(async () => { if(!validTime){setMessage(L("Укажите время от 00:00 до 23:59."));return}if(starts.some(start=>!start.saved)){setMessage(locale==="kk"?"Әр бөлімнің басталу күні мен уақытын сақтаңыз.":"Сохраните дату и время старта каждого раздела.");return}setSaving("generate");setMessage("");if(!starts.length||timeDirty){const saved=await s.rpc("save_tournament_schedule_start_time",{p_tournament_id:tournamentId,p_start_time:startTimeInput});if(saved.error){setMessage(saved.error.message);setSaving(null);return}}const result=await s.rpc("generate_tournament_schedule",{p_tournament_id:tournamentId});if(result.error){setMessage(result.error.message);setSaving(null);return}setTimeDirty(false);window.dispatchEvent(new Event("tp-action-finished")) }); }
+ async function generate(){ return action.run(async () => { if(!validTime){setMessage(L("Укажите время от 00:00 до 23:59."));return}if(starts.some(start=>!start.saved)){setMessage(locale==="kk"?"Әр бөлімнің басталу күні мен уақытын сақтаңыз.":"Сохраните дату и время старта каждого раздела.");return}setSaving("generate");setMessage("");if(!starts.length||timeDirty){const saved=await s.rpc("save_tournament_schedule_start_time",{p_tournament_id:tournamentId,p_start_time:startTimeInput});if(saved.error){setMessage(saved.error.message);setSaving(null);return}}const result=await s.rpc(youngerFirst?"generate_tournament_schedule_younger_first":"generate_tournament_schedule",{p_tournament_id:tournamentId});if(result.error){setMessage(result.error.message);setSaving(null);return}setTimeDirty(false);window.dispatchEvent(new Event("tp-action-finished")) }); }
  async function orderByStage(){
   if(!window.confirm(locale==="kk"?"Күтіп тұрған кездесулерді тор кезеңдері бойынша реттеу керек пе? Қолмен қойылған кезек өзгереді.":"Упорядочить предстоящие бои по этапам? Ручной порядок этих боёв будет заменён."))return;
   return action.run(async()=>{
@@ -79,6 +80,10 @@ export default function ScheduleClient({tournamentId,startTime,scheduledCount,ti
    </div>}
 
    </details>
+   <label className="checkbox-row">
+     <input type="checkbox" checked={youngerFirst} disabled={!!saving} onChange={event=>setYoungerFirst(event.target.checked)}/>
+     {locale==="kk"?"Алдымен кіші жас топтары":"Сначала младшие"}
+   </label>
    <button className="primary schedule-generate" type="button" disabled={!!saving} onClick={()=>void generate()}>{saving==="generate"?t.generating:scheduledCount>0?(locale==="kk"?"Кестені жаңарту":"Обновить расписание"):t.generateSchedule}</button>
    {scheduledCount>0&&<button className="secondary schedule-generate" type="button" disabled={!!saving} onClick={()=>void orderByStage()}>{locale==="kk"?"Кезеңдер бойынша реттеу":"Упорядочить по этапам"}</button>}
    {scheduledCount>0&&<p className="muted">{locale==="kk"?"Кезекте болашақ жекпе-жектерді қоса барлық кезеңдер бар. Кезек «Өткізу» бөлімінде.":"В очередь включены все раунды, включая будущие бои. Очередь находится во вкладке «Проведение»."}</p>}
