@@ -231,8 +231,8 @@ test('declined and bracket-blocked cancellation keep the participant confirmed',
  }finally{h.cleanup();restore()}
 });
 
-test('one confirmed start opens scoreboard controls and shows victory through a stale refresh',async()=>{
- const h=hooks(),rpc=[];
+test('confirmed start and cancellation update controls through a stale refresh',async()=>{
+ const h=hooks(),rpc=[],restore=environment();
  try {
   const action={pending:false,error:'',run:async fn=>fn()};
   const mod=load('app/organizer/tournaments/[id]/running/running-client.tsx',{react:h.react,...locale,
@@ -255,6 +255,23 @@ test('one confirmed start opens scoreboard controls and shows victory through a 
   props={...props,initialMatches:[{...match}]};
   render();
   check();
-  assert.deepEqual(rpc,[{name:'start_match',args:{p_match_id:'m'}}]);
- } finally {h.cleanup()}
+  const cancel=()=>nodes(render(),'button').find(n=>n.props.children==='Отменить начало').props.onClick();
+  window.confirm=()=>false;
+  cancel();
+  assert.equal(rpc.length,1);
+  window.confirm=()=>true;
+  cancel();
+  await new Promise(setImmediate);
+  const checkCancelled=()=>{
+   const card=nodes(render(),'article')[0];
+   assert.equal(nodes(card,'details').length,0);
+   assert.equal(nodes(card,'button').filter(n=>n.props.children==='Неявка').length,2);
+   assert.ok(nodes(card,'button').some(n=>n.props.children==='Начать'));
+  };
+  checkCancelled();
+  props={...props,initialMatches:[{...match,status:'running',started_at:'2026-11-15T05:00:00Z'}]};
+  render();
+  checkCancelled();
+  assert.deepEqual(rpc,[{name:'start_match',args:{p_match_id:'m'}},{name:'cancel_match_start',args:{p_match_id:'m'}}]);
+ } finally {h.cleanup();restore()}
 });

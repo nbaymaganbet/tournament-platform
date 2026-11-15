@@ -25,7 +25,7 @@ export default function RunningClient({tournamentId,initialMatches,initialSchedu
  const[result,setResult]=useState<{match:Match;winner:string}|null>(null),[method,setMethod]=useState("points"),[scoreA,setScoreA]=useState(""),[scoreB,setScoreB]=useState("");
  const[boards,setBoards]=useState<Record<string,Scoreboard>>({});
  const resultDialog=useRef<HTMLDialogElement>(null);
- const confirmedStarts=useRef(new Map<string,string>());
+ const confirmedStartChanges=useRef(new Map<string,string|null>());
  const [lastStartedMatch,setLastStartedMatch]=useState<string|null>(null);
  const[busy,setBusy]=useState<string|null>(null),[message,setMessage]=useState("");
  const[zoneFilter,setZoneFilter]=useState(""),[categoryFilter,setCategoryFilter]=useState("");
@@ -34,12 +34,15 @@ export default function RunningClient({tournamentId,initialMatches,initialSchedu
  const s=useMemo(()=>createClient(),[]),router=useRouter();
  useEffect(()=>{
    setMatches(initialMatches.map(match=>{
-     const startedAt=confirmedStarts.current.get(match.id);
-     if(!startedAt)return match;
-     if(match.status==="scheduled"||match.status==="ready"){
+     const startedAt=confirmedStartChanges.current.get(match.id);
+     if(startedAt===undefined)return match;
+     if(startedAt===null&&match.status==="running"){
+       return {...match,status:"scheduled",started_at:null,scoreboard:null};
+     }
+     if(startedAt&&(match.status==="scheduled"||match.status==="ready")){
        return {...match,status:"running",started_at:startedAt};
      }
-     confirmedStarts.current.delete(match.id);
+     confirmedStartChanges.current.delete(match.id);
      return match;
    }));
  },[initialMatches]);
@@ -66,13 +69,34 @@ export default function RunningClient({tournamentId,initialMatches,initialSchedu
    const {error}=await s.rpc("start_match",{p_match_id:m.id});
    if(error){setMessage(error.message);return;}
    const startedAt=new Date().toISOString();
-   confirmedStarts.current.set(m.id,startedAt);
+   confirmedStartChanges.current.set(m.id,startedAt);
    setMatches(current=>current.map(match=>match.id===m.id&&(match.status==="scheduled"||match.status==="ready")
      ?{...match,status:"running",started_at:startedAt}:match));
    setLastStartedMatch(m.id);
    router.refresh();
  });}
  const action = useActionFeedback(() => { setBusy(null); });
+ async function cancelStart(match:Match){
+   if(!window.confirm(locale==="kk"
+     ?"Бастауды болдырмау керек пе? Жекпе-жек кезекке қайтады, есеп пен таймер бастапқы күйге түседі."
+     :"Отменить начало? Бой вернётся в очередь, счёт и таймер сбросятся."))return;
+   return action.run(async()=>{
+     setBusy(match.id);
+     setMessage("");
+     const {error}=await s.rpc("cancel_match_start",{p_match_id:match.id});
+     if(error){setMessage(error.message);return;}
+     confirmedStartChanges.current.set(match.id,null);
+     setMatches(current=>current.map(bout=>bout.id===match.id&&bout.status==="running"
+       ?{...bout,status:"scheduled",started_at:null,scoreboard:null}:bout));
+     setBoards(current=>{
+       const next={...current};
+       delete next[match.id];
+       return next;
+     });
+     setLastStartedMatch(current=>current===match.id?null:current);
+     router.refresh();
+   });
+ }
  async function win(m:Match,id:string){return action.run(async()=>{
    setBusy(m.id);setMessage("");
    const{data,error}=await s.from("match_scoreboards").select("*").eq("match_id",m.id).maybeSingle();
@@ -124,6 +148,8 @@ export default function RunningClient({tournamentId,initialMatches,initialSchedu
        <div className="running-heading"><strong>#{m.match_number}</strong><span className="status">{done?L("Завершён"):m.status==="running"?(locale==="kk"?"Өтіп жатыр":"Идёт"):nextIds.has(m.id)?(locale==="kk"?"Келесі":"Следующий"):L("Запланирован")}</span></div>
        <div className="running-meta"><span>{categoryNames[m.category_id]??L("Категория")}</span><span>{bracketStage(m,matches.filter(row=>row.category_id===m.category_id),locale==="kk",categoryFormats[m.category_id]==="round_robin")}</span><span>{L("Зона: ")}{r.mat_id?zoneNames[r.mat_id]??"—":"—"}</span>{!done&&m.status!=="running"&&!nextIds.has(m.id)&&<span>≈ {time(forecast.get(m.id)?.approximate_time??r.approximate_time)}</span>}</div>
        {!done&&m.status!=="running"&&<button type="button" className="primary" disabled={!!busy||!m.participant_a_id||!m.participant_b_id||matches.some(x=>x.status==="running"&&schedule.some(s=>s.match_id===x.id&&s.mat_id===r.mat_id))} onClick={()=>void start(m)}>{locale==="kk"?"Бастау":"Начать"}</button>}
+       {m.status==="running"&&<button type="button" className="secondary" disabled={!!busy}
+         onClick={()=>void cancelStart(m)}>{locale==="kk"?"Бастауды болдырмау":"Отменить начало"}</button>}
        <div className="running-people">{([{"id":m.participant_a_id,"person":m.participantA},{"id":m.participant_b_id,"person":m.participantB}]).map((f,j)=><div className="running-person" key={j}>
          <span className="running-name"><strong>{f.person?name(f.person):pendingAthlete(m,j===0?"a":"b",matches,locale==="kk")}</strong>{f.person?.club&&<small>{f.person.club}</small>}</span>
          <button type="button" aria-label={m.status!=="running"&&!done?`${locale==="kk"?"Қарсылас келмеді, жеңімпаз":"Неявка соперника, победитель"}: ${name(f.person)}`:undefined} className={done&&m.winner_id?(m.winner_id===f.id?"result-win":"result-loss"):"result-pick"} disabled={done||!!busy||(m.status!=="running"&&!availableMethods.some(row=>row[0]==="walkover"))||!f.id||!m.participant_a_id||!m.participant_b_id||!["running","ready","scheduled"].includes(m.status)} onClick={()=>f.id&&void win(m,f.id)}>{done&&m.winner_id?(m.winner_id===f.id?L("Победил"):L("Проиграл")):m.status==="running"?L("Победа"):(locale==="kk"?"Келмеу":"Неявка")}</button>
