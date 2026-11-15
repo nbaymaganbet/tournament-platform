@@ -57,10 +57,16 @@ test('live refresh batches bursts, defers while editing, refreshes on reconnect 
  }finally{[global.setTimeout,global.clearTimeout,global.setInterval,global.clearInterval]=originals;restore()}
 });
 
-test('participant list accepts external updates without losing an open edit form',()=>{
+test('participant list counts the selected status and accepts external updates without losing an open edit form',()=>{
  const h=hooks(),client={};const mod=load('app/organizer/tournaments/[id]/participants/participants-client.tsx',{react:h.react,...locale,'@/lib/supabase/client':{createClient:()=>client},'@/lib/i18n':{translations:{ru:{participantStatuses:{confirmed:'confirmed'}}}},'@/components/action-feedback':{ActionScope:'scope',useActionFeedback:()=>({pending:false,error:'',run:fn=>fn()})}});
- const a={id:'a',participant_id:'a',first_name:'A',last_name:'One',status:'confirmed',payment_status:'paid',age:10,weight:35};const b={...a,id:'b',participant_id:'b',first_name:'B'};let rows=[a];const render=()=>{h.render(()=>mod.default({tournamentId:'t',initialRows:rows}));return h.render(()=>mod.default({tournamentId:'t',initialRows:rows}))};let tree=render();assert.equal(nodes(tree,'article').length,1);rows=[a,b];tree=render();assert.equal(nodes(tree,'article').length,2);
- nodes(tree,'button').find(n=>n.props['aria-label']==='Действия').props.onClick();tree=render();nodes(tree,'button').find(n=>n.props.children==='Изменить').props.onClick();tree=render();assert.equal(tree.props.paused,true);
+ const a={id:'a',participant_id:'a',first_name:'A',last_name:'One',status:'confirmed',payment_status:'paid',age:10,weight:35};const b={...a,id:'b',participant_id:'b',first_name:'B',status:'pending_confirmation',payment_status:'unpaid'};let rows=[a];const render=()=>{h.render(()=>mod.default({tournamentId:'t',initialRows:rows}));return h.render(()=>mod.default({tournamentId:'t',initialRows:rows}))};let tree=render();assert.equal(nodes(tree,'article').length,1);rows=[a,b];tree=render();assert.equal(nodes(tree,'article').length,2);
+ const count=()=>nodes(nodes(tree,'header')[0],'strong')[0].props.children;
+ const selectStatus=value=>{nodes(tree,'select')[0].props.onChange({target:{value}});tree=render()};
+ assert.equal(count(),2);
+ selectStatus('confirmed');assert.equal(count(),1);assert.deepEqual(nodes(tree,'article').map(node=>node.key),['a']);
+ selectStatus('pending_confirmation');assert.equal(count(),1);assert.deepEqual(nodes(tree,'article').map(node=>node.key),['b']);
+ selectStatus('all');assert.equal(count(),2);
+ nodes(tree,'button').find(n=>n.props['aria-label']==='Действия').props.onClick();tree=render();nodes(tree,'button').find(n=>n.props.children==='Изменить').props.onClick();tree=render();assert.equal(nodes(tree,'scope')[0].props.paused,true);
  const first=nodes(tree,'input').find(n=>n.props.value==='A');first.props.onChange({target:{value:'Unsaved name'}});rows=[{...a,first_name:'External name'},b];tree=render();assert.ok(nodes(tree,'input').some(n=>n.props.value==='Unsaved name'));h.cleanup();
 });
 

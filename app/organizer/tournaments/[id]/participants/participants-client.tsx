@@ -3,14 +3,14 @@ import { ActionScope, useActionFeedback } from "@/components/action-feedback";
 import { useLocale } from "@/components/locale-provider";
 
 import { availableDivisions, divisionNames, type Division } from "@/lib/tournament-divisions";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { translations } from "@/lib/i18n";
 
 type Row = { id:string; participant_id:string; division:string; application_number:string|null; status:string; payment_status:string; first_name:string; last_name:string; age:number; weight:number; experience:string|null; phone:string|null; city:string|null; club:string|null; coach:string|null };
 type EditForm = Pick<Row,"first_name"|"last_name"|"age"|"weight"|"experience"|"phone"|"city"|"club"|"coach">;
 
-export default function ParticipantsClient({ tournamentId, initialRows, divisions=[] }: { tournamentId:string; initialRows:Row[]; divisions?:Division[] }) {
+export default function ParticipantsClient({ tournamentId, initialRows, divisions=[], children }: { tournamentId:string; initialRows:Row[]; divisions?:Division[]; children:ReactNode }) {
   const locale = useLocale();
   const t = translations[locale];
   const labels=locale==="kk"?{edit:"Өзгерту",delete:"Өтінімді жою",menu:"Әрекеттер",confirm:"Өтінімді растау",confirmed:"Өтінім расталды",deleteConfirm:"Бұл өтінімді жою керек пе?",unconfirm:"Растауды болдырмау",unconfirmConfirm:"Өтінімнің расталуын болдырмау керек пе?",inBracket:"Спортшы торға енгізілген. Өтінімнің расталуын болдырмауға болмайды. Келмеген жағдайда «Өткізу» бөлімінде қарсыластың жеңісін тіркеңіз.",notConfirmed:"Өтінім енді расталмаған. Тізімді жаңартыңыз.",save:"Сақтау",cancel:"Бас тарту",editTitle:"Өтінімді өзгерту",first:"Аты",last:"Тегі",age:"Жасы",weight:"Салмағы",experience:"Тәжірибесі",phone:"Телефон",city:"Қала",club:"Клуб",coach:"Жаттықтырушы"}:{edit:"Изменить",delete:"Удалить заявку",menu:"Действия",confirm:"Подтвердить заявку",confirmed:"Заявка подтверждена",deleteConfirm:"Удалить эту заявку?",unconfirm:"Отменить подтверждение",unconfirmConfirm:"Отменить подтверждение заявки?",inBracket:"Спортсмен уже включён в сетку. Отменить подтверждение нельзя. При неявке зафиксируйте победу соперника в «Проведении».",notConfirmed:"Заявка уже не подтверждена. Обновите список.",save:"Сохранить",cancel:"Отмена",editTitle:"Изменить заявку",first:"Имя",last:"Фамилия",age:"Возраст",weight:"Заявленный вес",experience:"Опыт",phone:"Телефон",city:"Город",club:"Клуб",coach:"Тренер"};
@@ -28,7 +28,23 @@ export default function ParticipantsClient({ tournamentId, initialRows, division
     return byAthlete;
   },[rows]);
   useEffect(()=>{if(!busy&&!editing)setRows(initialRows)},[initialRows]);
-  const filtered=useMemo(()=>{const q=query.trim().toLowerCase(); return rows.filter(r=>{const text=[r.first_name,r.last_name,r.city,r.club,r.coach,r.application_number,r.phone].filter(Boolean).join(" ").toLowerCase(); const confirmed=r.payment_status==="paid"&&r.status==="confirmed"; const statusOk=statusFilter==="all"||(statusFilter==="confirmed"?confirmed:!confirmed); return (!q||text.includes(q))&&statusOk;});},[rows,query,statusFilter]);
+  const statusRows = useMemo(() => {
+    if (statusFilter === "all") return rows;
+    return rows.filter(row => {
+      const confirmed = row.payment_status === "paid" && row.status === "confirmed";
+      return statusFilter === "confirmed" ? confirmed : !confirmed;
+    });
+  }, [rows, statusFilter]);
+
+  const filtered = useMemo(() => {
+    const search = query.trim().toLowerCase();
+    if (!search) return statusRows;
+    return statusRows.filter(row => {
+      const text = [row.first_name, row.last_name, row.city, row.club, row.coach, row.application_number, row.phone]
+        .filter(Boolean).join(" ").toLowerCase();
+      return text.includes(search);
+    });
+  }, [statusRows, query]);
   const action = useActionFeedback(() => { setBusy(null); });
  async function confirmApplication(id:string){ return action.run(async () => { setBusy(id);setOpenMenu(null);const {data,error}=await supabase.rpc("confirm_tournament_registration",{p_registration_id:id});if(!error&&data)setRows(c=>c.map(r=>r.id===id?{...r,status:"confirmed",payment_status:"paid"}:r));if(error)window.alert(error.message);setBusy(null); }); }
   async function cancelApplication(row:Row){ return action.run(async()=>{
@@ -81,7 +97,9 @@ export default function ParticipantsClient({ tournamentId, initialRows, division
     setForm(null);
     setBusy(null);
   }); }
-  return <ActionScope pending={action.pending} error={action.error} paused={!!editing}>{<div className="participants-workspace">
+  return <>
+    <header className="section-header">{children}<strong aria-live="polite">{statusRows.length}</strong></header>
+    <ActionScope pending={action.pending} error={action.error} paused={!!editing}>{<div className="participants-workspace">
     <div className="toolbar"><input value={query} onChange={e=>setQuery(e.target.value)} placeholder={t.participantSearch}/><select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}><option value="all">{t.allStatuses}</option><option value="pending_confirmation">{t.pending}</option><option value="confirmed">{t.participantStatuses.confirmed}</option></select></div>
     <div className="participants-list">{filtered.length===0?<div className="empty-state">{t.noApplications}</div>:filtered.map(r=>{const confirmed=r.payment_status==="paid"&&r.status==="confirmed";const listed=availableDivisions(athleteDivisions.get(r.participant_id));const entry=availableDivisions([r.division])[0];return <article className="participant-card" key={r.id} style={{display:"flex",flexDirection:"column",gap:8,padding:"12px 14px"}}><div className="participant-main" style={{minWidth:0,width:"100%"}}><strong>{r.last_name} {r.first_name}</strong>{divisions.length>0&&<span className="muted">{listed.length?listed.map(item=>divisionNames[item]).join(" · "):locale==="kk"?"Бөлім көрсетілмеген":"Раздел не указан"}{(listed.length>1||(!entry&&listed.length>0))&&<small> · {locale==="kk"?"Өтінім":"Заявка"} {entry?divisionNames[entry]:locale==="kk"?"бөлімсіз":"без раздела"}</small>}</span>}<span className="muted">#{r.application_number??"—"} · {r.age} {t.years} · {labels.weight.toLowerCase()} {r.weight} кг · {r.city||labels.city} · {r.club||t.clubNotSet}</span>{(r.coach||r.phone)&&<details><summary className="muted">{locale==="kk"?"Толығырақ":"Подробнее"}</summary>{r.coach&&<div className="muted">{t.coach}: {r.coach}</div>}{r.phone&&<div className="muted">{r.phone}</div>}</details>}</div><div style={{position:"relative",display:"flex",alignItems:"center",gap:8,width:"100%",paddingTop:2}}><button className={confirmed?"secondary":"primary"} disabled={busy===r.id||confirmed} onClick={()=>void confirmApplication(r.id)} style={{minHeight:40,flex:1,whiteSpace:"nowrap"}}>{busy===r.id?"…":confirmed?labels.confirmed:labels.confirm}</button><button type="button" className="secondary" aria-label={labels.menu} title={labels.menu} onClick={()=>setOpenMenu(openMenu===r.id?null:r.id)} style={{minHeight:40,minWidth:44,padding:"0 10px",fontSize:22,lineHeight:1}}>⋮</button>{openMenu===r.id&&<div style={{position:"absolute",right:0,bottom:"calc(100% + 6px)",zIndex:20,minWidth:180,width:"max-content",maxWidth:"calc(100vw - 40px)",padding:6,borderRadius:10,background:"var(--surface,#171717)",border:"1px solid var(--border,#333)",boxShadow:"0 10px 30px rgba(0,0,0,.35)"}}><button type="button" className="secondary" onClick={()=>openEdit(r)} style={{display:"block",width:"100%",textAlign:"left",marginBottom:4}}>{labels.edit}</button>{confirmed&&<button type="button" className="secondary" disabled={busy===`cancel:${r.id}`} onClick={()=>void cancelApplication(r)} style={{display:"block",width:"100%",textAlign:"left",marginBottom:4}}>{labels.unconfirm}</button>}<button type="button" className="danger-button" disabled={busy===`delete:${r.id}`} onClick={()=>void deleteApplication(r)} style={{display:"block",width:"100%",textAlign:"left"}}>{busy===`delete:${r.id}`?"…":labels.delete}</button></div>}</div></article>})}</div>
     {editing&&form&&<div style={{position:"fixed",inset:0,zIndex:50,background:"rgba(0,0,0,.7)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={()=>{if(!busy)setEditing(null)}}><div className="form-card" style={{width:"min(100%,520px)",maxHeight:"90vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}><div className="participant-main" style={{marginBottom:16}}><strong>{labels.editTitle}</strong><span className="muted">#{editing.application_number??"—"}</span></div><div className="bracket-editor-grid">{([["first_name",labels.first],["last_name",labels.last],["age",labels.age],["weight",labels.weight],["experience",labels.experience],["phone",labels.phone],["city",labels.city],["club",labels.club],["coach",labels.coach]] as const).map(([key,label])=><label key={key}>{label}<input className="field" type={key==="age"||key==="weight"?"number":"text"} value={form[key]??""} onChange={e=>setForm(f=>f?{...f,[key]:key==="age"||key==="weight"?Number(e.target.value):e.target.value}:f)} /></label>)}</div>
@@ -97,6 +115,7 @@ export default function ParticipantsClient({ tournamentId, initialRows, division
       </fieldset>}
       {editError&&<p role="alert" className="error">{editError}</p>}
       <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:16}}><button type="button" className="secondary" disabled={!!busy} onClick={()=>setEditing(null)}>{labels.cancel}</button><button type="button" className="primary" disabled={busy===`edit:${editing.id}`} onClick={()=>void saveEdit()}>{busy===`edit:${editing.id}`?"…":labels.save}</button></div></div></div>}
-  </div>}</ActionScope>;
+  </div>}</ActionScope>
+  </>;
 }
 
