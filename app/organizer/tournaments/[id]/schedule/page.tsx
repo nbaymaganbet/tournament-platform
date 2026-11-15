@@ -17,7 +17,7 @@ export default async function SchedulePage({params}:{params:Promise<{id:string}>
   if(!user)return null;
   if(!(await hasTournamentPermission(s,id,"schedule")))return permissionDeniedPage();
 
-  const {data:t}=await s.from("tournaments").select("id,name,organizer_id,date,divisions,gi_start_at,no_gi_start_at,schedule_start_time,bout_minutes,bout_interval_minutes,athlete_rest_minutes").eq("id",id).single();
+  const {data:t}=await s.from("tournaments").select("id,name,organizer_id,date,divisions,gi_start_at,no_gi_start_at,schedule_start_time,bout_minutes,bout_interval_minutes,athlete_rest_minutes,schedule_category_order").eq("id",id).single();
   if(!t)notFound();
 
   const [{data:o},{data:member}]=await Promise.all([
@@ -42,7 +42,10 @@ export default async function SchedulePage({params}:{params:Promise<{id:string}>
       }))}/>
     </details>
 
-    <ScheduleClient divisionStarts={availableDivisions(t.divisions).map(division=>{
+    <ScheduleClient savedCategoryOrder={t.schedule_category_order??[]} categories={(categories??[]).map(c=>({
+      id:c.id, name:categoryLabel([c.age_group_name,c.name].filter(Boolean).join(" · "),c.division),
+      ageMin:c.age_min??Number.MAX_SAFE_INTEGER, ageMax:c.age_max??Number.MAX_SAFE_INTEGER,
+    }))} divisionStarts={availableDivisions(t.divisions).map(division=>{
       const start=division==="gi"?t.gi_start_at:t.no_gi_start_at;
       const parts=start?Object.fromEntries(new Intl.DateTimeFormat("en-GB",{timeZone:"Asia/Almaty",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(new Date(start)).map(part=>[part.type,part.value])):null;
       return {division,date:parts?`${parts.year}-${parts.month}-${parts.day}`:t.date??"",time:parts?`${parts.hour}:${parts.minute}`:(t.schedule_start_time??"10:00").slice(0,5),saved:Boolean(start)};

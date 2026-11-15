@@ -8,9 +8,11 @@ import {useEffect,useMemo,useState} from "react";
 import {createClient} from "@/lib/supabase/client";
 import {translations} from "@/lib/i18n";
 
+import CategoryOrder, { type ScheduleCategory } from "./category-order";
+
 type DivisionStart = {division:Division;date:string;time:string;saved:boolean};
 
-export default function ScheduleClient({tournamentId,startTime,scheduledCount,timing,divisionStarts=[]}:{tournamentId:string;startTime:string;scheduledCount:number;divisionStarts?:DivisionStart[];timing:{duration:number;gap:number;rest:number}}){
+export default function ScheduleClient({tournamentId,startTime,scheduledCount,timing,divisionStarts=[],categories=[],savedCategoryOrder=[]}:{categories?:ScheduleCategory[];savedCategoryOrder?:string[];tournamentId:string;startTime:string;scheduledCount:number;divisionStarts?:DivisionStart[];timing:{duration:number;gap:number;rest:number}}){
  const L = (text: string) => uiText(locale, text);
 
  const locale = useLocale();
@@ -44,7 +46,34 @@ export default function ScheduleClient({tournamentId,startTime,scheduledCount,ti
    setStarts(current=>current.map(item=>item.division===division?{...item,[key]:value,saved:false}:item));
  }
  async function saveTiming(){return action.run(async()=>{setSaving("timing");setMessage("");const {error}=await s.rpc("save_bout_timing",{p_tournament_id:tournamentId,p_duration:bout.duration,p_interval:bout.gap,p_rest:bout.rest});setMessage(error?error.message:locale==="kk"?"Сақталды":"Сохранено");setSaving(null);});}
- async function generate(){ return action.run(async () => { if(!validTime){setMessage(L("Укажите время от 00:00 до 23:59."));return}if(starts.some(start=>!start.saved)){setMessage(locale==="kk"?"Әр бөлімнің басталу күні мен уақытын сақтаңыз.":"Сохраните дату и время старта каждого раздела.");return}setSaving("generate");setMessage("");if(!starts.length||timeDirty){const saved=await s.rpc("save_tournament_schedule_start_time",{p_tournament_id:tournamentId,p_start_time:startTimeInput});if(saved.error){setMessage(saved.error.message);setSaving(null);return}}const result=await s.rpc(youngerFirst?"generate_tournament_schedule_younger_first":"generate_tournament_schedule",{p_tournament_id:tournamentId});if(result.error){setMessage(result.error.message);setSaving(null);return}setTimeDirty(false);window.dispatchEvent(new Event("tp-action-finished")) }); }
+ async function generate(order?: string[]) {
+   let success = false;
+   await action.run(async () => {
+     if (!validTime) {
+       setMessage(L("Укажите время от 00:00 до 23:59."));
+       return;
+     }
+     if (starts.some(start => !start.saved)) {
+       setMessage(locale === "kk" ? "Әр бөлімнің басталу күні мен уақытын сақтаңыз." : "Сохраните дату и время старта каждого раздела.");
+       return;
+     }
+     setSaving("generate");
+     setMessage("");
+     if (!starts.length || timeDirty) {
+       const { error } = await s.rpc("save_tournament_schedule_start_time", {
+         p_tournament_id: tournamentId, p_start_time: startTimeInput,
+       });
+       if (error) { setMessage(error.message); return; }
+     }
+     const { error } = await s.rpc("plan_tournament_schedule", {
+       p_tournament_id: tournamentId, p_younger_first: youngerFirst, p_category_order: order ?? null,
+     });
+     if (error) { setMessage(error.message); return; }
+     setTimeDirty(false);
+     success = true;
+   });
+   return success;
+ }
  async function orderByStage(){
   if(!window.confirm(locale==="kk"?"Күтіп тұрған кездесулерді тор кезеңдері бойынша реттеу керек пе? Қолмен қойылған кезек өзгереді.":"Упорядочить предстоящие бои по этапам? Ручной порядок этих боёв будет заменён."))return;
   return action.run(async()=>{
@@ -86,6 +115,7 @@ export default function ScheduleClient({tournamentId,startTime,scheduledCount,ti
    </label>
    <button className="primary schedule-generate" type="button" disabled={!!saving} onClick={()=>void generate()}>{saving==="generate"?t.generating:scheduledCount>0?(locale==="kk"?"Кестені жаңарту":"Обновить расписание"):t.generateSchedule}</button>
    {scheduledCount>0&&<button className="secondary schedule-generate" type="button" disabled={!!saving} onClick={()=>void orderByStage()}>{locale==="kk"?"Кезеңдер бойынша реттеу":"Упорядочить по этапам"}</button>}
+   {categories.length>0&&<CategoryOrder categories={categories} savedOrder={savedCategoryOrder} youngerFirst={youngerFirst} kk={locale==="kk"} disabled={!!saving} onSave={generate}/>}
    {scheduledCount>0&&<p className="muted">{locale==="kk"?"Кезекте болашақ жекпе-жектерді қоса барлық кезеңдер бар. Кезек «Өткізу» бөлімінде.":"В очередь включены все раунды, включая будущие бои. Очередь находится во вкладке «Проведение»."}</p>}
    {message&&<p className="muted" role="status">{message}</p>}
    <style jsx>{`

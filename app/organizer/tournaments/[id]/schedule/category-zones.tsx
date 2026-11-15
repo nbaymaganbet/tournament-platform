@@ -45,11 +45,12 @@ export default function CategoryZones({ mat, mats, categories, onSaved }: {
 
   return <div style={{ marginTop: 10 }} data-live-paused={draft ? "true" : undefined}>
     {assigned.length > 0 && <ul>{assigned.map(category => <li key={category.id}>{category.name}</li>)}</ul>}
-    {mat.is_active && categories.length > 0 && <button className="secondary" type="button" disabled={action.pending}
+    {!draft && mat.is_active && categories.length > 0 && <button className="secondary" type="button" disabled={action.pending}
       aria-expanded={draft !== null} onClick={() => { setMessage(""); setDraft(draft ? null : { checked: assigned.map(category => category.id), original: categories }); }}>
-      {draft ? (kk ? "Бас тарту" : "Отмена") : (kk ? "Санаттарды тағайындау" : "Назначить категории")}
+      {kk ? "Санаттарды тағайындау" : "Назначить категории"}
     </button>}
     {draft && <fieldset className="tp-action-scope" disabled={action.pending}>
+      <div className="category-zone-list" role="group" aria-label={kk ? "Санаттар" : "Категории"}>
       {categories.map(category => {
         const other = mats.find(zone => zone.id !== mat.id && zone.id === category.preferred_mat_id);
         return <label className="checkbox-row" key={category.id}>
@@ -60,7 +61,16 @@ export default function CategoryZones({ mat, mats, categories, onSaved }: {
           <span>{category.name}{other && <small className="muted"> · {other.name}</small>}</span>
         </label>;
       })}
-      <button className="primary" type="button" onClick={() => void save()}>{kk ? "Сақтау" : "Сохранить"}</button>
+      </div>
+      <div className="category-zone-actions">
+        <button className="primary" type="button" onClick={() => void save()}>{kk ? "Сақтау" : "Сохранить"}</button>
+        <button className="secondary" type="button" onClick={() => { setDraft(null); setMessage(""); }}>{kk ? "Бас тарту" : "Отмена"}</button>
+      </div>
+      <style jsx>{`
+        .category-zone-list { max-height: min(40dvh, 22rem); overflow-y: auto; }
+        .category-zone-list label { margin: 0; padding: 6px 0; min-height: 40px; }
+        .category-zone-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+      `}</style>
     </fieldset>}
     {(message || action.error) && <p className="error" role="alert">{message || action.error}</p>}
   </div>;

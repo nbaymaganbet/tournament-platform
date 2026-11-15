@@ -126,7 +126,7 @@ test('before start, only walkover can be recorded; points result requires both s
 
 test('hiding optional schedule settings preserves current and edited values without writes',async()=>{
  const h=hooks(),rpc=[];const action={pending:false,error:'',run:fn=>fn()};
- const mod=load('app/organizer/tournaments/[id]/schedule/schedule-client.tsx',{react:h.react,...locale,'@/components/action-feedback':{ActionScope:()=>null,useActionFeedback:()=>action},'@/lib/supabase/client':{createClient:()=>({rpc:async(name,args)=>{rpc.push({name,args});return {error:null}}})}});
+ const mod=load('app/organizer/tournaments/[id]/schedule/schedule-client.tsx',{react:h.react,...locale,'./category-order':{__esModule:true,default:()=>null},'@/components/action-feedback':{ActionScope:()=>null,useActionFeedback:()=>action},'@/lib/supabase/client':{createClient:()=>({rpc:async(name,args)=>{rpc.push({name,args});return {error:null}}})}});
  const props={tournamentId:'t',startTime:'11:00',scheduledCount:32,timing:{duration:7,gap:2,rest:8}};
  const render=()=>h.render(()=>mod.default(props));let tree=render();
  assert.equal(nodes(tree,'input').filter(n=>n.props.type==='number').length,0);assert.equal(rpc.length,0);
