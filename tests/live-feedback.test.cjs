@@ -230,3 +230,31 @@ test('declined and bracket-blocked cancellation keep the participant confirmed',
   assert.equal(rpc.length,1);assert.match(alerts[0],/уже включён в сетку/);assert.ok(nodes(tree,'button').some(n=>n.props.children==='Заявка подтверждена'));
  }finally{h.cleanup();restore()}
 });
+
+test('one confirmed start opens scoreboard controls and shows victory through a stale refresh',async()=>{
+ const h=hooks(),rpc=[];
+ try {
+  const action={pending:false,error:'',run:async fn=>fn()};
+  const mod=load('app/organizer/tournaments/[id]/running/running-client.tsx',{react:h.react,...locale,
+   '@/components/match-scoreboard':{__esModule:true,default:()=>null},
+   'next/navigation':{useRouter:()=>({refresh(){}})},
+   '@/lib/supabase/client':{createClient:()=>({rpc:async(name,args)=>{rpc.push({name,args});return {error:null}}})},
+   '@/components/action-feedback':{ActionScope:'scope',useActionFeedback:()=>action}});
+  const match={id:'m',category_id:'c',status:'scheduled',match_number:1,round_number:1,participant_a_id:'a',participant_b_id:'b',started_at:null,completed_at:null};
+  let props={tournamentId:'t',initialMatches:[match],initialSchedule:[{id:'s',match_id:'m',scheduled_order:1,mat_id:'z'}],categoryNames:{c:'Category'},zoneNames:{z:'Mat'},timing:{duration:5,gap:0,rest:5}};
+  const render=()=>h.render(()=>mod.default(props));
+  nodes(render(),'button').find(n=>n.props.children==='Начать').props.onClick();
+  await new Promise(setImmediate);
+  const check=()=>{
+   const card=nodes(render(),'article')[0];
+   assert.equal(nodes(card,'button').filter(n=>n.props.children==='Победа').length,2);
+   assert.equal(nodes(card,'details')[0].props.open,true);
+   assert.equal(nodes(card,'button').some(n=>n.props.children==='Начать'),false);
+  };
+  check();
+  props={...props,initialMatches:[{...match}]};
+  render();
+  check();
+  assert.deepEqual(rpc,[{name:'start_match',args:{p_match_id:'m'}}]);
+ } finally {h.cleanup()}
+});

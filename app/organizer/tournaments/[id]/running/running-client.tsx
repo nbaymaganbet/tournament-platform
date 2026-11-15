@@ -25,12 +25,24 @@ export default function RunningClient({tournamentId,initialMatches,initialSchedu
  const[result,setResult]=useState<{match:Match;winner:string}|null>(null),[method,setMethod]=useState("points"),[scoreA,setScoreA]=useState(""),[scoreB,setScoreB]=useState("");
  const[boards,setBoards]=useState<Record<string,Scoreboard>>({});
  const resultDialog=useRef<HTMLDialogElement>(null);
+ const confirmedStarts=useRef(new Map<string,string>());
+ const [lastStartedMatch,setLastStartedMatch]=useState<string|null>(null);
  const[busy,setBusy]=useState<string|null>(null),[message,setMessage]=useState("");
  const[zoneFilter,setZoneFilter]=useState(""),[categoryFilter,setCategoryFilter]=useState("");
  const [divisionFilter,setDivisionFilter]=useState("");
  const availableMethods=victoryMethods.filter(([method])=>!allowedMethods||allowedMethods.includes(method));
  const s=useMemo(()=>createClient(),[]),router=useRouter();
- useEffect(()=>{setMatches(initialMatches)},[initialMatches]);
+ useEffect(()=>{
+   setMatches(initialMatches.map(match=>{
+     const startedAt=confirmedStarts.current.get(match.id);
+     if(!startedAt)return match;
+     if(match.status==="scheduled"||match.status==="ready"){
+       return {...match,status:"running",started_at:startedAt};
+     }
+     confirmedStarts.current.delete(match.id);
+     return match;
+   }));
+ },[initialMatches]);
  useEffect(()=>{setSchedule(initialSchedule)},[initialSchedule]);
  const [now,setNow]=useState(()=>Date.now());
  useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),15000);return()=>clearInterval(timer)},[]);
@@ -48,7 +60,18 @@ export default function RunningClient({tournamentId,initialMatches,initialSchedu
    return !!match&&(!divisionFilter||categoryDivisions[match.category_id]===divisionFilter)&&(!zoneFilter||slot.mat_id===zoneFilter)&&(!categoryFilter||match.category_id===categoryFilter);
  });
  const time=(v:string|null)=>v?new Date(v).toLocaleString("ru-RU",{...(divisions.length?{day:"2-digit",month:"2-digit"} as const:{}),hour:"2-digit",minute:"2-digit",timeZone:"Asia/Almaty"}):"—";
- async function start(m:Match){return action.run(async()=>{setBusy(m.id);setMessage("");const {error}=await s.rpc("start_match",{p_match_id:m.id});if(error)setMessage(error.message);else router.refresh();setBusy(null);});}
+ async function start(m:Match){return action.run(async()=>{
+   setBusy(m.id);
+   setMessage("");
+   const {error}=await s.rpc("start_match",{p_match_id:m.id});
+   if(error){setMessage(error.message);return;}
+   const startedAt=new Date().toISOString();
+   confirmedStarts.current.set(m.id,startedAt);
+   setMatches(current=>current.map(match=>match.id===m.id&&(match.status==="scheduled"||match.status==="ready")
+     ?{...match,status:"running",started_at:startedAt}:match));
+   setLastStartedMatch(m.id);
+   router.refresh();
+ });}
  const action = useActionFeedback(() => { setBusy(null); });
  async function win(m:Match,id:string){return action.run(async()=>{
    setBusy(m.id);setMessage("");
@@ -106,7 +129,7 @@ export default function RunningClient({tournamentId,initialMatches,initialSchedu
          <button type="button" aria-label={m.status!=="running"&&!done?`${locale==="kk"?"Қарсылас келмеді, жеңімпаз":"Неявка соперника, победитель"}: ${name(f.person)}`:undefined} className={done&&m.winner_id?(m.winner_id===f.id?"result-win":"result-loss"):"result-pick"} disabled={done||!!busy||(m.status!=="running"&&!availableMethods.some(row=>row[0]==="walkover"))||!f.id||!m.participant_a_id||!m.participant_b_id||!["running","ready","scheduled"].includes(m.status)} onClick={()=>f.id&&void win(m,f.id)}>{done&&m.winner_id?(m.winner_id===f.id?L("Победил"):L("Проиграл")):m.status==="running"?L("Победа"):(locale==="kk"?"Келмеу":"Неявка")}</button>
        </div>)}</div>
        {done&&(m.scoreboard?.victory_method?m.scoreboard:boards[m.id])?.victory_method&&<p className="muted">{victoryLabel((m.scoreboard?.victory_method?m.scoreboard:boards[m.id])?.victory_method,locale==="kk")}{(m.scoreboard?.victory_method?m.scoreboard:boards[m.id])?.victory_method==="points"?` · ${(m.scoreboard?.victory_method?m.scoreboard:boards[m.id])?.score_a}:${(m.scoreboard?.victory_method?m.scoreboard:boards[m.id])?.score_b}`:""}</p>}
-       {!done&&m.status==="running"&&<details><summary>{locale==="kk"?"Табло":"Табло"}</summary><MatchScoreboard matchId={m.id} tournamentId={tournamentId} matId={r.mat_id} names={[name(m.participantA),name(m.participantB)]} kk={locale==="kk"} seconds={m.round_seconds??timing.duration*60} rounds={m.round_count??1} rest={m.round_rest_seconds??0} onBoard={b=>setBoards(v=>({...v,[m.id]:b}))}/></details>}
+       {!done&&m.status==="running"&&<details open={lastStartedMatch===m.id||undefined}><summary>{locale==="kk"?"Табло":"Табло"}</summary><MatchScoreboard matchId={m.id} tournamentId={tournamentId} matId={r.mat_id} names={[name(m.participantA),name(m.participantB)]} kk={locale==="kk"} seconds={m.round_seconds??timing.duration*60} rounds={m.round_count??1} rest={m.round_rest_seconds??0} onBoard={b=>setBoards(v=>({...v,[m.id]:b}))}/></details>}
        <div className="running-order"><button type="button" aria-label={`${L("Поднять бой ")}${r.scheduled_order}`} disabled={!!busy||done||m.status==="running"||!previous||["completed","running"].includes(previous.status)} onClick={()=>void move(i,-1)}>↑</button><button type="button" aria-label={`${L("Опустить бой ")}${r.scheduled_order}`} disabled={!!busy||done||m.status==="running"||!next||["completed","running"].includes(next.status)} onClick={()=>void move(i,1)}>↓</button></div>
      </article>})}
    <dialog ref={resultDialog} className="result-dialog" onCancel={e=>{if(busy)e.preventDefault();else setResult(null)}}>
