@@ -28,7 +28,7 @@ export default function RunningClient({tournamentId,initialMatches,initialSchedu
  const confirmedStartChanges=useRef(new Map<string,string|null>());
  const [lastStartedMatch,setLastStartedMatch]=useState<string|null>(null);
  const[busy,setBusy]=useState<string|null>(null),[message,setMessage]=useState("");
- const[zoneFilter,setZoneFilter]=useState(""),[categoryFilter,setCategoryFilter]=useState("");
+ const[zoneFilter,setZoneFilter]=useState(""),[selectedCategory,setCategoryFilter]=useState("");
  const [divisionFilter,setDivisionFilter]=useState("");
  const availableMethods=victoryMethods.filter(([method])=>!allowedMethods||allowedMethods.includes(method));
  const s=useMemo(()=>createClient(),[]),router=useRouter();
@@ -58,10 +58,20 @@ export default function RunningClient({tournamentId,initialMatches,initialSchedu
    const aDone=byId.get(a.match_id)?.status==="completed",bDone=byId.get(b.match_id)?.status==="completed";
    return Number(aDone)-Number(bDone)||(Date.parse(byId.get(a.match_id)?.division_start_at??"")-Date.parse(byId.get(b.match_id)?.division_start_at??"")||0)||a.scheduled_order-b.scheduled_order;
  });
- const visible=ordered.filter(slot=>{
+ const matchingSlots=ordered.filter(slot=>{
    const match=byId.get(slot.match_id);
-   return !!match&&(!divisionFilter||categoryDivisions[match.category_id]===divisionFilter)&&(!zoneFilter||slot.mat_id===zoneFilter)&&(!categoryFilter||match.category_id===categoryFilter);
+   return !!match&&(!divisionFilter||categoryDivisions[match.category_id]===divisionFilter)&&(!zoneFilter||slot.mat_id===zoneFilter);
  });
+ const availableCategories=new Set<string>();
+ for(const slot of matchingSlots){
+   const match=byId.get(slot.match_id);
+   if(match&&match.status!=="cancelled")availableCategories.add(match.category_id);
+ }
+ const categoryFilter=availableCategories.has(selectedCategory)?selectedCategory:"";
+ useEffect(()=>{
+   if(selectedCategory&&!categoryFilter)setCategoryFilter("");
+ },[selectedCategory,categoryFilter]);
+ const visible=categoryFilter?matchingSlots.filter(slot=>byId.get(slot.match_id)?.category_id===categoryFilter):matchingSlots;
  const time=(v:string|null)=>v?new Date(v).toLocaleString("ru-RU",{...(divisions.length?{day:"2-digit",month:"2-digit"} as const:{}),hour:"2-digit",minute:"2-digit",timeZone:"Asia/Almaty"}):"—";
  async function start(m:Match){return action.run(async()=>{
    setBusy(m.id);
@@ -122,7 +132,7 @@ export default function RunningClient({tournamentId,initialMatches,initialSchedu
    if(error)setMessage(error.message);else router.refresh();setBusy(null) }); }
  return <ActionScope pending={action.pending} error={action.error} paused={result!==null}>{<section className="running-list">
    <div className="running-filters">
-     {divisions.length>0&&<label>{locale==="kk"?"Бөлім":"Раздел"}<select className="field" value={divisionFilter} onChange={event=>{setDivisionFilter(event.target.value);setCategoryFilter("");}}>
+     {divisions.length>0&&<label>{locale==="kk"?"Бөлім":"Раздел"}<select className="field" value={divisionFilter} onChange={event=>setDivisionFilter(event.target.value)}>
        <option value="">{locale==="kk"?"Барлық бөлімдер":"Все разделы"}</option>
        {divisions.map(division=><option key={division} value={division}>{divisionNames[division]}</option>)}
      </select></label>}
@@ -135,7 +145,7 @@ export default function RunningClient({tournamentId,initialMatches,initialSchedu
      <summary>{locale==="kk"?"Сүзгілер":"Фильтры"}{categoryFilter&&categoryNames[categoryFilter]&&<span className="muted"> · {categoryNames[categoryFilter]}</span>}</summary>
      <label className="form-field"><span>{locale==="kk"?"Санат":"Категория"}</span><select className="field" value={categoryFilter} onChange={e=>setCategoryFilter(e.target.value)}>
        <option value="">{locale==="kk"?"Барлық санаттар":"Все категории"}</option>
-       {Object.entries(categoryNames).filter(([id])=>!divisionFilter||categoryDivisions[id]===divisionFilter).map(([id,title])=><option key={id} value={id}>{title}</option>)}
+       {Object.entries(categoryNames).filter(([id])=>availableCategories.has(id)).map(([id,title])=><option key={id} value={id}>{title}</option>)}
      </select></label>
    </details>
    <p className="muted">{locale==="kk"?"Қалған жекпе-жектер":"Осталось боёв"}: {matches.filter(m=>!["completed","cancelled"].includes(m.status)&&(!divisionFilter||categoryDivisions[m.category_id]===divisionFilter)&&(!categoryFilter||m.category_id===categoryFilter)&&(!zoneFilter||schedule.some(s=>s.match_id===m.id&&s.mat_id===zoneFilter))).length}</p>

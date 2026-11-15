@@ -106,10 +106,20 @@ test('adding a second category keeps and reuses the recorded weigh-in', async ()
 test('running filters survive external bouts and reordering preserves hidden slots',async()=>{
  const h=hooks(),rpc=[];const router={refresh(){}};const client={async rpc(name,args){rpc.push({name,args});return {error:null}}};const mod=load('app/organizer/tournaments/[id]/running/running-client.tsx',{react:h.react,...locale,'@/components/match-scoreboard':{__esModule:true,default:()=>null},'next/navigation':{useRouter:()=>router},'@/lib/supabase/client':{createClient:()=>client},'@/components/action-feedback':{ActionScope:'scope',useActionFeedback:()=>({pending:false,error:'',run:fn=>fn()})}});
  const m=(id,c)=>({id,category_id:c,status:'scheduled',match_number:Number(id.slice(1)),round_number:1,participant_a_id:id+'a',participant_b_id:id+'b'});const s=(id,z,n)=>({id:'s'+id,match_id:id,mat_id:z,scheduled_order:n});
- let props={timing:{duration:5,gap:0,rest:5},tournamentId:'t',initialMatches:[m('m1','c1'),m('m2','c2'),m('m3','c1')],initialSchedule:[s('m1','z1',1),s('m2','z2',2),s('m3','z1',3)],categoryNames:{c1:'Category 1',c2:'Category 2'},zoneNames:{z1:'Mat 1',z2:'Mat 2'}};
- const render=()=>{h.render(()=>mod.default(props));return h.render(()=>mod.default(props))};let tree=render();nodes(tree,'select')[0].props.onChange({target:{value:'z1'}});tree=render();nodes(tree,'select')[1].props.onChange({target:{value:'c1'}});tree=render();assert.deepEqual(nodes(tree,'article').map(n=>n.key),['sm1','sm3']);
+ let props={timing:{duration:5,gap:0,rest:5},tournamentId:'t',initialMatches:[m('m1','c1'),m('m2','c2'),m('m3','c1')],initialSchedule:[s('m1','z1',1),s('m2','z2',2),s('m3','z1',3)],categoryNames:{c1:'Category 1',c2:'Category 2',empty:'Empty'},zoneNames:{z1:'Mat 1',z2:'Mat 2'}};
+ const render=()=>{h.render(()=>mod.default(props));return h.render(()=>mod.default(props))};let tree=render();nodes(tree,'select')[0].props.onChange({target:{value:'z1'}});tree=render();assert.deepEqual(nodes(nodes(tree,'select')[1],'option').map(n=>n.props.value),['','c1']);nodes(tree,'select')[1].props.onChange({target:{value:'c1'}});tree=render();assert.deepEqual(nodes(tree,'article').map(n=>n.key),['sm1','sm3']);
  nodes(tree,'button').find(n=>n.props['aria-label']==='Опустить бой 1').props.onClick();await new Promise(setImmediate);assert.deepEqual(rpc[0].args.p_match_ids,['m3','m2','m1']);
- props={...props,initialMatches:[...props.initialMatches,m('m4','c1')],initialSchedule:[...props.initialSchedule,s('m4','z1',4)]};tree=render();assert.deepEqual(nodes(tree,'select').map(n=>n.props.value),['z1','c1']);assert.deepEqual(nodes(tree,'article').map(n=>n.key),['sm1','sm3','sm4']);h.cleanup();
+ props={...props,initialMatches:[...props.initialMatches,m('m4','c1')],initialSchedule:[...props.initialSchedule,s('m4','z1',4)]};tree=render();assert.deepEqual(nodes(tree,'select').map(n=>n.props.value),['z1','c1']);assert.deepEqual(nodes(tree,'article').map(n=>n.key),['sm1','sm3','sm4']);
+ props={...props,divisions:['gi','no_gi'],categoryDivisions:{c1:'gi',c2:'no_gi',empty:'gi'}};
+ tree=render();
+ nodes(tree,'select')[0].props.onChange({target:{value:'gi'}});tree=render();
+ assert.deepEqual(nodes(tree,'select').map(n=>n.props.value),['gi','z1','c1']);
+ nodes(tree,'select')[1].props.onChange({target:{value:'z2'}});tree=render();
+ assert.deepEqual(nodes(tree,'select').map(n=>n.props.value),['gi','z2','']);
+ assert.deepEqual(nodes(nodes(tree,'select')[2],'option').map(n=>n.props.value),['']);
+ nodes(tree,'select')[0].props.onChange({target:{value:'no_gi'}});tree=render();
+ assert.deepEqual(nodes(nodes(tree,'select')[2],'option').map(n=>n.props.value),['','c2']);
+ h.cleanup();
 });
 
 test('before start, only walkover can be recorded; points result requires both scores',async()=>{
