@@ -65,6 +65,16 @@ export default async function Home() {
     .neq("status", "draft")
     .order("created_at", { ascending: false });
 
+  const orderedTournaments = [...((tournaments ?? []) as Tournament[])].sort((a, b) => {
+    const priority = (status: string) => status === "registration_open" ? 0 : status === "completed" ? 2 : 1;
+    const byStatus = priority(a.status) - priority(b.status);
+    if (byStatus !== 0) return byStatus;
+    if (a.status === "completed" && b.status === "completed") {
+      return (b.date ?? "").localeCompare(a.date ?? "");
+    }
+    return 0;
+  });
+
   return (
     <main><LiveRefresh tables="tournaments" />
       <style>{posterStyles}</style>
@@ -90,7 +100,7 @@ export default async function Home() {
           </section>
         ) : (
           <section className="home-posters">
-            {(tournaments as Tournament[]).map((x) => {
+            {orderedTournaments.map((x) => {
               const posters = [...(x.tournament_posters ?? [])].sort((a, b) => a.sort_order - b.sort_order).map((p) => p.public_url);
               if (!posters.length && x.poster_url) posters.push(x.poster_url);
 
